@@ -1,6 +1,8 @@
+import datetime
 from drivefs_sleuth.tasks import get_logged_in_accounts
 from drivefs_sleuth.tasks import get_connected_devices
 from drivefs_sleuth.tasks import construct_synced_files_trees
+from drivefs_sleuth.utils import get_last_sync
 
 
 class Profile:
@@ -11,6 +13,8 @@ class Profile:
         # TODO: reformat the connected devices
         self.__connected_devices = get_connected_devices(drivefs_path)
         self.__synced_trees = construct_synced_files_trees(drivefs_path)
+
+        self.__last_sync_date = datetime.datetime.fromtimestamp(get_last_sync(drivefs_path), datetime.timezone.utc)
 
     def get_drivefs_path(self):
         return self.__drivefs_path
@@ -24,6 +28,9 @@ class Profile:
     def get_connected_devices(self):
         return self.__connected_devices
 
+    def get_last_sync_date(self):
+        return self.__last_sync_date
+
     def get_synced_trees(self):
         return self.__synced_trees
 
@@ -32,3 +39,5 @@ profile = Profile("C:\\Users\\Amged Wageh\\AppData\\Local\\Google\\DriveFS")
 synced_trees = profile.get_synced_trees()
 for tree in synced_trees:
     tree.print_synced_files_tree()
+
+print(profile.get_last_sync_date())

@@ -26,3 +26,11 @@ def get_item_info(drivefs_path, account_id, stable_id):
     cursor.execute(f"SELECT is_folder, stable_id, local_title, mime_type, is_owner, file_size, modified_date, "
                    f"viewed_by_me_date, trashed FROM items WHERE stable_id={stable_id}")
     return cursor.fetchone()
+
+
+# TODO: check if there is multiple logged in accounts
+def get_last_sync(drivefs_path):
+    experiments_db = sqlite3.connect(os.path.join(drivefs_path, "experiments.db"))
+    cursor = experiments_db.cursor()
+    cursor.execute("SELECT value FROM PhenotypeValues WHERE key='last_sync'")
+    return int(cursor.fetchone()[0])

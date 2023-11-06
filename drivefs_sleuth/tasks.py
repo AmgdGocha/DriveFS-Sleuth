@@ -1,6 +1,5 @@
 import os
 import re
-import sys
 import sqlite3
 from collections import OrderedDict
 from jinja2 import Template
