@@ -39,10 +39,7 @@ def get_connected_devices(drivefs_path):
     root_preference_db = sqlite3.connect(os.path.join(drivefs_path, "root_preference_sqlite.db"))
     cursor = root_preference_db.cursor()
     cursor.execute("SELECT * FROM media")
-    connected_devices = cursor.fetchall()
-
-    for connected_device in connected_devices:
-        print(connected_device)
+    return cursor.fetchall()
 
 
 def __construct_synced_files_tree(synced_files_tree, parent_relationships, drivefs_path, account_id):
@@ -171,9 +168,10 @@ def generate_html_report(synced_files):
 # tree = construct_synced_files_tree("C:\\Amged\\Incidents\\DriveFS\\Triage\\ry-lp-223350a\\DriveFS", "106203366528331438369")
 # accounts = get_logged_in_accounts("C:\\Users\\Amged Wageh\\AppData\\Local\\Google\\DriveFS")
 # print(accounts)
-synced_trees = construct_synced_files_trees("C:\\Users\\Amged Wageh\\AppData\\Local\\Google\\DriveFS")
-for tree in synced_trees:
-    tree.print_synced_files_tree()
+# synced_trees = construct_synced_files_trees("C:\\Users\\Amged Wageh\\AppData\\Local\\Google\\DriveFS")
+# for tree in synced_trees:
+#     tree.print_synced_files_tree()
+# get_connected_devices("C:\\Users\\Amged Wageh\\AppData\\Local\\Google\\DriveFS")
 # print(f'Orphans = {len(tree.get_orphan_items())}')
 # html_report = generate_html_report([tree.get_root()] + tree.get_orphan_items())
 # print('Report Generated.')
