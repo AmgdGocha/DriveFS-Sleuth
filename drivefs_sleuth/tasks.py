@@ -4,12 +4,12 @@ import sys
 import sqlite3
 from collections import OrderedDict
 from jinja2 import Template
-from google_drivefs_forensics.utils import get_item_info
-from google_drivefs_forensics.utils import get_synced_files
-from google_drivefs_forensics.utils import get_parent_relationships
-from google_drivefs_forensics.synced_files_tree import File
-from google_drivefs_forensics.synced_files_tree import Directory
-from google_drivefs_forensics.synced_files_tree import SyncedFilesTree
+from drivefs_sleuth.utils import get_item_info
+from drivefs_sleuth.utils import get_synced_files
+from drivefs_sleuth.utils import get_parent_relationships
+from drivefs_sleuth.synced_files_tree import File
+from drivefs_sleuth.synced_files_tree import Directory
+from drivefs_sleuth.synced_files_tree import SyncedFilesTree
 
 
 def get_logged_in_accounts(drivefs_path):
