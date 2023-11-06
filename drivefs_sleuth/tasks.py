@@ -105,7 +105,7 @@ def construct_synced_files_trees(drivefs_path):
     for account_id, account_email in syncing_accounts.items():
         parent_relationships = get_parent_relationships(drivefs_path, account_id)
         root_info = get_item_info(drivefs_path, account_id, parent_relationships[0][0])
-        synced_files_tree = SyncedFilesTree(root_info, account_id, account_email)
+        synced_files_tree = SyncedFilesTree(root_info)
         __construct_synced_files_tree(synced_files_tree, parent_relationships, drivefs_path, account_id)
         synced_trees.append(synced_files_tree)
 

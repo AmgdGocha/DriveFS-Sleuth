@@ -68,22 +68,14 @@ def _print_tree(roots, indent=''):
 
 
 class SyncedFilesTree:
-    def __init__(self, root_info, account_id, account_email):
+    def __init__(self, root_info):
         self.__root = Directory(root_info[1], root_info[2], root_info[3], root_info[4], root_info[5], root_info[6],
                                 root_info[7], root_info[8])
-        self.__account_id = account_id
-        self.__account_email = account_email
         self.__orphan_items = []
         self.__deleted_items = []
 
     def get_root(self):
         return self.__root
-
-    def get_account_id(self):
-        return self.__account_id
-
-    def get_account_email(self):
-        return self.__account_email
 
     def get_orphan_items(self):
         return self.__orphan_items
@@ -114,9 +106,6 @@ class SyncedFilesTree:
         return None
 
     def print_synced_files_tree(self):
-        print(f'Account ID: {self.get_account_id()}')
-        print(f'Account Email: {self.get_account_email()}')
-
         print('\n----------Synced Items----------\n')
 
         _print_tree([self.get_root()] + self.get_orphan_items())
