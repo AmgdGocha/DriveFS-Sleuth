@@ -1,6 +1,8 @@
 class Item:
-    def __init__(self, stable_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date, trashed):
+    def __init__(self, stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date,
+                 trashed, properties):
         self.__stable_id = stable_id
+        self.__id = url_id
         self.local_title = local_title
         self.mime_type = mime_type
         self.is_owner = is_owner
@@ -8,6 +10,7 @@ class Item:
         self.modified_date = modified_date
         self.viewed_by_me_date = viewed_by_me_date
         self.trashed = trashed
+        self.properties = properties
 
     def get_stable_id(self):
         return self.__stable_id
@@ -17,31 +20,22 @@ class Item:
 
 
 class File(Item):
-    def __init__(self, stable_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date,
-                 trashed):
-        super().__init__(stable_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date,
-                         trashed)
+    def __init__(self, stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date,
+                 trashed, properties):
+        super().__init__(stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date,
+                         viewed_by_me_date, trashed, properties)
 
 
 class Directory(Item):
-    def __init__(self, stable_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date,
-                 trashed):
-        super().__init__(stable_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date,
-                         trashed)
+    def __init__(self, stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date,
+                 trashed, properties):
+        super().__init__(stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date,
+                         viewed_by_me_date, trashed, properties)
         self.__sub_items = []
 
     # TODO: do proper check for the added items
     def add_item(self, item):
         self.__sub_items.append(item)
-    # def add_item(self, item_info):
-    #     if item_info[0] == 0:
-    #         item = File(item_info[1], item_info[2], item_info[3], item_info[4], item_info[5], item_info[6],
-    #                     item_info[7], item_info[8])
-    #     else:
-    #         item = Directory(item_info[1], item_info[2], item_info[3], item_info[4], item_info[5], item_info[6],
-    #                          item_info[7], item_info[8])
-    #     self.__sub_items.append(item)
-    #     return item
 
     def remove_item(self, stable_id):
         for item in self.__sub_items:
@@ -68,11 +62,11 @@ def _print_tree(roots, indent=''):
 
 
 class SyncedFilesTree:
-    def __init__(self, root_info):
-        self.__root = Directory(root_info[1], root_info[2], root_info[3], root_info[4], root_info[5], root_info[6],
-                                root_info[7], root_info[8])
+    def __init__(self, root):
+        self.__root = root
         self.__orphan_items = []
         self.__deleted_items = []
+        # TODO: add a list of shared with me items
 
     def get_root(self):
         return self.__root
@@ -104,6 +98,24 @@ class SyncedFilesTree:
                         dirs_queue.append(item)
 
         return None
+
+    # TODO: add regex and contains capabilities
+    # TODO: add depth capability
+    # TODO: add a recurse capability to list the dir contents when the dir name == target
+    def search_specific_item(self, synced_files_tree, target):
+        paths = []
+        current_path = []
+
+        def search(item, target):
+            if not item:
+                return
+
+            current_path.append(item)
+
+            if target in item.local_title:
+                paths.append(list(current_path))
+            else:
+                pass
 
     def print_synced_files_tree(self):
         print('\n----------Synced Items----------\n')

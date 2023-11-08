@@ -5,6 +5,7 @@ from collections import OrderedDict
 from jinja2 import Template
 from drivefs_sleuth.utils import get_item_info
 from drivefs_sleuth.utils import get_synced_files
+from drivefs_sleuth.utils import get_item_properties
 from drivefs_sleuth.utils import get_parent_relationships
 from drivefs_sleuth.synced_files_tree import File
 from drivefs_sleuth.synced_files_tree import Directory
@@ -33,14 +34,6 @@ def get_logged_in_accounts(drivefs_path):
     return accounts
 
 
-# TODO: complete after finalizing the roots research
-def get_connected_devices(drivefs_path):
-    root_preference_db = sqlite3.connect(os.path.join(drivefs_path, "root_preference_sqlite.db"))
-    cursor = root_preference_db.cursor()
-    cursor.execute("SELECT * FROM media")
-    return cursor.fetchall()
-
-
 def __construct_synced_files_tree(synced_files_tree, parent_relationships, drivefs_path, account_id):
     parent_relationships_dict = OrderedDict()
     for parent, child in parent_relationships:
@@ -67,8 +60,8 @@ def __construct_synced_files_tree(synced_files_tree, parent_relationships, drive
                     synced_files_tree.add_deleted_item(parent_id)
                 else:
                     last_added_dir = Directory(parent_info[1], parent_info[2], parent_info[3], parent_info[4],
-                                               parent_info[5], parent_info[6], parent_info[7], parent_info[8])
-
+                                               parent_info[5], parent_info[6], parent_info[7], parent_info[8],
+                                               parent_info[9], get_item_properties(drivefs_path, account_id, parent_id))
                     orphan_dirs[parent_id] = last_added_dir
 
         for child_id in childs_ids:
@@ -80,7 +73,8 @@ def __construct_synced_files_tree(synced_files_tree, parent_relationships, drive
             if child_info[0] == 0:
                 last_added_dir.add_item(
                     File(child_info[1], child_info[2], child_info[3], child_info[4], child_info[5], child_info[6],
-                         child_info[7], child_info[8])
+                         child_info[7], child_info[8], child_info[9],
+                         get_item_properties(drivefs_path, account_id, child_id))
                 )
             else:
                 child = orphan_dirs.get(child_id, None)
@@ -88,7 +82,8 @@ def __construct_synced_files_tree(synced_files_tree, parent_relationships, drive
                     del orphan_dirs[child_id]
                 if not child:
                     child = Directory(child_info[1], child_info[2], child_info[3], child_info[4], child_info[5],
-                                      child_info[6], child_info[7], child_info[8])
+                                      child_info[6], child_info[7], child_info[8], child_info[9],
+                                      get_item_properties(drivefs_path, account_id, child_id))
 
                 added_dirs[child_id] = child
                 last_added_dir.add_item(child)
@@ -104,7 +99,10 @@ def construct_synced_files_trees(drivefs_path):
     for account_id, account_email in syncing_accounts.items():
         parent_relationships = get_parent_relationships(drivefs_path, account_id)
         root_info = get_item_info(drivefs_path, account_id, parent_relationships[0][0])
-        synced_files_tree = SyncedFilesTree(root_info)
+        root = Directory(root_info[1], root_info[2], root_info[3], root_info[4], root_info[5], root_info[6],
+                         root_info[7], root_info[8], root_info[9],
+                         get_item_properties(drivefs_path, account_id, root_info[1]))
+        synced_files_tree = SyncedFilesTree(root)
         __construct_synced_files_tree(synced_files_tree, parent_relationships, drivefs_path, account_id)
         synced_trees.append(synced_files_tree)
 
@@ -167,7 +165,7 @@ def generate_html_report(synced_files):
 # tree = construct_synced_files_tree("C:\\Amged\\Incidents\\DriveFS\\Triage\\ry-lp-223350a\\DriveFS", "106203366528331438369")
 # accounts = get_logged_in_accounts("C:\\Users\\Amged Wageh\\AppData\\Local\\Google\\DriveFS")
 # print(accounts)
-# synced_trees = construct_synced_files_trees("C:\\Users\\Amged Wageh\\AppData\\Local\\Google\\DriveFS")
+# synced_trees = construct_synced_files_trees("C:\\Amged\\Incidents\\DriveFS\\Triage\\ry-lp-206942\\DriveFS")
 # for tree in synced_trees:
 #     tree.print_synced_files_tree()
 # get_connected_devices("C:\\Users\\Amged Wageh\\AppData\\Local\\Google\\DriveFS")
