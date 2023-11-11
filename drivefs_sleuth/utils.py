@@ -53,7 +53,10 @@ def get_max_root_ids(drivefs_path):
     root_preference_db = sqlite3.connect(os.path.join(drivefs_path, "root_preference_sqlite.db"))
     cursor = root_preference_db.cursor()
     cursor.execute("SELECT value FROM max_ids WHERE id_type='max_root_id'")
-    return int(cursor.fetchone()[0])
+    max_root_ids = cursor.fetchone()
+    if max_root_ids:
+        return int(max_root_ids[0])
+    return -1
 
 
 def get_mirroring_roots(drivefs_path):

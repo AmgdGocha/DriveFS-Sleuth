@@ -1,6 +1,5 @@
 import os
 import re
-import sqlite3
 from collections import OrderedDict
 from jinja2 import Template
 from drivefs_sleuth.utils import get_item_info
@@ -44,25 +43,27 @@ def __construct_synced_files_tree(synced_files_tree, parent_relationships, drive
 
     added_dirs = {synced_files_tree.get_root().get_stable_id(): synced_files_tree.get_root()}
     orphan_dirs = {}
-    last_added_dir = synced_files_tree.get_root()
+    current_parent_dir = synced_files_tree.get_root()
 
     for parent_id, childs_ids in parent_relationships_dict.items():
 
-        if parent_id != last_added_dir.get_stable_id():
+        if parent_id != current_parent_dir.get_stable_id():
             if parent_id in added_dirs:
-                last_added_dir = added_dirs[parent_id]
+                current_parent_dir = added_dirs[parent_id]
             elif parent_id in orphan_dirs:
-                last_added_dir = orphan_dirs[parent_id]
+                current_parent_dir = orphan_dirs[parent_id]
             else:
                 parent_info = get_item_info(drivefs_path, account_id, parent_id)
                 # handle is_owner == 0
                 if not parent_info:
+                    # TODO handle the parent in the tree when the parent is deleted, maybe creating a dummy parent
                     synced_files_tree.add_deleted_item(parent_id)
                 else:
-                    last_added_dir = Directory(parent_info[1], parent_info[2], parent_info[3], parent_info[4],
-                                               parent_info[5], parent_info[6], parent_info[7], parent_info[8],
-                                               parent_info[9], get_item_properties(drivefs_path, account_id, parent_id))
-                    orphan_dirs[parent_id] = last_added_dir
+                    current_parent_dir = Directory(parent_info[1], parent_info[2], parent_info[3], parent_info[4],
+                                                   parent_info[5], parent_info[6], parent_info[7], parent_info[8],
+                                                   parent_info[9], get_item_properties(drivefs_path, account_id,
+                                                                                       parent_id), parent_info[3])
+                    orphan_dirs[parent_id] = current_parent_dir
 
         for child_id in childs_ids:
             child_info = get_item_info(drivefs_path, account_id, child_id)
@@ -71,22 +72,25 @@ def __construct_synced_files_tree(synced_files_tree, parent_relationships, drive
                 continue
 
             if child_info[0] == 0:
-                last_added_dir.add_item(
+                current_parent_dir.add_item(
                     File(child_info[1], child_info[2], child_info[3], child_info[4], child_info[5], child_info[6],
                          child_info[7], child_info[8], child_info[9],
-                         get_item_properties(drivefs_path, account_id, child_id))
+                         get_item_properties(drivefs_path, account_id, child_id),
+                         f'{current_parent_dir.tree_path}\\{child_info[3]}')
                 )
             else:
                 child = orphan_dirs.get(child_id, None)
                 if child:
+                    child.tree_path = f'{current_parent_dir.tree_path}\\{child.local_title}'
                     del orphan_dirs[child_id]
                 if not child:
                     child = Directory(child_info[1], child_info[2], child_info[3], child_info[4], child_info[5],
                                       child_info[6], child_info[7], child_info[8], child_info[9],
-                                      get_item_properties(drivefs_path, account_id, child_id))
+                                      get_item_properties(drivefs_path, account_id, child_id),
+                                      f'{current_parent_dir.tree_path}\\{child_info[3]}')
 
                 added_dirs[child_id] = child
-                last_added_dir.add_item(child)
+                current_parent_dir.add_item(child)
 
     for orphan_id, orphan_dir in orphan_dirs.items():
         synced_files_tree.add_orphan_item(orphan_dir)
@@ -101,7 +105,7 @@ def construct_synced_files_trees(drivefs_path):
         root_info = get_item_info(drivefs_path, account_id, parent_relationships[0][0])
         root = Directory(root_info[1], root_info[2], root_info[3], root_info[4], root_info[5], root_info[6],
                          root_info[7], root_info[8], root_info[9],
-                         get_item_properties(drivefs_path, account_id, root_info[1]))
+                         get_item_properties(drivefs_path, account_id, root_info[1]), root_info[3])
         synced_files_tree = SyncedFilesTree(root)
         __construct_synced_files_tree(synced_files_tree, parent_relationships, drivefs_path, account_id)
         synced_trees.append(synced_files_tree)
@@ -160,18 +164,3 @@ def generate_html_report(synced_files):
 
     template = Template(template)
     return template.render(nested_lists=synced_files)
-
-# tree = construct_synced_files_tree("C:\\Users\\Amged Wageh\\AppData\\Local\\Google\\DriveFS", "108658046744402996075")
-# tree = construct_synced_files_tree("C:\\Amged\\Incidents\\DriveFS\\Triage\\ry-lp-223350a\\DriveFS", "106203366528331438369")
-# accounts = get_logged_in_accounts("C:\\Users\\Amged Wageh\\AppData\\Local\\Google\\DriveFS")
-# print(accounts)
-# synced_trees = construct_synced_files_trees("C:\\Amged\\Incidents\\DriveFS\\Triage\\ry-lp-206942\\DriveFS")
-# for tree in synced_trees:
-#     tree.print_synced_files_tree()
-# get_connected_devices("C:\\Users\\Amged Wageh\\AppData\\Local\\Google\\DriveFS")
-# print(f'Orphans = {len(tree.get_orphan_items())}')
-# html_report = generate_html_report([tree.get_root()] + tree.get_orphan_items())
-# print('Report Generated.')
-# with open("synced_files_tree.html", "w") as file:
-#     file.write(html_report)
-# print("Report Saved")

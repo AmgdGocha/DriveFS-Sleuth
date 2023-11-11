@@ -1,6 +1,9 @@
+import re
+
+
 class Item:
     def __init__(self, stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date,
-                 trashed, properties):
+                 trashed, properties, tree_path):
         self.__stable_id = stable_id
         self.__id = url_id
         self.local_title = local_title
@@ -11,6 +14,7 @@ class Item:
         self.viewed_by_me_date = viewed_by_me_date
         self.trashed = trashed
         self.properties = properties
+        self.tree_path = tree_path
 
     def get_stable_id(self):
         return self.__stable_id
@@ -21,16 +25,16 @@ class Item:
 
 class File(Item):
     def __init__(self, stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date,
-                 trashed, properties):
+                 trashed, properties, tree_path):
         super().__init__(stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date,
-                         viewed_by_me_date, trashed, properties)
+                         viewed_by_me_date, trashed, properties, tree_path)
 
 
 class Directory(Item):
     def __init__(self, stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date,
-                 trashed, properties):
+                 trashed, properties, tree_path):
         super().__init__(stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date,
-                         viewed_by_me_date, trashed, properties)
+                         viewed_by_me_date, trashed, properties, tree_path)
         self.__sub_items = []
 
     # TODO: do proper check for the added items
@@ -48,10 +52,10 @@ class Directory(Item):
 
 def _print_tree(roots, indent=''):
     if isinstance(roots, File):
-        print(f'{indent}- ({roots.get_stable_id()}) {roots.local_title}')
+        print(f'{indent}- ({roots.get_stable_id()}) {roots.local_title} - ({roots.tree_path})')
 
     elif isinstance(roots, Directory):
-        print(f'{indent}+ ({roots.get_stable_id()}) {roots.local_title}')
+        print(f'{indent}+ ({roots.get_stable_id()}) {roots.local_title} - ({roots.tree_path})')
 
         for sub_item in roots.get_sub_items():
             _print_tree(sub_item, indent + f'\t')
@@ -99,23 +103,50 @@ class SyncedFilesTree:
 
         return None
 
-    # TODO: add regex and contains capabilities
-    # TODO: add depth capability
-    # TODO: add a recurse capability to list the dir contents when the dir name == target
-    def search_specific_item(self, synced_files_tree, target):
-        paths = []
-        current_path = []
+    def search_item_by_name(self, target, contains=True, regex=False, list_sub_items=True):
+        items = []
 
-        def search(item, target):
-            if not item:
+        def append_item_childs(item):
+            if isinstance(item, File):
+                items.append(item)
                 return
 
-            current_path.append(item)
+            items.append(item)
+            for sub_item in item:
+                append_item_childs(sub_item)
 
-            if target in item.local_title:
-                paths.append(list(current_path))
+        def search(current_item):
+            hit = False
+            if regex:
+                match = re.search(target, current_item.local_title)
+                if match:
+                    items.append(current_item)
+                    hit = True
+            elif contains:
+                if target.lower() in current_item.local_title.lower():
+                    items.append(current_item)
+                    hit = True
             else:
-                pass
+                if target.lower() == current_item.local_title.lower():
+                    items.append(current_item)
+                    hit = True
+
+            if isinstance(current_item, File):
+                return
+
+            if isinstance(current_item, Directory) and hit and list_sub_items:
+                for sub_item in current_item.get_sub_items():
+                    append_item_childs(sub_item)
+
+            else:
+                for sub_item in current_item.get_sub_items():
+                    search(sub_item)
+
+        search(self.get_root())
+        for orphan_item in self.get_orphan_items():
+            search(orphan_item)
+
+        return items
 
     def print_synced_files_tree(self):
         print('\n----------Synced Items----------\n')

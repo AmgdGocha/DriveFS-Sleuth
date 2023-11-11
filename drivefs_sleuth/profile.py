@@ -18,6 +18,7 @@ class Profile:
     def __init__(self, drivefs_path):
         self.__drivefs_path = drivefs_path
         # TODO: handle if more than account are logged in
+        # TODO: handle if there is no logged in account
         self.__account_id, self.__account_email = list(get_logged_in_accounts(drivefs_path).items())[0]
         self.__synced_trees = construct_synced_files_trees(drivefs_path)
         self.__last_sync_date = datetime.datetime.fromtimestamp(get_last_sync(drivefs_path), datetime.timezone.utc)
@@ -82,6 +83,7 @@ class Profile:
     def get_mirroring_roots(self):
         return self.__mirroring_roots
 
+    # TODO: handle if no max ides or roots
     def is_mirroring_roots_modified(self):
         return False if self.get_max_root_ids() == sum(len(roots) for roots in self.get_mirroring_roots().values()) \
             else True
@@ -89,8 +91,14 @@ class Profile:
 
 # profile = Profile("C:\\Users\\Amged Wageh\\AppData\\Local\\Google\\DriveFS")
 # synced_trees = profile.get_synced_trees()
+# print('~~~~SEARCHING THE TREE~~~~')
 # for tree in synced_trees:
-#     tree.print_synced_files_tree()
+#     # tree.print_synced_files_tree()
+#     items = tree.search_item_by_name(r'\d+\.\d+\.\d+\.\d+', regex=True, list_sub_items=False)
+#     for item in items:
+#         print(f'{item.local_title} - {item.tree_path}')
+#
+# print(f"Gmail Account: {profile.get_account_email()}")
+# print(f"Last Sync: {profile.get_last_sync_date()}")
 
-# print(profile.get_connected_devices())
 
