@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+    /* Remove default bullets */
+	ul, #myUL {
+	  list-style-type: none;
+	}
+
+	/* Remove margins and padding from the parent ul */
+	#myUL {
+	  margin: 0;
+	  padding: 0;
+	}
+
+	/* Style the caret/arrow */
+	.caret {
+	  cursor: pointer;
+	  user-select: none; /* Prevent text selection */
+	}
+
+	/* Create the caret/arrow with a unicode, and style it */
+	.caret::before {
+	  content: "\25B6";
+	  color: black;
+	  display: inline-block;
+	  margin-right: 6px;
+	}
+
+	/* Rotate the caret/arrow icon when clicked on (using JavaScript) */
+	.caret-down::before {
+	  transform: rotate(90deg);
+	}
+
+	/* Hide the nested list */
+	.nested {
+	  display: none;
+	}
+
+	/* Show the nested list when the user clicks on the caret/arrow (with JavaScript) */
+	.active {
+	  display: block;
+	}
+
+    </style>
+    <title>DriveFS-Sleuth - Synced Files Report</title>
+</head>
+<body>
+
+<h1>{{ account_email }}</h1>
+<p><b>Account ID:</b> {{ account_id }}</p>
+<p><b>Last Sync Datetime:</b> {{ last_sync_datetime }}</p>
+<p><b>Last PID:</b> {{ last_pid }}</p>
+
+<h2>Synced Files Tree</h2>
+
+<ul id="myUL">
+    {% macro render_items(items) %}
+        {% for item in items %}
+            {% if item.is_dir() %}
+                <li><span class="caret">{{ item.local_title }}</span>
+                    <ul class="nested">
+                        {{ render_items(item.get_sub_items()) }}
+                    </ul>
+                </li>
+            {% elif item.is_link() %}
+                <li><span class="caret">{{ item.local_title }}</span>
+                    <ul class="nested">
+                        {{ render_items(item.get_target_item().get_sub_items()) }}
+                    </ul>
+                </li>
+            {% else %}
+                <li>{{ item.local_title }}</li>
+            {% endif %}
+        {% endfor %}
+    {% endmacro %}
+
+    {{ render_items(items) }}
+</ul>
+
+<script>
+	var toggler = document.getElementsByClassName("caret");
+	var i;
+
+	for (i = 0; i < toggler.length; i++) {
+	  toggler[i].addEventListener("click", function() {
+		this.parentElement.querySelector(".nested").classList.toggle("active");
+		this.classList.toggle("caret-down");
+	  });
+	}
+
+</script>
+
+</body>
+</html>

@@ -22,6 +22,9 @@ class Item:
     def is_dir(self):
         return isinstance(self, Directory)
 
+    def is_link(self):
+        return isinstance(self, Link)
+
 
 class File(Item):
     def __init__(self, stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date,
@@ -50,9 +53,26 @@ class Directory(Item):
         return self.__sub_items
 
 
+class Link(Item):
+    def __init__(self, stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date,
+                 trashed, properties, tree_path, target_item):
+        super().__init__(stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date,
+                         viewed_by_me_date, trashed, properties, tree_path)
+        self.__target_item = target_item
+
+    def get_target_item(self):
+        return self.__target_item
+
+
 def _print_tree(roots, indent=''):
     if isinstance(roots, File):
         print(f'{indent}- ({roots.get_stable_id()}) {roots.local_title} - ({roots.tree_path})')
+
+    elif isinstance(roots, Link):
+        print(f'{indent}+ ({roots.get_stable_id()}) {roots.local_title} - ({roots.tree_path})')
+
+        for sub_item in roots.get_target_item().get_sub_items():
+            _print_tree(sub_item, indent + f'\t')
 
     elif isinstance(roots, Directory):
         print(f'{indent}+ ({roots.get_stable_id()}) {roots.local_title} - ({roots.tree_path})')

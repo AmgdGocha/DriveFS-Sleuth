@@ -1,12 +1,15 @@
 import os
 import re
 from collections import OrderedDict
-from jinja2 import Template
+from jinja2 import Environment
+from jinja2 import FileSystemLoader
 from drivefs_sleuth.utils import get_item_info
 from drivefs_sleuth.utils import get_synced_files
 from drivefs_sleuth.utils import get_item_properties
 from drivefs_sleuth.utils import get_parent_relationships
+from drivefs_sleuth.utils import get_target_stable_id
 from drivefs_sleuth.synced_files_tree import File
+from drivefs_sleuth.synced_files_tree import Link
 from drivefs_sleuth.synced_files_tree import Directory
 from drivefs_sleuth.synced_files_tree import SyncedFilesTree
 
@@ -79,15 +82,38 @@ def __construct_synced_files_tree(synced_files_tree, parent_relationships, drive
                          f'{current_parent_dir.tree_path}\\{child_info[3]}')
                 )
             else:
-                child = orphan_dirs.get(child_id, None)
-                if child:
-                    child.tree_path = f'{current_parent_dir.tree_path}\\{child.local_title}'
-                    del orphan_dirs[child_id]
-                if not child:
-                    child = Directory(child_info[1], child_info[2], child_info[3], child_info[4], child_info[5],
-                                      child_info[6], child_info[7], child_info[8], child_info[9],
-                                      get_item_properties(drivefs_path, account_id, child_id),
-                                      f'{current_parent_dir.tree_path}\\{child_info[3]}')
+                if child_info[4] == 'application/vnd.google-apps.shortcut':
+                    target_stable_id = get_target_stable_id(drivefs_path, account_id, child_info[1])
+                    if target_stable_id:
+                        target = orphan_dirs.get(target_stable_id, None)
+                        if target:
+                            del orphan_dirs[target_stable_id]
+
+                        else:
+                            target_info = get_item_info(drivefs_path, account_id, target_stable_id)
+                            target = Directory(target_info[1], target_info[2], target_info[3], target_info[4],
+                                               target_info[5], target_info[6], target_info[7], target_info[8],
+                                               target_info[9], get_item_properties(drivefs_path, account_id, child_id),
+                                               f'{current_parent_dir.tree_path}\\{target_info[3]}')
+
+                        child = Link(child_info[1], child_info[2], child_info[3], child_info[4], child_info[5],
+                                     child_info[6], child_info[7], child_info[8], child_info[9],
+                                     get_item_properties(drivefs_path, account_id, child_id),
+                                     f'{current_parent_dir.tree_path}\\{child_info[3]}', target)
+                        added_dirs[target_stable_id] = target
+                    else:
+                        # TODO what if there is no target info, maybe create a dummy target
+                        pass
+                else:
+                    child = orphan_dirs.get(child_id, None)
+                    if child:
+                        child.tree_path = f'{current_parent_dir.tree_path}\\{child.local_title}'
+                        del orphan_dirs[child_id]
+                    else:
+                        child = Directory(child_info[1], child_info[2], child_info[3], child_info[4], child_info[5],
+                                          child_info[6], child_info[7], child_info[8], child_info[9],
+                                          get_item_properties(drivefs_path, account_id, child_id),
+                                          f'{current_parent_dir.tree_path}\\{child_info[3]}')
 
                 added_dirs[child_id] = child
                 current_parent_dir.add_item(child)
@@ -113,54 +139,15 @@ def construct_synced_files_trees(drivefs_path):
     return synced_trees
 
 
-def generate_html_report(synced_files):
-    template = """
-        <html>
-        <head>
-            <script>
-                function toggleCollapse(id) {
-                    var x = document.getElementById(id);
-                    if (x.style.display === "none") {
-                        x.style.display = "block";
-                    } else {
-                        x.style.display = "none";
-                    }
-                }
-            </script>
-        </head>
-        <body>
-            <ul>
-                {% for item in nested_lists %}
-                    <li>
-                        {% if item is iterable and item is not string %}
-                            <a href="javascript:void(0);" onclick="toggleCollapse('list_{{ loop.index }}')">[+]</a>
-                            {{ loop.index }}
-                            <ul id="list_{{ loop.index }}" style="display: none;">
-                                {% for sub_item in item %}
-                                    <li>
-                                        {% if sub_item is iterable and sub_item is not string %}
-                                            <a href="javascript:void(0);" onclick="toggleCollapse('sublist_{{ loop.index }}_{{ loop.index0 }}')">[+]</a>
-                                            {{ loop.index0 }}
-                                            <ul id="sublist_{{ loop.index }}_{{ loop.index0 }}" style="display: none;">
-                                                {% for sub_sub_item in sub_item %}
-                                                    <li>{{ sub_sub_item }}</li>
-                                                {% endfor %}
-                                            </ul>
-                                        {% else %}
-                                            {{ sub_item }}
-                                        {% endif %}
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        {% else %}
-                            {{ item }}
-                        {% endif %}
-                    </li>
-                {% endfor %}
-            </ul>
-        </body>
-        </html>
-        """
+def generate_html_report(profile):
+    env = Environment(loader=FileSystemLoader("html_resources/"))
+    template = env.get_template("report_template.html")
+    with open("report.html", 'w', encoding='utf-8') as report_file:
+        for tree in profile.get_synced_trees():
+            report_file.write(template.render(account_email=profile.get_account_email(),
+                                              account_id=profile.get_account_id(),
+                                              last_sync_datetime=profile.get_last_sync_date(),
+                                              last_pid=profile.get_last_pid(),
+                                              items=[tree.get_root()] + tree.get_orphan_items()))
 
-    template = Template(template)
-    return template.render(nested_lists=synced_files)
+

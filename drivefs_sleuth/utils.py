@@ -15,7 +15,9 @@ def get_parent_relationships(drivefs_path, account_id):
     account_profile = os.path.join(drivefs_path, account_id)
     metadata_sqlite_db = sqlite3.connect(os.path.join(account_profile, "metadata_sqlite_db"))
     cursor = metadata_sqlite_db.cursor()
-    cursor.execute("SELECT parent_stable_id, item_stable_id FROM stable_parents ORDER BY parent_stable_id")
+    cursor.execute(
+        "SELECT parent_stable_id, item_stable_id FROM stable_parents ORDER BY parent_stable_id, item_stable_id"
+    )
     return cursor.fetchall()
 
 
@@ -76,3 +78,14 @@ def get_item_properties(drivefs_path, account_id, item_id):
     for item_property in cursor.fetchall():
         item_properties[item_property[0]] = item_property[1]
     return item_properties
+
+
+def get_target_stable_id(drivefs_path, account_id, shortcut_stable_id):
+    account_profile = os.path.join(drivefs_path, account_id)
+    metadata_sqlite_db = sqlite3.connect(os.path.join(account_profile, "metadata_sqlite_db"))
+    cursor = metadata_sqlite_db.cursor()
+    cursor.execute(f"SELECT target_stable_id FROM shortcut_details WHERE shortcut_stable_id={shortcut_stable_id}")
+    shortcut_stable_id = cursor.fetchone()
+    if shortcut_stable_id:
+        return int(shortcut_stable_id[0])
+    return 0

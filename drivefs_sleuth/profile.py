@@ -7,6 +7,7 @@ from drivefs_sleuth.utils import get_max_root_ids
 from drivefs_sleuth.utils import get_last_sync
 from drivefs_sleuth.utils import get_last_pid
 from drivefs_sleuth.utils import get_mirroring_roots
+from drivefs_sleuth.tasks import generate_html_report
 
 
 class StorageDestinations(Enum):
@@ -90,10 +91,12 @@ class Profile:
 
 
 # profile = Profile("C:\\Users\\Amged Wageh\\AppData\\Local\\Google\\DriveFS")
+# generate_html_report(profile)
 # synced_trees = profile.get_synced_trees()
 # print('~~~~SEARCHING THE TREE~~~~')
 # for tree in synced_trees:
-#     # tree.print_synced_files_tree()
+#     tree.print_synced_files_tree()
+#     generate_html_report(profile.get_account_email(), [tree.get_root()] + tree.get_orphan_items())
 #     items = tree.search_item_by_name(r'\d+\.\d+\.\d+\.\d+', regex=True, list_sub_items=False)
 #     for item in items:
 #         print(f'{item.local_title} - {item.tree_path}')
