@@ -89,8 +89,8 @@ class SyncedFilesTree:
     def __init__(self, root):
         self.__root = root
         self.__orphan_items = []
+        self.__shared_with_me = []
         self.__deleted_items = []
-        # TODO: add a list of shared with me items
 
     def get_root(self):
         return self.__root
@@ -103,6 +103,12 @@ class SyncedFilesTree:
 
     def add_deleted_item(self, stable_id):
         self.__deleted_items.append(stable_id)
+
+    def add_shared_with_me_item(self, item):
+        self.__shared_with_me.append(item)
+
+    def get_shared_with_me_items(self):
+        return self.__shared_with_me
 
     def get_item_by_id(self, target_id, orphan=False):
         if not orphan:
@@ -154,13 +160,21 @@ class SyncedFilesTree:
             if isinstance(current_item, File):
                 return
 
-            if isinstance(current_item, Directory) and hit and list_sub_items:
+            elif isinstance(current_item, Link) and hit and list_sub_items:
+                for sub_item in current_item.get_target_item().get_sub_items():
+                    append_item_childs(sub_item)
+
+            elif isinstance(current_item, Directory) and hit and list_sub_items:
                 for sub_item in current_item.get_sub_items():
                     append_item_childs(sub_item)
 
             else:
-                for sub_item in current_item.get_sub_items():
-                    search(sub_item)
+                if isinstance(current_item, Link):
+                    for sub_item in current_item.get_target_item().get_sub_items():
+                        search(sub_item)
+                else:
+                    for sub_item in current_item.get_sub_items():
+                        search(sub_item)
 
         search(self.get_root())
         for orphan_item in self.get_orphan_items():

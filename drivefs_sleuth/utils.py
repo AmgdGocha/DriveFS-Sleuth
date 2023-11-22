@@ -89,3 +89,17 @@ def get_target_stable_id(drivefs_path, account_id, shortcut_stable_id):
     if shortcut_stable_id:
         return int(shortcut_stable_id[0])
     return 0
+
+
+def get_shared_with_me_without_link(drivefs_path, account_id):
+    account_profile = os.path.join(drivefs_path, account_id)
+    metadata_sqlite_db = sqlite3.connect(os.path.join(account_profile, "metadata_sqlite_db"))
+    cursor = metadata_sqlite_db.cursor()
+    cursor.execute("SELECT is_folder, stable_id, id, local_title, mime_type, is_owner, file_size, modified_date, "
+                   "viewed_by_me_date, trashed FROM items "
+                   "LEFT JOIN stable_parents ON items.stable_id = stable_parents.item_stable_id "
+                   "LEFT JOIN shortcut_details ON items.stable_id = shortcut_details.target_stable_id "
+                   "WHERE items.is_owner=0 AND items.shared_with_me_date=1 AND stable_parents.item_stable_id IS NULL "
+                   "AND shortcut_details.target_stable_id IS NULL "
+                   "ORDER BY items.stable_id")
+    return cursor.fetchall()

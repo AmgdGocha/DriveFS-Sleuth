@@ -4,10 +4,10 @@ from collections import OrderedDict
 from jinja2 import Environment
 from jinja2 import FileSystemLoader
 from drivefs_sleuth.utils import get_item_info
-from drivefs_sleuth.utils import get_synced_files
 from drivefs_sleuth.utils import get_item_properties
-from drivefs_sleuth.utils import get_parent_relationships
 from drivefs_sleuth.utils import get_target_stable_id
+from drivefs_sleuth.utils import get_parent_relationships
+from drivefs_sleuth.utils import get_shared_with_me_without_link
 from drivefs_sleuth.synced_files_tree import File
 from drivefs_sleuth.synced_files_tree import Link
 from drivefs_sleuth.synced_files_tree import Directory
@@ -57,7 +57,6 @@ def __construct_synced_files_tree(synced_files_tree, parent_relationships, drive
                 current_parent_dir = orphan_dirs[parent_id]
             else:
                 parent_info = get_item_info(drivefs_path, account_id, parent_id)
-                # handle is_owner == 0
                 if not parent_info:
                     # TODO handle the parent in the tree when the parent is deleted, maybe creating a dummy parent
                     synced_files_tree.add_deleted_item(parent_id)
@@ -118,11 +117,35 @@ def __construct_synced_files_tree(synced_files_tree, parent_relationships, drive
                 added_dirs[child_id] = child
                 current_parent_dir.add_item(child)
 
+    # TODO: check if I can add a link in the shared with me
+    for shared_with_me_item_info in get_shared_with_me_without_link(drivefs_path, account_id):
+        if shared_with_me_item_info[0] == 0:
+            synced_files_tree.add_shared_with_me_item(
+                File(shared_with_me_item_info[1], shared_with_me_item_info[2], shared_with_me_item_info[3],
+                     shared_with_me_item_info[4], shared_with_me_item_info[5], shared_with_me_item_info[6],
+                     shared_with_me_item_info[7], shared_with_me_item_info[8], shared_with_me_item_info[9],
+                     get_item_properties(drivefs_path, account_id, shared_with_me_item_info[1]),
+                     f'Shared with me\\{shared_with_me_item_info[3]}')
+            )
+        else:
+            shared_with_me_item = orphan_dirs.get(shared_with_me_item_info[1], None)
+            if shared_with_me_item:
+                del orphan_dirs[shared_with_me_item_info[1]]
+            else:
+                shared_with_me_item = Directory(shared_with_me_item_info[1], shared_with_me_item_info[2],
+                                                shared_with_me_item_info[3], shared_with_me_item_info[4],
+                                                shared_with_me_item_info[5], shared_with_me_item_info[6],
+                                                shared_with_me_item_info[7], shared_with_me_item_info[8],
+                                                shared_with_me_item_info[9],
+                                                get_item_properties(
+                                                    drivefs_path, account_id, shared_with_me_item_info[1]),
+                                                f'{current_parent_dir.tree_path}\\{shared_with_me_item_info[3]}')
+            synced_files_tree.add_shared_with_me_item(shared_with_me_item)
+
     for orphan_id, orphan_dir in orphan_dirs.items():
         synced_files_tree.add_orphan_item(orphan_dir)
 
 
-# TODO: check orphan items from the synced_files
 def construct_synced_files_trees(drivefs_path):
     synced_trees = []
     syncing_accounts = get_logged_in_accounts(drivefs_path)
@@ -148,6 +171,7 @@ def generate_html_report(profile):
                                               account_id=profile.get_account_id(),
                                               last_sync_datetime=profile.get_last_sync_date(),
                                               last_pid=profile.get_last_pid(),
-                                              items=[tree.get_root()] + tree.get_orphan_items()))
+                                              items=[tree.get_root()] + tree.get_orphan_items(),
+                                              shared_with_me_items=tree.get_shared_with_me_items()))
 
 

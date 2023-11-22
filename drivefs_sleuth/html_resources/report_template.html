@@ -1,97 +1,273 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-    /* Remove default bullets */
-	ul, #myUL {
-	  list-style-type: none;
-	}
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400&display=swap">
+        <style>
 
-	/* Remove margins and padding from the parent ul */
-	#myUL {
-	  margin: 0;
-	  padding: 0;
-	}
+            body {
+                margin: 0;
+                padding: 0;
+                font-family: 'Arial', sans-serif;
+                background-color: #143B47;
+                color: #F2BC57;
+            }
 
-	/* Style the caret/arrow */
-	.caret {
-	  cursor: pointer;
-	  user-select: none; /* Prevent text selection */
-	}
+            header {
+                display: flex;
+                height: 5px;
+            }
 
-	/* Create the caret/arrow with a unicode, and style it */
-	.caret::before {
-	  content: "\25B6";
-	  color: black;
-	  display: inline-block;
-	  margin-right: 6px;
-	}
+            .top-strip {
+                display: flex;
+                width: 100%;
+            }
 
-	/* Rotate the caret/arrow icon when clicked on (using JavaScript) */
-	.caret-down::before {
-	  transform: rotate(90deg);
-	}
+            .blue { background-color: #435CE8; }
+            .red { background-color: #E83935; }
+            .yellow { background-color: #F59236; }
+            .green { background-color: #36B83E; }
 
-	/* Hide the nested list */
-	.nested {
-	  display: none;
-	}
+            .center-container {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 20vh;
+                margin: 20px;
+            }
 
-	/* Show the nested list when the user clicks on the caret/arrow (with JavaScript) */
-	.active {
-	  display: block;
-	}
+            .card {
+                font-family: 'Roboto', sans-serif;
+                background-color: #A6294B;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+                padding: 20px;
+                border-radius: 8px;
+                position: relative;
+            }
 
-    </style>
-    <title>DriveFS-Sleuth - Synced Files Report</title>
-</head>
-<body>
+            .card:before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 10px;
+                width: 20px;
+                height: 100%;
+                background-color: #3CA6A6;
+            }
 
-<h1>{{ account_email }}</h1>
-<p><b>Account ID:</b> {{ account_id }}</p>
-<p><b>Last Sync Datetime:</b> {{ last_sync_datetime }}</p>
-<p><b>Last PID:</b> {{ last_pid }}</p>
+            .text-container {
+                margin-left: 20px;
+            }
 
-<h2>Synced Files Tree</h2>
+            .email,
+            .card-info {
+                color: #F2E3D5;
+            }
 
-<ul id="myUL">
-    {% macro render_items(items) %}
-        {% for item in items %}
-            {% if item.is_dir() %}
-                <li><span class="caret">{{ item.local_title }}</span>
-                    <ul class="nested">
-                        {{ render_items(item.get_sub_items()) }}
-                    </ul>
-                </li>
-            {% elif item.is_link() %}
-                <li><span class="caret">{{ item.local_title }}</span>
-                    <ul class="nested">
-                        {{ render_items(item.get_target_item().get_sub_items()) }}
-                    </ul>
-                </li>
-            {% else %}
-                <li>{{ item.local_title }}</li>
-            {% endif %}
-        {% endfor %}
-    {% endmacro %}
+            .email {
+                font-size: 25px;
+                font-weight: bold;
+                margin: 10px 0;
+                text-align: left;
+            }
 
-    {{ render_items(items) }}
-</ul>
+            .card-info {
+                font-size: 16px;
+                text-align: left;
+            }
 
-<script>
-	var toggler = document.getElementsByClassName("caret");
-	var i;
+            .page-content {
+                font-family: 'Open Sans', sans-serif;
+                margin: 20px;
+            }
 
-	for (i = 0; i < toggler.length; i++) {
-	  toggler[i].addEventListener("click", function() {
-		this.parentElement.querySelector(".nested").classList.toggle("active");
-		this.classList.toggle("caret-down");
-	  });
-	}
+            /* Remove default bullets */
+            ul, #myUL {
+                list-style-type: none;
+            }
 
-</script>
+            /* Remove margins and padding from the parent ul */
+            #myUL {
+                margin: 0;
+                padding: 0;
+            }
 
-</body>
+            /* Style the caret/arrow */
+            .caret {
+                cursor: pointer;
+                user-select: none; /* Prevent text selection */
+            }
+
+            /* Create the caret/arrow with a unicode, and style it */
+            .caret::before {
+                content: "\25B6";
+                color: black;
+                display: inline-block;
+                margin-right: 6px;
+            }
+
+            /* Rotate the caret/arrow icon when clicked on (using JavaScript) */
+            .caret-down::before {
+                transform: rotate(90deg);
+            }
+
+            /* Hide the nested list */
+            .nested {
+                display: none;
+            }
+
+            /* Show the nested list when the user clicks on the caret/arrow (with JavaScript) */
+            .active {
+                display: block;
+            }
+
+            .info-box {
+                position: fixed;
+                top: 50%;
+                right: 0;
+                transform: translateY(-50%);
+                background-color: #E8E8DE;
+                box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+                padding: 20px;
+                display: none;
+                color: #80022A;
+                font-size: 18px;
+                border-radius: 8px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            }
+
+            .close-button {
+              position: absolute;
+              top: 5px;
+              right: 5px;
+              cursor: pointer;
+              color: #143B47;
+              background-color: #E0C11A;
+              font-weight: bold;
+              font-size: 20px;
+            }
+
+            .close-button:hover {
+              cursor: pointer;
+              color: #80022A;
+            }
+        </style>
+
+        <title>DriveFS-Sleuth - Synced Files Report</title>
+    </head>
+
+    <body>
+        <header>
+            <div class="top-strip">
+                <div class="blue" style="width: 25%;"></div>
+                <div class="red" style="width: 25%;"></div>
+                <div class="yellow" style="width: 25%;"></div>
+                <div class="green" style="width: 25%;"></div>
+                <div class="blue" style="width: 25%;"></div>
+                <div class="red" style="width: 25%;"></div>
+                <div class="yellow" style="width: 25%;"></div>
+                <div class="green" style="width: 25%;"></div>
+            </div>
+        </header>
+
+
+        <div class="center-container">
+            <div class="card">
+                <div class="text-container">
+                    <div class="email">{{ account_email }}</div>
+                    <div class="card-info">Account ID: {{ account_id }}</div>
+                    <div class="card-info">Last PID: {{ last_pid }}</div>
+                    <div class="card-info">Last Sync Date: {{ last_sync_datetime }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page-content">
+            <h2>Synced Files Tree</h2>
+
+            <ul id="myUL">
+                {% macro render_items(items) %}
+                    {% for item in items %}
+                        {% if item.is_dir() %}
+                            <li><span class="caret">{{ item.local_title }}</span>
+                                <ul class="nested">
+                                    {{ render_items(item.get_sub_items()) }}
+                                </ul>
+                            </li>
+                        {% elif item.is_link() %}
+                            <li><span class="caret">{{ item.local_title }}</span>
+                                <ul class="nested">
+                                    {{ render_items(item.get_target_item().get_sub_items()) }}
+                                </ul>
+                            </li>
+                        {% else %}
+                            <li>{{ item.local_title }}</li>
+                        {% endif %}
+                    {% endfor %}
+                {% endmacro %}
+
+                {{ render_items(items) }}
+            </ul>
+
+            <h2>Shared with me files</h2>
+
+            <ul id="myUL">
+                {% macro render_items(shared_with_me_items) %}
+                    {% for shared_with_me_item in shared_with_me_items %}
+                        {% if shared_with_me_item.is_dir() %}
+                            <li onclick="showInfo('Information for List Item 1')"><span class="caret">{{ shared_with_me_item.local_title }}</span>
+                                <ul class="nested">
+                                    {{ render_items(shared_with_me_item.get_sub_items()) }}
+                                </ul>
+                            </li>
+                        {% elif shared_with_me_item.is_link() %}
+                            <li onclick="showInfo('Information for List Item 1')"><span class="caret">{{ shared_with_me_item.local_title }}</span>
+                                <ul class="nested">
+                                    {{ render_items(shared_with_me_item.get_target_item().get_sub_items()) }}
+                                </ul>
+                            </li>
+                        {% else %}
+                            <li onclick="showInfo('Information for List Item 1')">{{ shared_with_me_item.local_title }}</li>
+                        {% endif %}
+                    {% endfor %}
+                {% endmacro %}
+
+                {{ render_items(shared_with_me_items) }}
+            </ul>
+        </div>
+
+        <div id="infoBox" class="info-box"></div>
+
+
+
+        <script>
+            var toggler = document.getElementsByClassName("caret");
+            var i;
+
+            for (i = 0; i < toggler.length; i++) {
+              toggler[i].addEventListener("click", function() {
+                this.parentElement.querySelector(".nested").classList.toggle("active");
+                this.classList.toggle("caret-down");
+              });
+            }
+        </script>
+
+        <script>
+            function showInfo(info) {
+              const infoBox = document.getElementById('infoBox');
+              infoBox.innerHTML = `
+                <span class="close-button" onclick="closeInfoBox()">X</span>
+                <p>${info}</p>
+              `;
+              infoBox.style.display = 'block';
+            }
+
+            function closeInfoBox() {
+              const infoBox = document.getElementById('infoBox');
+              infoBox.style.display = 'none';
+            }
+      </script>
+
+    </body>
 </html>
