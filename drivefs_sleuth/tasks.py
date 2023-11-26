@@ -1,10 +1,12 @@
 import os
 import re
+import sqlite3
 from collections import OrderedDict
 from jinja2 import Environment
 from jinja2 import FileSystemLoader
 from drivefs_sleuth.utils import get_item_info
 from drivefs_sleuth.utils import get_item_properties
+from drivefs_sleuth.utils import get_properties_list
 from drivefs_sleuth.utils import get_target_stable_id
 from drivefs_sleuth.utils import get_parent_relationships
 from drivefs_sleuth.utils import get_shared_with_me_without_link
@@ -162,9 +164,42 @@ def construct_synced_files_trees(drivefs_path):
     return synced_trees
 
 
-def generate_html_report(profile):
+def build_items_db(drivefs_path, account_id, tree):
+    with sqlite3.connect('items_db') as items_db:
+        cursor = items_db.cursor()
+        properties = get_properties_list(drivefs_path, account_id)
+
+        cursor.execute('''
+            CREATE TABLE items (
+                item_id INTEGER PRIMARY KEY,
+                url_id TEXT NOT NULL,
+                local_title TEXT,
+                mime_type TEXT,
+                is_owner TEXT, 
+                file_size TEXT, 
+                modified_date TEXT, 
+                viewed_by_me_date TEXT,
+                trashed TEXT, 
+                tree_path TEXT
+            )
+        ''')
+
+        item_values = (1, 'example_url_id', 'Example Title', 'text/plain', 'true', '1024', '2023-11-22', '2023-11-22', 'false', '/example/path')
+
+        cursor.execute('''
+            INSERT INTO items (item_id, url_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date, trashed, tree_path)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', item_values)
+
+        items_db.commit()
+
+
+def generate_html_report(profile, search_results=[]):
     env = Environment(loader=FileSystemLoader("html_resources/"))
     template = env.get_template("report_template.html")
+    headers = ['id', 'type', 'url_id', 'title', 'mime_type', 'is_owner', 'file_size', 'modified_date',
+              'viewed_by_me_date', 'trashed', 'tree_path'] + get_properties_list(
+        profile.get_drivefs_path(), profile.get_account_id())
     with open("report.html", 'w', encoding='utf-8') as report_file:
         for tree in profile.get_synced_trees():
             report_file.write(template.render(account_email=profile.get_account_email(),
@@ -172,6 +207,9 @@ def generate_html_report(profile):
                                               last_sync_datetime=profile.get_last_sync_date(),
                                               last_pid=profile.get_last_pid(),
                                               items=[tree.get_root()] + tree.get_orphan_items(),
-                                              shared_with_me_items=tree.get_shared_with_me_items()))
+                                              shared_with_me_items=tree.get_shared_with_me_items(),
+                                              deleted_items=tree.get_deleted_items(),
+                                              search_results=search_results,
+                                              headers=headers))
 
 

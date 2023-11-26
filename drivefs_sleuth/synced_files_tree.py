@@ -5,7 +5,7 @@ class Item:
     def __init__(self, stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date,
                  trashed, properties, tree_path):
         self.__stable_id = stable_id
-        self.__id = url_id
+        self.url_id = url_id
         self.local_title = local_title
         self.mime_type = mime_type
         self.is_owner = is_owner
@@ -110,6 +110,9 @@ class SyncedFilesTree:
     def get_shared_with_me_items(self):
         return self.__shared_with_me
 
+    def get_deleted_items(self):
+        return self.__deleted_items
+
     def get_item_by_id(self, target_id, orphan=False):
         if not orphan:
             dirs_queue = [self.get_root()] + self.get_orphan_items()
@@ -133,13 +136,21 @@ class SyncedFilesTree:
         items = []
 
         def append_item_childs(item):
+            items.append(item)
             if isinstance(item, File):
-                items.append(item)
                 return
 
-            items.append(item)
-            for sub_item in item:
-                append_item_childs(sub_item)
+            elif isinstance(item, Link):
+                for sub_item in item.get_target_item().get_sub_items():
+                    append_item_childs(sub_item)
+
+            elif isinstance(item, Directory):
+                for sub_item in item.get_sub_items():
+                    append_item_childs(sub_item)
+
+            else:
+                for sub_item in item:
+                    append_item_childs(sub_item)
 
         def search(current_item):
             hit = False
@@ -179,6 +190,9 @@ class SyncedFilesTree:
         search(self.get_root())
         for orphan_item in self.get_orphan_items():
             search(orphan_item)
+
+        for shared_item in self.get_shared_with_me_items():
+            search(shared_item)
 
         return items
 

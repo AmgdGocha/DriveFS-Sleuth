@@ -14,6 +14,11 @@
                 color: #F2BC57;
             }
 
+            a {
+                color: #F2BC57;
+                text-decoration: none;
+            }
+
             header {
                 display: flex;
                 height: 5px;
@@ -102,7 +107,7 @@
             /* Create the caret/arrow with a unicode, and style it */
             .caret::before {
                 content: "\25B6";
-                color: black;
+                color: #A6294B;
                 display: inline-block;
                 margin-right: 6px;
             }
@@ -152,13 +157,69 @@
               cursor: pointer;
               color: #80022A;
             }
+
+            th {
+                background-color: #A6294B;
+                color: #F2E3D5;
+                padding-right: 10px;
+                padding-left: 10px;
+            }
+
+            tr:nth-child(even) {
+                background-color: #164754; /* or any color you prefer */
+            }
+
+            tr:nth-child(odd) {
+                background-color: #0b242b; /* or any color you prefer */
+            }
+
+            #scrollToTopBtn {
+              position: fixed;
+              bottom: 20px;
+              right: 20px;
+              display: none;
+              background-color: #007BFF;
+              color: #fff;
+              border: none;
+              border-radius: 5px;
+              padding: 10px 15px;
+              cursor: pointer;
+            }
+
+            /* Style for the hover effect */
+            #scrollToTopBtn:hover {
+              background-color: #0056b3;
+            }
+
+            /* Show the button when the page is scrolled */
+            body::-webkit-scrollbar-thumb:vertical {
+              background-color: #007BFF;
+            }
+
+            body::-webkit-scrollbar-thumb:vertical:hover {
+              background-color: #0056b3;
+            }
+
+            body::-webkit-scrollbar {
+              width: 10px;
+            }
+
+            body::-webkit-scrollbar-thumb {
+              background-color: #888;
+            }
+
+            .match {
+                color: #A6294B;
+                font-weight: bold;
+            }
+
         </style>
 
         <title>DriveFS-Sleuth - Synced Files Report</title>
     </head>
 
     <body>
-        <header>
+        <header id="top">
             <div class="top-strip">
                 <div class="blue" style="width: 25%;"></div>
                 <div class="red" style="width: 25%;"></div>
@@ -170,7 +231,6 @@
                 <div class="green" style="width: 25%;"></div>
             </div>
         </header>
-
 
         <div class="center-container">
             <div class="card">
@@ -184,62 +244,122 @@
         </div>
 
         <div class="page-content">
+
+            {% set searches=[] %}
+
+            {% if search_results %}
+                <h2>Search Results</h2>
+                {% for search_result in search_results %}
+                    <li>{{ search_result.tree_path }}</li>
+                    {{ searches.append(search_result.get_stable_id()) or '' }}
+                {% endfor %}
+            {% endif %}
+
+            {% set details=[] %}
+
+            {% macro render_items(items) %}
+                {% for item in items %}
+                    {{ details.append(item) or '' }}
+                    {% if item.is_dir() %}
+                        <li>
+                            <span class="caret">
+                                <a
+                                    {% if item.get_stable_id() in searches %}
+                                        class="match"
+                                    {% endif %}
+                                    href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
+                            </span>
+                            <ul class="nested">
+                                {{ render_items(item.get_sub_items()) }}
+                            </ul>
+                        </li>
+                    {% elif item.is_link() %}
+                        <li>
+                            <span class="caret">
+                                <a
+                                    {% if item.get_stable_id() in searches %}
+                                        class="match"
+                                    {% endif %}
+                                    href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
+                            </span>
+                            <ul class="nested">
+                                {{ render_items(item.get_target_item().get_sub_items()) }}
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li>
+                            <a
+                                {% if item.get_stable_id() in searches %}
+                                    class="match"
+                                {% endif %}
+                                href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            {% endmacro %}
+
             <h2>Synced Files Tree</h2>
 
-            <ul id="myUL">
-                {% macro render_items(items) %}
-                    {% for item in items %}
-                        {% if item.is_dir() %}
-                            <li><span class="caret">{{ item.local_title }}</span>
-                                <ul class="nested">
-                                    {{ render_items(item.get_sub_items()) }}
-                                </ul>
-                            </li>
-                        {% elif item.is_link() %}
-                            <li><span class="caret">{{ item.local_title }}</span>
-                                <ul class="nested">
-                                    {{ render_items(item.get_target_item().get_sub_items()) }}
-                                </ul>
-                            </li>
-                        {% else %}
-                            <li>{{ item.local_title }}</li>
-                        {% endif %}
-                    {% endfor %}
-                {% endmacro %}
-
-                {{ render_items(items) }}
-            </ul>
+                <ul id="myUL">
+                    {{ render_items(items) }}
+                </ul>
 
             <h2>Shared with me files</h2>
 
-            <ul id="myUL">
-                {% macro render_items(shared_with_me_items) %}
-                    {% for shared_with_me_item in shared_with_me_items %}
-                        {% if shared_with_me_item.is_dir() %}
-                            <li onclick="showInfo('Information for List Item 1')"><span class="caret">{{ shared_with_me_item.local_title }}</span>
-                                <ul class="nested">
-                                    {{ render_items(shared_with_me_item.get_sub_items()) }}
-                                </ul>
-                            </li>
-                        {% elif shared_with_me_item.is_link() %}
-                            <li onclick="showInfo('Information for List Item 1')"><span class="caret">{{ shared_with_me_item.local_title }}</span>
-                                <ul class="nested">
-                                    {{ render_items(shared_with_me_item.get_target_item().get_sub_items()) }}
-                                </ul>
-                            </li>
-                        {% else %}
-                            <li onclick="showInfo('Information for List Item 1')">{{ shared_with_me_item.local_title }}</li>
-                        {% endif %}
-                    {% endfor %}
+                <ul id="myUL">
+                    {{ render_items(shared_with_me_items) }}
+                </ul>
+
+            <h2>Deleted Items</h2>
+                {% for deleted_item in deleted_items %}
+                    <li>{{ deleted_item }}</li>
+                {% endfor %}
+
+            <h2>Items Details</h2>
+            {% macro generate_items_details_table(headers) %}
+                {% set properties = headers[11:] %}
+                <table>
+                    <thead>
+                        <tr>
+                            {% for header in headers %}
+                                <th>{{ header }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for detail in details %}
+                            <tr>
+                                <td id='{{ detail.get_stable_id() }}'>{{ detail.get_stable_id() }}</td>
+                                {% if not detail.is_dir() %}
+                                    <td>File</td>
+                                {% elif detail.is_link() %}
+                                    <td>Link</td>
+                                {% else %}
+                                    <td>Directory</td>
+                                {% endif %}
+                                <td>{{ detail.url_id }}</td>
+                                <td>{{ detail.local_title }}</td>
+                                <td>{{ detail.mime_type }}</td>
+                                <td>{{ detail.is_owner }}</td>
+                                <td>{{ detail.file_size }}</td>
+                                <td>{{ detail.modified_date }}</td>
+                                <td>{{ detail.viewed_by_me_date }}</td>
+                                <td>{{ detail.trashed }}</td>
+                                <td>{{ detail.tree_path }}</td>
+                                {% for prop in properties %}
+                                    <td>{{ detail.properties[prop] }}</td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
                 {% endmacro %}
 
-                {{ render_items(shared_with_me_items) }}
-            </ul>
+            {{ generate_items_details_table(headers) }}
+
         </div>
 
-        <div id="infoBox" class="info-box"></div>
-
-
+        <a href="#" id="scrollToTopBtn" title="Go to top">&#9650; Top</a>
 
         <script>
             var toggler = document.getElementsByClassName("caret");
@@ -252,22 +372,6 @@
               });
             }
         </script>
-
-        <script>
-            function showInfo(info) {
-              const infoBox = document.getElementById('infoBox');
-              infoBox.innerHTML = `
-                <span class="close-button" onclick="closeInfoBox()">X</span>
-                <p>${info}</p>
-              `;
-              infoBox.style.display = 'block';
-            }
-
-            function closeInfoBox() {
-              const infoBox = document.getElementById('infoBox');
-              infoBox.style.display = 'none';
-            }
-      </script>
 
     </body>
 </html>
