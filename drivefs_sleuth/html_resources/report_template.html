@@ -163,6 +163,8 @@
                 color: #F2E3D5;
                 padding-right: 10px;
                 padding-left: 10px;
+                padding-top: 2px;
+                padding-bottom: 2px;
             }
 
             tr:nth-child(even) {
@@ -215,6 +217,34 @@
 
             td {
                 text-align: center;
+                padding-left: 10px;
+                padding-right: 10px;
+                padding-top: 2px;
+                padding-bottom: 2px;
+            }
+
+            .max-roots {
+                background-color: #A6294B;
+                color: #F2E3D5;
+                font-weight: bold;
+                display: inline-block;
+                padding-left: 10px;
+                padding-top: 2px;
+                padding-bottom: 2px;
+                margin-bottom: 2px;
+            }
+
+            .max-roots-number {
+                min-width: 70px;
+                background-color: #0b242b;
+                color: #F2BC57;
+                font-weight: normal;
+                display: inline-block;
+                padding-left: 10px;
+                padding-right: 10px;
+                text-align: center;
+                padding-top: 2px;
+                padding-bottom: 2px;
             }
 
         </style>
@@ -275,6 +305,10 @@
 
             {% if profile.get_mirroring_roots() %}
                 <h2>Mirroring Roots</h2>
+
+                <div class="max-roots">Max Root ID: </div>
+                <div class="max-roots-number">{{ profile.get_max_root_ids() }}</div>
+
                 <table>
                         <thead>
                             <tr>
