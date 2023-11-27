@@ -32,7 +32,7 @@ class Profile:
                 "media_id": connected_device[0],
                 "name": connected_device[1],
                 "last_mount_point": connected_device[2],
-                "capacity": connected_device[3],
+                "capacity": round(int(connected_device[3]) / 1e+9, 2),
                 "ignore": connected_device[4],
             })
 

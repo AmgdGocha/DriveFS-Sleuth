@@ -213,6 +213,10 @@
                 font-weight: bold;
             }
 
+            td {
+                text-align: center;
+            }
+
         </style>
 
         <title>DriveFS-Sleuth - Synced Files Report</title>
@@ -252,7 +256,7 @@
                         <th>Media ID</th>
                         <th>Name</th>
                         <th>Last Mount Point</th>
-                        <th>Capacity</th>
+                        <th>Capacity (GB)</th>
                         <th>Ignore</th>
                     </tr>
                 </thead>
@@ -278,7 +282,6 @@
                                 <th>Media ID</th>
                                 <th>Title</th>
                                 <th>Root Path</th>
-                                <th>Sync Type</th>
                                 <th>Mirroring Destination</th>
                                 <th>Last Seen Absolute Path</th>
                             </tr>
@@ -291,7 +294,6 @@
                                     <td>{{ mirror.get('media_id', None) }}</td>
                                     <td>{{ mirror.get('title', None) }}</td>
                                     <td>{{ mirror.get('root_path', None) }}</td>
-                                    <td>{{ mirror.get('sync_type', None) }}</td>
                                     <td>{{ mirror.get('destination', None) }}</td>
                                     <td>{{ mirror.get('last_seen_absolute_path', None) }}</td>
                                 </tr>
