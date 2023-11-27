@@ -202,13 +202,8 @@ def generate_html_report(profile, search_results=[]):
         profile.get_drivefs_path(), profile.get_account_id())
     with open("report.html", 'w', encoding='utf-8') as report_file:
         for tree in profile.get_synced_trees():
-            report_file.write(template.render(account_email=profile.get_account_email(),
-                                              account_id=profile.get_account_id(),
-                                              last_sync_datetime=profile.get_last_sync_date(),
-                                              last_pid=profile.get_last_pid(),
-                                              items=[tree.get_root()] + tree.get_orphan_items(),
-                                              shared_with_me_items=tree.get_shared_with_me_items(),
-                                              deleted_items=tree.get_deleted_items(),
+            report_file.write(template.render(profile=profile,
+                                              tree=tree,
                                               search_results=search_results,
                                               headers=headers))
 

@@ -47,7 +47,6 @@ class Profile:
                 'title': mirror_root[3],
                 'root_path': mirror_root[4],
                 'sync_type': mirror_root[5],
-                # 'destination': mirror_root[6],
                 'last_seen_absolute_path': mirror_root[7],
             }
             if mirror_root[5] == 1:
@@ -92,16 +91,16 @@ class Profile:
 
 profile = Profile("C:\\Users\\Amged Wageh\\AppData\\Local\\Google\\DriveFS")
 
-# search_results = []
-# synced_trees = profile.get_synced_trees()
-# for tree in synced_trees:
-#     # tree.print_synced_files_tree()
-#     items = tree.search_item_by_name('xxxx', list_sub_items=False)
-#     search_results += items
+search_results = []
+synced_trees = profile.get_synced_trees()
+for tree in synced_trees:
+    # tree.print_synced_files_tree()
+    items = tree.search_item_by_name('mobily', list_sub_items=False)
+    search_results += items
 #     # for item in items:
 #     #     print(f'{item.local_title} - {item.tree_path}')
 #
-# generate_html_report(profile, search_results)
+generate_html_report(profile, search_results)
 #
 
 

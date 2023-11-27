@@ -235,15 +235,70 @@
         <div class="center-container">
             <div class="card">
                 <div class="text-container">
-                    <div class="email">{{ account_email }}</div>
-                    <div class="card-info">Account ID: {{ account_id }}</div>
-                    <div class="card-info">Last PID: {{ last_pid }}</div>
-                    <div class="card-info">Last Sync Date: {{ last_sync_datetime }}</div>
+                    <div class="email">{{ profile.get_account_email() }}</div>
+                    <div class="card-info">Account ID: {{ profile.get_account_id() }}</div>
+                    <div class="card-info">Last PID: {{ profile.get_last_pid() }}</div>
+                    <div class="card-info">Last Sync Date: {{ profile.get_last_sync_date() }}</div>
                 </div>
             </div>
         </div>
 
         <div class="page-content">
+
+            <h2>Connected Devices</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Media ID</th>
+                        <th>Name</th>
+                        <th>Last Mount Point</th>
+                        <th>Capacity</th>
+                        <th>Ignore</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for device in profile.get_connected_devices() %}
+                        <tr>
+                            <td>{{ device.get('media_id', None) }}</td>
+                            <td>{{ device.get('name', None) }}</td>
+                            <td>{{ device.get('last_mount_point', None) }}</td>
+                            <td>{{ device.get('capacity', None) }}</td>
+                            <td>{{ device.get('ignore', None) }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            {% if profile.get_mirroring_roots() %}
+                <h2>Mirroring Roots</h2>
+                <table>
+                        <thead>
+                            <tr>
+                                <th>Root ID</th>
+                                <th>Media ID</th>
+                                <th>Title</th>
+                                <th>Root Path</th>
+                                <th>Sync Type</th>
+                                <th>Mirroring Destination</th>
+                                <th>Last Seen Absolute Path</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set mirrors=profile.get_mirroring_roots().get(profile.get_account_id(), {}) %}
+                            {% for mirror in mirrors %}
+                                <tr>
+                                    <td>{{ mirror.get('root_id', None) }}</td>
+                                    <td>{{ mirror.get('media_id', None) }}</td>
+                                    <td>{{ mirror.get('title', None) }}</td>
+                                    <td>{{ mirror.get('root_path', None) }}</td>
+                                    <td>{{ mirror.get('sync_type', None) }}</td>
+                                    <td>{{ mirror.get('destination', None) }}</td>
+                                    <td>{{ mirror.get('last_seen_absolute_path', None) }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+            {% endif %}
 
             {% set searches=[] %}
 
@@ -298,20 +353,21 @@
                 {% endfor %}
             {% endmacro %}
 
+
             <h2>Synced Files Tree</h2>
 
                 <ul id="myUL">
-                    {{ render_items(items) }}
+                    {{ render_items([tree.get_root()] + tree.get_orphan_items()) }}
                 </ul>
 
             <h2>Shared with me files</h2>
 
                 <ul id="myUL">
-                    {{ render_items(shared_with_me_items) }}
+                    {{ render_items(tree.get_shared_with_me_items()) }}
                 </ul>
 
             <h2>Deleted Items</h2>
-                {% for deleted_item in deleted_items %}
+                {% for deleted_item in tree.get_deleted_items() %}
                     <li>{{ deleted_item }}</li>
                 {% endfor %}
 
