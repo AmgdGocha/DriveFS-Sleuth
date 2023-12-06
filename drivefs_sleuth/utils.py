@@ -43,7 +43,6 @@ def get_last_pid(drivefs_path):
         return pid_file.read()
 
 
-# TODO: complete after finalizing the roots research
 def get_connected_devices(drivefs_path):
     with sqlite3.connect(os.path.join(drivefs_path, "root_preference_sqlite.db")) as root_preference_db:
         cursor = root_preference_db.cursor()

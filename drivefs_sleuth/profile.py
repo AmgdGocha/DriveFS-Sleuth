@@ -89,18 +89,18 @@ class Profile:
             else True
 
 
-profile = Profile("C:\\Users\\Amged Wageh\\AppData\\Local\\Google\\DriveFS")
-
-search_results = []
-synced_trees = profile.get_synced_trees()
-for tree in synced_trees:
-    # tree.print_synced_files_tree()
-    items = tree.search_item_by_name('mobily', list_sub_items=False)
-    search_results += items
-#     # for item in items:
-#     #     print(f'{item.local_title} - {item.tree_path}')
+# profile = Profile("C:\\Users\\Amged Wageh\\AppData\\Local\\Google\\DriveFS")
 #
-generate_html_report(profile, search_results)
+# search_results = []
+# synced_trees = profile.get_synced_trees()
+# for tree in synced_trees:
+#     # tree.print_synced_files_tree()
+#     items = tree.search_item_by_name('xxxx', list_sub_items=False)
+#     search_results += items
+# #     # for item in items:
+# #     #     print(f'{item.local_title} - {item.tree_path}')
+# #
+# generate_html_report(profile, search_results)
 #
 
 

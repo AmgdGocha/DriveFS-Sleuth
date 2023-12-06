@@ -16,6 +16,7 @@ from drivefs_sleuth.synced_files_tree import Directory
 from drivefs_sleuth.synced_files_tree import SyncedFilesTree
 
 
+# TODO handle if there are multiple logged-in accounts
 def get_logged_in_accounts(drivefs_path):
     accounts = {}
     # TODO: what if there is no directory with the numbers
