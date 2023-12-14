@@ -210,3 +210,8 @@ class SyncedFilesTree:
 
         for orphan in self.get_orphan_items():
             print(f'- ({orphan.get_stable_id()}) {orphan.local_title}')
+
+        print('\n----------Shared With Me Items----------\n')
+
+        for shared_with_me_item in self.get_shared_with_me_items():
+            print(f'- ({shared_with_me_item.get_stable_id()}) {shared_with_me_item.local_title}')
