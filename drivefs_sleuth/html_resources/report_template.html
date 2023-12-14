@@ -253,6 +253,14 @@
     </head>
 
     <body>
+        {% macro render_search_results(results) %}
+            <h2>Search Results</h2>
+            {% for result in results %}
+                <li>{{ result.tree_path }}</li>
+                {{ searches.append(result.get_stable_id()) or '' }}
+            {% endfor %}
+        {% endmacro %}
+
         <header id="top">
             <div class="top-strip">
                 <div class="blue" style="width: 25%;"></div>
@@ -269,10 +277,10 @@
         <div class="center-container">
             <div class="card">
                 <div class="text-container">
-                    <div class="email">{{ profile.get_account_email() }}</div>
-                    <div class="card-info">Account ID: {{ profile.get_account_id() }}</div>
-                    <div class="card-info">Last PID: {{ profile.get_last_pid() }}</div>
-                    <div class="card-info">Last Sync Date: {{ profile.get_last_sync_date() }}</div>
+                    <div class="DriveFS Path">{{ setup.get_drivefs_path() }}</div>
+                    <div class="card-info">Last Sync Date: {{ setup.get_last_sync_date() }}</div>
+                    <div class="card-info">Max Root IDs: {{ setup.get_max_root_ids() }} - {% if setup.is_mirroring_roots_modified() %}Modified{% else %}Not Modified{% endif %}</div>
+                    <div class="card-info">Last PID: {{ setup.get_last_pid() }}</div>
                 </div>
             </div>
         </div>
@@ -291,7 +299,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for device in profile.get_connected_devices() %}
+                    {% for device in setup.get_connected_devices() %}
                         <tr>
                             <td>{{ device.get('media_id', None) }}</td>
                             <td>{{ device.get('name', None) }}</td>
@@ -303,151 +311,160 @@
                 </tbody>
             </table>
 
-            {% if profile.get_mirroring_roots() %}
-                <h2>Mirroring Roots</h2>
+            {% for account in setup.get_accounts() %}
+                {% set searches=[] %}
 
-                <div class="max-roots">Max Root ID: </div>
-                <div class="max-roots-number">{{ profile.get_max_root_ids() }}</div>
+                <div class="center-container">
+                    <div class="card">
+                        <div class="text-container">
+                            <div class="email">{{ account.get_account_email() }}</div>
+                            <div class="card-info">Account ID: {{ account.get_account_id() }}</div>
+                            <div class="card-info">Currently Logged-In: {{ account.is_logged_in() }}</div>
+                        </div>
+                    </div>
+                </div>
 
-                <table>
-                        <thead>
-                            <tr>
-                                <th>Root ID</th>
-                                <th>Media ID</th>
-                                <th>Title</th>
-                                <th>Root Path</th>
-                                <th>Mirroring Destination</th>
-                                <th>Last Seen Absolute Path</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% set mirrors=profile.get_mirroring_roots().get(profile.get_account_id(), {}) %}
-                            {% for mirror in mirrors %}
+                {% if account.get_mirroring_roots() %}
+
+                    <h2>Mirroring Roots</h2>
+
+                    <table>
+                            <thead>
                                 <tr>
-                                    <td>{{ mirror.get('root_id', None) }}</td>
-                                    <td>{{ mirror.get('media_id', None) }}</td>
-                                    <td>{{ mirror.get('title', None) }}</td>
-                                    <td>{{ mirror.get('root_path', None) }}</td>
-                                    <td>{{ mirror.get('destination', None) }}</td>
-                                    <td>{{ mirror.get('last_seen_absolute_path', None) }}</td>
+                                    <th>Root ID</th>
+                                    <th>Media ID</th>
+                                    <th>Title</th>
+                                    <th>Root Path</th>
+                                    <th>Mirroring Destination</th>
+                                    <th>Last Seen Absolute Path</th>
                                 </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-            {% endif %}
-
-            {% set searches=[] %}
-
-            {% if search_results %}
-                <h2>Search Results</h2>
-                {% for search_result in search_results %}
-                    <li>{{ search_result.tree_path }}</li>
-                    {{ searches.append(search_result.get_stable_id()) or '' }}
-                {% endfor %}
-            {% endif %}
-
-            {% set details=[] %}
-
-            {% macro render_items(items) %}
-                {% for item in items %}
-                    {{ details.append(item) or '' }}
-                    {% if item.is_dir() %}
-                        <li>
-                            <span class="caret">
-                                <a
-                                    {% if item.get_stable_id() in searches %}
-                                        class="match"
-                                    {% endif %}
-                                    href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
-                            </span>
-                            <ul class="nested">
-                                {{ render_items(item.get_sub_items()) }}
-                            </ul>
-                        </li>
-                    {% elif item.is_link() %}
-                        <li>
-                            <span class="caret">
-                                <a
-                                    {% if item.get_stable_id() in searches %}
-                                        class="match"
-                                    {% endif %}
-                                    href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
-                            </span>
-                            <ul class="nested">
-                                {{ render_items(item.get_target_item().get_sub_items()) }}
-                            </ul>
-                        </li>
-                    {% else %}
-                        <li>
-                            <a
-                                {% if item.get_stable_id() in searches %}
-                                    class="match"
-                                {% endif %}
-                                href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
-                        </li>
-                    {% endif %}
-                {% endfor %}
-            {% endmacro %}
-
-
-            <h2>Synced Files Tree</h2>
-
-                <ul id="myUL">
-                    {{ render_items([tree.get_root()] + tree.get_orphan_items()) }}
-                </ul>
-
-            <h2>Shared with me files</h2>
-
-                <ul id="myUL">
-                    {{ render_items(tree.get_shared_with_me_items()) }}
-                </ul>
-
-            <h2>Deleted Items</h2>
-                {% for deleted_item in tree.get_deleted_items() %}
-                    <li>{{ deleted_item }}</li>
-                {% endfor %}
-
-            <h2>Items Details</h2>
-            {% macro generate_items_details_table(headers) %}
-                {% set properties = headers[11:] %}
-                <table>
-                    <thead>
-                        <tr>
-                            {% for header in headers %}
-                                <th>{{ header }}</th>
-                            {% endfor %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for detail in details %}
-                            <tr>
-                                <td id='{{ detail.get_stable_id() }}'>{{ detail.get_stable_id() }}</td>
-                                {% if not detail.is_dir() %}
-                                    <td>File</td>
-                                {% elif detail.is_link() %}
-                                    <td>Link</td>
-                                {% else %}
-                                    <td>Directory</td>
-                                {% endif %}
-                                <td>{{ detail.url_id }}</td>
-                                <td>{{ detail.local_title }}</td>
-                                <td>{{ detail.mime_type }}</td>
-                                <td>{{ detail.is_owner }}</td>
-                                <td>{{ detail.file_size }}</td>
-                                <td>{{ detail.modified_date }}</td>
-                                <td>{{ detail.viewed_by_me_date }}</td>
-                                <td>{{ detail.trashed }}</td>
-                                <td>{{ detail.tree_path }}</td>
-                                {% for prop in properties %}
-                                    <td>{{ detail.properties[prop] }}</td>
+                            </thead>
+                            <tbody>
+                                {% set mirrors=account.get_mirroring_roots() %}
+                                {% for mirror in mirrors %}
+                                    <tr>
+                                        <td>{{ mirror.get('root_id', None) }}</td>
+                                        <td>{{ mirror.get('media_id', None) }}</td>
+                                        <td>{{ mirror.get('title', None) }}</td>
+                                        <td>{{ mirror.get('root_path', None) }}</td>
+                                        <td>{{ mirror.get('destination', None) }}</td>
+                                        <td>{{ mirror.get('last_seen_absolute_path', None) }}</td>
+                                    </tr>
                                 {% endfor %}
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% endmacro %}
+                            </tbody>
+                        </table>
+                {% endif %}
 
-            {{ generate_items_details_table(headers) }}
+                {% if search_results.get(account.get_account_id(), None) %}
+                    {{ render_search_results(search_results[account.get_account_id()]) }}
+                {% endif %}
+
+                {% if account.is_logged_in() %}
+                    {% set tree=account.get_synced_files_tree() %}
+                    {% set details=[] %}
+
+                    {% macro render_items(items) %}
+                        {% for item in items %}
+                            {{ details.append(item) or '' }}
+                            {% if item.is_dir() %}
+                                <li>
+                                    <span class="caret">
+                                        <a
+                                            {% if item.get_stable_id() in searches %}
+                                                class="match"
+                                            {% endif %}
+                                            href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
+                                    </span>
+                                    <ul class="nested">
+                                        {{ render_items(item.get_sub_items()) }}
+                                    </ul>
+                                </li>
+                            {% elif item.is_link() %}
+                                <li>
+                                    <span class="caret">
+                                        <a
+                                            {% if item.get_stable_id() in searches %}
+                                                class="match"
+                                            {% endif %}
+                                            href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
+                                    </span>
+                                    <ul class="nested">
+                                        {{ render_items(item.get_target_item().get_sub_items()) }}
+                                    </ul>
+                                </li>
+                            {% else %}
+                                <li>
+                                    <a
+                                        {% if item.get_stable_id() in searches %}
+                                            class="match"
+                                        {% endif %}
+                                        href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                    {% endmacro %}
+
+                    <h2>Synced Files Tree</h2>
+
+                        <ul id="myUL">
+                            {{ render_items([tree.get_root()] + tree.get_orphan_items()) }}
+                        </ul>
+
+                    <h2>Shared with me files</h2>
+
+                        <ul id="myUL">
+                            {{ render_items(tree.get_shared_with_me_items()) }}
+                        </ul>
+
+                    <h2>Deleted Items</h2>
+                        {% for deleted_item in tree.get_deleted_items() %}
+                            <li>{{ deleted_item }}</li>
+                        {% endfor %}
+
+                    <h2>Items Details</h2>
+                    {% macro generate_items_details_table(headers) %}
+                        {% set properties = headers[11:] %}
+                        <table>
+                            <thead>
+                                <tr>
+                                    {% for header in headers %}
+                                        <th>{{ header }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for detail in details %}
+                                    <tr>
+                                        <td id='{{ detail.get_stable_id() }}'>{{ detail.get_stable_id() }}</td>
+                                        {% if not detail.is_dir() %}
+                                            <td>File</td>
+                                        {% elif detail.is_link() %}
+                                            <td>Link</td>
+                                        {% else %}
+                                            <td>Directory</td>
+                                        {% endif %}
+                                        <td>{{ detail.url_id }}</td>
+                                        <td>{{ detail.local_title }}</td>
+                                        <td>{{ detail.mime_type }}</td>
+                                        <td>{{ detail.is_owner }}</td>
+                                        <td>{{ detail.file_size }}</td>
+                                        <td>{{ detail.modified_date }}</td>
+                                        <td>{{ detail.viewed_by_me_date }}</td>
+                                        <td>{{ detail.trashed }}</td>
+                                        <td>{{ detail.tree_path }}</td>
+                                        {% for prop in properties %}
+                                            <td>{{ detail.properties[prop] }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% endmacro %}
+                    {{ generate_items_details_table(headers) }}
+
+                {% endif %}
+
+            {% endfor %}
 
         </div>
 

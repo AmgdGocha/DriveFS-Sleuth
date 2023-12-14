@@ -1,4 +1,5 @@
 import datetime
+import os.path
 from enum import Enum
 from collections import OrderedDict
 
@@ -9,7 +10,6 @@ from drivefs_sleuth.utils import get_max_root_ids
 from drivefs_sleuth.utils import get_item_properties
 from drivefs_sleuth.utils import get_connected_devices
 from drivefs_sleuth.utils import get_parent_relationships
-from drivefs_sleuth.utils import get_mirroring_roots_for_account
 
 from drivefs_sleuth.synced_files_tree import File
 from drivefs_sleuth.synced_files_tree import Link
@@ -23,14 +23,15 @@ class StorageDestinations(Enum):
 
 
 class Account:
-    def __init__(self, profile_path, account_id, email, is_logged_in, mirroring_roots):
-        self.__profile_path = profile_path
+    def __init__(self, drivefs_path, account_id, email, is_logged_in, mirroring_roots):
+        self.__profile_path = os.path.join(drivefs_path, account_id)
         self.__account_id = account_id
         self.__account_email = email
         self.__is_logged_in = is_logged_in
         self.__synced_files_tree = None
         if is_logged_in:
             self.construct_synced_files_trees()
+        # TODO: enrich the roots from the mirror_sqlite.db
         self.__mirroring_roots = []
         for mirroring_root in mirroring_roots:
             mirroring_root_info = {
@@ -48,14 +49,23 @@ class Account:
 
             self.__mirroring_roots.append(mirroring_root_info)
 
+    def get_profile_path(self):
+        return self.__profile_path
+
     def get_account_id(self):
         return self.__account_id
 
     def get_account_email(self):
         return self.__account_email
 
+    def is_logged_in(self):
+        return self.__is_logged_in
+
     def get_synced_files_tree(self):
         return self.__synced_files_tree
+
+    def get_mirroring_roots(self):
+        return self.__mirroring_roots
 
     def construct_synced_files_trees(self):
         parent_relationships = get_parent_relationships(self.__profile_path)
@@ -89,13 +99,10 @@ class Account:
                         # TODO handle the parent in the tree when the parent is deleted, maybe creating a dummy parent
                         self.__synced_files_tree.add_deleted_item(parent_id)
                     else:
-                        current_parent_dir = Directory(parent_info[1], parent_info[2], parent_info[3],
-                                                       parent_info[4],
-                                                       parent_info[5], parent_info[6], parent_info[7],
-                                                       parent_info[8],
+                        current_parent_dir = Directory(parent_info[1], parent_info[2], parent_info[3], parent_info[4],
+                                                       parent_info[5], parent_info[6], parent_info[7], parent_info[8],
                                                        parent_info[9], get_item_properties(self.__profile_path,
-                                                                                           parent_id),
-                                                       parent_info[3])
+                                                                                           parent_id), parent_info[3])
                         orphan_dirs[parent_id] = current_parent_dir
 
             for child_id in childs_ids:
@@ -123,8 +130,7 @@ class Account:
                                 target_info = get_item_info(self.__profile_path, target_stable_id)
                                 target = Directory(target_info[1], target_info[2], target_info[3], target_info[4],
                                                    target_info[5], target_info[6], target_info[7], target_info[8],
-                                                   target_info[9],
-                                                   get_item_properties(self.__profile_path, child_id),
+                                                   target_info[9], get_item_properties(self.__profile_path, child_id),
                                                    f'{current_parent_dir.tree_path}\\{target_info[3]}')
 
                             child = Link(child_info[1], child_info[2], child_info[3], child_info[4], child_info[5],
@@ -177,9 +183,6 @@ class Account:
         for orphan_id, orphan_dir in orphan_dirs.items():
             self.__synced_files_tree.add_orphan_item(orphan_dir)
 
-    def get_mirroring_roots(self):
-        return self.__mirroring_roots
-
 
 class Setup:
     def __init__(self, drivefs_path, accounts):
@@ -198,25 +201,26 @@ class Setup:
                 "ignore": connected_device[4],
             })
 
-    def get_accounts(self):
-        return self.__accounts
-
     def get_drivefs_path(self):
         return self.__drivefs_path
 
-    def get_connected_devices(self):
-        return self.__connected_devices
+    def get_accounts(self):
+        return self.__accounts
 
     def get_last_sync_date(self):
         return self.__last_sync_date
 
-    # TODO: handle if no max ides or roots
-    def is_mirroring_roots_modified(self):
-        return False if self.get_max_root_ids() == sum(
-            [len(account.get_mirroring_roots()) for account in self.get_accounts()]) else True
+    def get_max_root_ids(self):
+        return self.__max_root_ids
 
     def get_last_pid(self):
         return self.__last_pid
 
-    def get_max_root_ids(self):
-        return self.__max_root_ids
+    def get_connected_devices(self):
+        return self.__connected_devices
+
+    def is_mirroring_roots_modified(self):
+        return False if not self.get_max_root_ids() or self.get_max_root_ids() == sum(
+            [len(account.get_mirroring_roots()) for account in self.get_accounts()]) else True
+
+

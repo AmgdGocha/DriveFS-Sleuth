@@ -32,7 +32,6 @@ def lookup_account_id(drivefs_path, account_id):
 
 
 def get_synced_files(profile_path):
-    # profile_path = os.path.join(drivefs_path, account_id)
     with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
         cursor = metadata_sqlite_db.cursor()
         cursor.execute("SELECT is_folder, stable_id, local_title, mime_type, is_owner, file_size, modified_date, "
@@ -41,7 +40,6 @@ def get_synced_files(profile_path):
 
 
 def get_parent_relationships(profile_path):
-    # account_profile = os.path.join(drivefs_path, account_id)
     with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
         cursor = metadata_sqlite_db.cursor()
         cursor.execute(
@@ -51,7 +49,6 @@ def get_parent_relationships(profile_path):
 
 
 def get_item_info(profile_path, stable_id):
-    # profile_path = os.path.join(drivefs_path, account_id)
     with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
         cursor = metadata_sqlite_db.cursor()
         cursor.execute(f"SELECT is_folder, stable_id, id, local_title, mime_type, is_owner, file_size, modified_date, "
@@ -59,7 +56,6 @@ def get_item_info(profile_path, stable_id):
         return cursor.fetchone()
 
 
-# TODO: check if there is multiple logged in accounts
 def get_last_sync(drivefs_path):
     with sqlite3.connect(os.path.join(drivefs_path, "experiments.db")) as experiments_db:
         cursor = experiments_db.cursor()
@@ -86,7 +82,7 @@ def get_max_root_ids(drivefs_path):
         max_root_ids = cursor.fetchone()
         if max_root_ids:
             return int(max_root_ids[0])
-        return -1
+        return None
 
 
 def get_mirroring_roots_for_account(drivefs_path, account_id):
@@ -98,7 +94,6 @@ def get_mirroring_roots_for_account(drivefs_path, account_id):
 
 
 def get_item_properties(profile_path, item_id):
-    # profile_path = os.path.join(drivefs_path, account_id)
     with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
         cursor = metadata_sqlite_db.cursor()
         cursor.execute(f"SELECT key, value FROM item_properties WHERE item_stable_id={item_id}")
@@ -109,7 +104,6 @@ def get_item_properties(profile_path, item_id):
 
 
 def get_target_stable_id(profile_path, shortcut_stable_id):
-    # profile_path = os.path.join(drivefs_path, account_id)
     with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
         cursor = metadata_sqlite_db.cursor()
         cursor.execute(f"SELECT target_stable_id FROM shortcut_details WHERE shortcut_stable_id={shortcut_stable_id}")
@@ -120,7 +114,6 @@ def get_target_stable_id(profile_path, shortcut_stable_id):
 
 
 def get_shared_with_me_without_link(profile_path):
-    # profile_path = os.path.join(drivefs_path, account_id)
     with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
         cursor = metadata_sqlite_db.cursor()
         cursor.execute("SELECT is_folder, stable_id, id, local_title, mime_type, is_owner, file_size, modified_date, "
@@ -134,9 +127,7 @@ def get_shared_with_me_without_link(profile_path):
 
 
 def get_properties_list(profile_path):
-    # profile_path = os.path.join(drivefs_path, account_id)
     with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
         cursor = metadata_sqlite_db.cursor()
         cursor.execute("SELECT DISTINCT key FROM item_properties")
         return [prop[0] for prop in cursor.fetchall() if prop[0] != 'version-counter']
-

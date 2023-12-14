@@ -1,43 +1,13 @@
-import sqlite3
-from collections import OrderedDict
+import os
+
 from jinja2 import Environment
 from jinja2 import FileSystemLoader
-from drivefs_sleuth.utils import get_item_info
+
 from drivefs_sleuth.utils import get_account_ids
 from drivefs_sleuth.utils import lookup_account_id
-from drivefs_sleuth.utils import get_item_properties
 from drivefs_sleuth.utils import get_properties_list
-from drivefs_sleuth.utils import get_target_stable_id
 from drivefs_sleuth.utils import get_available_profiles
-from drivefs_sleuth.utils import get_parent_relationships
-from drivefs_sleuth.utils import get_shared_with_me_without_link
-from drivefs_sleuth.synced_files_tree import File
-from drivefs_sleuth.synced_files_tree import Link
-from drivefs_sleuth.synced_files_tree import Directory
-from drivefs_sleuth.synced_files_tree import SyncedFilesTree
 
-
-# TODO handle if there are multiple logged-in accounts
-# def get_logged_in_accounts(drivefs_path):
-#     accounts = {}
-#     # TODO: what if there is no directory with the numbers
-#     for subdir in os.listdir(drivefs_path):
-#         if subdir.isdigit():
-#             accounts[subdir] = ''
-#
-#     # TODO: what if the logs are not there
-#     logs_dir = os.path.join(drivefs_path, "Logs")
-#     for _, _, files in os.walk(logs_dir):
-#         for file in files:
-#             if file.startswith("drive_fs") and file.endswith(".txt"):
-#                 with open(os.path.join(logs_dir, file), 'r') as log_file:
-#                     logs = log_file.read()
-#                     for account_id in accounts.keys():
-#                         match = re.search(r"([\w\.-]+@[\w\.-]+\.\w+) \(" + account_id + r"\)", logs)
-#                         if match:
-#                             accounts[account_id] = match.group(1)
-#
-#     return accounts
 
 def get_accounts(drivefs_path):
     accounts = {}
@@ -82,19 +52,37 @@ def get_accounts(drivefs_path):
 #         items_db.commit()
 
 
-# TODO: apply the new changes (no profile)
-def generate_html_report(profile, search_results=None):
+# TODO: properly handle the headers (remove extra properties per account)
+def generate_html_report(setup, search_results=None):
     if search_results is None:
-        search_results = []
+        search_results = {}
     env = Environment(loader=FileSystemLoader("html_resources/"))
     template = env.get_template("report_template.html")
     headers = ['id', 'type', 'url_id', 'title', 'mime_type', 'is_owner', 'file_size', 'modified_date',
-              'viewed_by_me_date', 'trashed', 'tree_path'] + get_properties_list(
-        profile.get_drivefs_path(), profile.get_account_id())
-    with open("report.html", 'w', encoding='utf-8') as report_file:
-        for tree in profile.get_synced_trees():
-            report_file.write(template.render(profile=profile,
-                                              tree=tree,
-                                              search_results=search_results,
-                                              headers=headers))
+               'viewed_by_me_date', 'trashed', 'tree_path']
+    for account in setup.get_accounts():
+        headers += get_properties_list(os.path.join(setup.get_drivefs_path(), account.get_account_id()))
 
+    with open("report.html", 'w', encoding='utf-8') as report_file:
+        report_file.write(template.render(setup=setup,
+                                          search_results=search_results,
+                                          headers=list(set(headers))))
+
+
+from drivefs_sleuth.utils import get_mirroring_roots_for_account
+from drivefs_sleuth.setup import Account, Setup
+
+# drivefs_path = 'C:\\Amged\\Private\\Research\\DriveFS_Forensics\\2ed_login\\DriveFS'
+# drivefs_path = 'C:\\Users\\Amged Wageh\\AppData\\Local\\Google\DriveFS'
+# accounts = []
+# for account_id, account_info in get_accounts(drivefs_path).items():
+#     accounts.append(
+#         Account(
+#             drivefs_path,
+#             account_id,
+#             account_info['email'],
+#             account_info['logged_in'],
+#             get_mirroring_roots_for_account(drivefs_path, account_id)
+#         ))
+# setup = Setup(drivefs_path, accounts)
+# generate_html_report(setup)
