@@ -253,13 +253,6 @@
     </head>
 
     <body>
-        {% macro render_search_results(results) %}
-            <h2>Search Results</h2>
-            {% for result in results %}
-                <li>{{ result.tree_path }}</li>
-                {{ searches.append(result.get_stable_id()) or '' }}
-            {% endfor %}
-        {% endmacro %}
 
         <header id="top">
             <div class="top-strip">
@@ -312,7 +305,6 @@
             </table>
 
             {% for account in setup.get_accounts() %}
-                {% set searches=[] %}
 
                 <div class="center-container">
                     <div class="card">
@@ -356,7 +348,13 @@
                 {% endif %}
 
                 {% if search_results.get(account.get_account_id(), None) %}
-                    {{ render_search_results(search_results[account.get_account_id()]) }}
+                    {% set searches=[] %}
+
+                    <h2>Search Results</h2>
+                    {% for result in search_results[account.get_account_id()] %}
+                        <li>{{ result.tree_path }}</li>
+                        {{ searches.append(result.get_stable_id()) or '' }}
+                    {% endfor %}
                 {% endif %}
 
                 {% if account.is_logged_in() %}

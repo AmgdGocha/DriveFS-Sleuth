@@ -69,8 +69,8 @@ def generate_html_report(setup, search_results=None):
                                           headers=list(set(headers))))
 
 
-from drivefs_sleuth.utils import get_mirroring_roots_for_account
-from drivefs_sleuth.setup import Account, Setup
+# from drivefs_sleuth.utils import get_mirroring_roots_for_account
+# from drivefs_sleuth.setup import Account, Setup
 
 # drivefs_path = 'C:\\Amged\\Private\\Research\\DriveFS_Forensics\\2ed_login\\DriveFS'
 # drivefs_path = 'C:\\Users\\Amged Wageh\\AppData\\Local\\Google\DriveFS'
@@ -85,4 +85,8 @@ from drivefs_sleuth.setup import Account, Setup
 #             get_mirroring_roots_for_account(drivefs_path, account_id)
 #         ))
 # setup = Setup(drivefs_path, accounts)
-# generate_html_report(setup)
+#
+# search_results = {}
+# for account in setup.get_accounts():
+#     search_results[account.get_account_id()] = account.get_synced_files_tree().search_item_by_name('text file.txt')
+# generate_html_report(setup, search_results)

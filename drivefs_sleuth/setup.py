@@ -30,7 +30,7 @@ class Account:
         self.__is_logged_in = is_logged_in
         self.__synced_files_tree = None
         if is_logged_in:
-            self.construct_synced_files_trees()
+            self._construct_synced_files_trees()
         # TODO: enrich the roots from the mirror_sqlite.db
         self.__mirroring_roots = []
         for mirroring_root in mirroring_roots:
@@ -67,7 +67,7 @@ class Account:
     def get_mirroring_roots(self):
         return self.__mirroring_roots
 
-    def construct_synced_files_trees(self):
+    def _construct_synced_files_trees(self):
         parent_relationships = get_parent_relationships(self.__profile_path)
         root_info = get_item_info(self.__profile_path, parent_relationships[0][0])
         root = Directory(root_info[1], root_info[2], root_info[3], root_info[4], root_info[5], root_info[6],
