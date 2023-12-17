@@ -3,7 +3,8 @@ Google Drive File Stream works as a file-syncing application, facilitating the s
 
 # DriveFS Sleuth
 
-![](/assets/DriveFS Sleuth Logo.jpg)
+![This is how Bing creator imagined a logo for the DriveFS Sleuth Tool.](https://raw.githubusercontent.com/AmgdGocha/DriveFS-Sleuth/main/assets/DriveFS%20Sleuth%20Logo.jpg)
+
 
 DriveFS Sleuth is a Python tool that automates investigating Google Drive File Stream disk artifacts, the tool has been developed based on research that has been performed by mounting different scenarios and noting down the changes in the Google Drive File Stream disk artifacts.
 
