@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     arg_parser.add_argument(
         '-q',
-        '--query_by_name',
+        '--query-by-name',
         type=str,
         nargs='+',
         dest='query_by_name',
@@ -60,18 +60,18 @@ if __name__ == '__main__':
     )
 
     arg_parser.add_argument(
+        '--search-csv',
+        type=str,
+        dest="search_csv",
+        help='Searches for files or folders that satisfies the searching conditions in the provided CSV file.'
+    )
+
+    arg_parser.add_argument(
         '--exact',
         action='store_false',
         dest='exact',
         help='If selected, only files or folders with exact file names will be returned. '
              'The --query_by_name argument has to be passed. Defaults to False.'
-    )
-
-    arg_parser.add_argument(
-        '--search-csv',
-        type=str,
-        dest="search_csv",
-        help='Searches for files or folders that satisfies the searching conditions in the provided CSV file.'
     )
 
     arg_parser.add_argument(
