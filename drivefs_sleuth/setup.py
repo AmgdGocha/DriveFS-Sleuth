@@ -1,20 +1,27 @@
-import datetime
 import os.path
+import datetime
 from enum import Enum
 from collections import OrderedDict
 
-from drivefs_sleuth.utils import get_last_pid, get_target_stable_id, get_shared_with_me_without_link
+from drivefs_sleuth.utils import get_last_pid
 from drivefs_sleuth.utils import get_item_info
 from drivefs_sleuth.utils import get_last_sync
 from drivefs_sleuth.utils import get_max_root_ids
+from drivefs_sleuth.utils import get_mirrored_items
 from drivefs_sleuth.utils import get_item_properties
+from drivefs_sleuth.utils import get_target_stable_id
 from drivefs_sleuth.utils import get_connected_devices
 from drivefs_sleuth.utils import get_parent_relationships
+from drivefs_sleuth.utils import get_shared_with_me_without_link
+from drivefs_sleuth.utils import get_mirroring_roots_for_account
 
 from drivefs_sleuth.synced_files_tree import File
 from drivefs_sleuth.synced_files_tree import Link
 from drivefs_sleuth.synced_files_tree import Directory
+from drivefs_sleuth.synced_files_tree import MirrorItem
 from drivefs_sleuth.synced_files_tree import SyncedFilesTree
+
+from drivefs_sleuth.tasks import get_accounts
 
 
 class StorageDestinations(Enum):
@@ -31,7 +38,6 @@ class Account:
         self.__synced_files_tree = None
         if is_logged_in:
             self._construct_synced_files_trees()
-        # TODO: enrich the roots from the mirror_sqlite.db
         self.__mirroring_roots = []
         for mirroring_root in mirroring_roots:
             mirroring_root_info = {
@@ -183,23 +189,52 @@ class Account:
         for orphan_id, orphan_dir in orphan_dirs.items():
             self.__synced_files_tree.add_orphan_item(orphan_dir)
 
+        mirrored_items = get_mirrored_items(self.__profile_path)
+        for item in mirrored_items:
+            self.__synced_files_tree.add_mirrored_item(
+                MirrorItem(item[0], item[1], item[2], item[3], item[4], item[5], item[6], item[7], item[8], item[9],
+                           item[10], item[11], item[12], item[13], item[14], item[15], item[16]
+                           )
+            )
+
 
 class Setup:
-    def __init__(self, drivefs_path, accounts):
+    def __init__(self, drivefs_path, accounts=None):
         self.__drivefs_path = drivefs_path
-        self.__accounts = accounts
         self.__last_sync_date = datetime.datetime.fromtimestamp(get_last_sync(drivefs_path), datetime.timezone.utc)
         self.__max_root_ids = get_max_root_ids(drivefs_path)
         self.__last_pid = get_last_pid(drivefs_path)
         self.__connected_devices = []
         for connected_device in get_connected_devices(drivefs_path):
-            self.__connected_devices.append({
+            device = {
                 "media_id": connected_device[0],
                 "name": connected_device[1],
                 "last_mount_point": connected_device[2],
-                "capacity": round(int(connected_device[3]) / 1e+9, 2),
                 "ignore": connected_device[4],
-            })
+            }
+            if int(connected_device[3]) == -1:
+                device["capacity"] = connected_device[3]
+            else:
+                device["capacity"] = round(int(connected_device[3]) / 1e+9, 2)
+
+            self.__connected_devices.append(device)
+
+        if not accounts:
+            accounts = []
+        self.__accounts = []
+        for account_id, account_info in get_accounts(drivefs_path).items():
+            if accounts and not (account_id in accounts or account_info['email'] in accounts):
+                continue
+
+            self.__accounts.append(
+                Account(
+                    drivefs_path,
+                    account_id,
+                    account_info['email'],
+                    account_info['logged_in'],
+                    get_mirroring_roots_for_account(drivefs_path, account_id)
+                )
+            )
 
     def get_drivefs_path(self):
         return self.__drivefs_path
@@ -222,5 +257,3 @@ class Setup:
     def is_mirroring_roots_modified(self):
         return False if not self.get_max_root_ids() or self.get_max_root_ids() == sum(
             [len(account.get_mirroring_roots()) for account in self.get_accounts()]) else True
-
-

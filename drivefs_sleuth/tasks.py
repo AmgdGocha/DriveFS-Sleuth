@@ -1,4 +1,5 @@
 import os
+import csv
 
 from jinja2 import Environment
 from jinja2 import FileSystemLoader
@@ -7,6 +8,9 @@ from drivefs_sleuth.utils import get_account_ids
 from drivefs_sleuth.utils import lookup_account_id
 from drivefs_sleuth.utils import get_properties_list
 from drivefs_sleuth.utils import get_available_profiles
+
+from drivefs_sleuth.synced_files_tree import File
+from drivefs_sleuth.synced_files_tree import Link
 
 
 def get_accounts(drivefs_path):
@@ -21,72 +25,97 @@ def get_accounts(drivefs_path):
     return accounts
 
 
-#
-# def build_items_db(drivefs_path, account_id, tree):
-#     with sqlite3.connect('items_db') as items_db:
-#         cursor = items_db.cursor()
-#         properties = get_properties_list(drivefs_path, account_id)
-#
-#         cursor.execute('''
-#             CREATE TABLE items (
-#                 item_id INTEGER PRIMARY KEY,
-#                 url_id TEXT NOT NULL,
-#                 local_title TEXT,
-#                 mime_type TEXT,
-#                 is_owner TEXT,
-#                 file_size TEXT,
-#                 modified_date TEXT,
-#                 viewed_by_me_date TEXT,
-#                 trashed TEXT,
-#                 tree_path TEXT
-#             )
-#         ''')
-#
-#         item_values = (1, 'example_url_id', 'Example Title', 'text/plain', 'true', '1024', '2023-11-22', '2023-11-22', 'false', '/example/path')
-#
-#         cursor.execute('''
-#             INSERT INTO items (item_id, url_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date, trashed, tree_path)
-#             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-#         ''', item_values)
-#
-#         items_db.commit()
-
-
-# TODO: properly handle the headers (remove extra properties per account)
-def generate_html_report(setup, search_results=None):
-    if search_results is None:
-        search_results = {}
-    env = Environment(loader=FileSystemLoader("html_resources/"))
-    template = env.get_template("report_template.html")
-    headers = ['id', 'type', 'url_id', 'title', 'mime_type', 'is_owner', 'file_size', 'modified_date',
+def __build_headers(setup):
+    headers = ['stable_id', 'type', 'url_id', 'local_title', 'mime_type', 'is_owner', 'file_size', 'modified_date',
                'viewed_by_me_date', 'trashed', 'tree_path']
     for account in setup.get_accounts():
-        headers += get_properties_list(os.path.join(setup.get_drivefs_path(), account.get_account_id()))
+        if account.is_logged_in():
+            for prop in get_properties_list(os.path.join(setup.get_drivefs_path(), account.get_account_id())):
+                if prop not in headers:
+                    headers.append(prop)
+    return headers
 
-    with open("report.html", 'w', encoding='utf-8') as report_file:
+
+def __generate_csv_search_results_report(setup, output_file, search_results):
+    search_results_headers = ['account_id', 'email'] + __build_headers(setup)
+    with open(output_file, 'w', encoding='utf-8') as search_results_csv_file:
+        csv_writer = csv.DictWriter(search_results_csv_file, fieldnames=search_results_headers)
+        csv_writer.writeheader()
+        for account, results in search_results.items():
+            for result in results:
+                row = result.to_dict()
+                row['account_id'] = account[0]
+                row['email'] = account[1]
+                if not result.is_dir():
+                    row['type'] = 'File'
+                elif result.is_link():
+                    row['type'] = 'Link'
+                else:
+                    row['type'] = 'Directory'
+                csv_writer.writerow(row)
+
+
+def __generate_csv_report(setup, output_file):
+    headers = ['account_id', 'email'] + __build_headers(setup)
+    with open(output_file, 'w', encoding='utf-8') as csv_report_file:
+        csv_writer = csv.DictWriter(csv_report_file, fieldnames=headers)
+        csv_writer.writeheader()
+        rows = []
+
+        def __generate_csv_dict(roots, account_id, email):
+            if isinstance(roots, list):
+                for item in roots:
+                    __generate_csv_dict(item, account_id, email)
+            else:
+                row = roots.to_dict()
+                row['account_id'] = account_id
+                row['email'] = email
+                if isinstance(roots, File):
+                    row['type'] = 'File'
+                    rows.append(row)
+                    return
+                elif isinstance(roots, Link):
+                    row['type'] = 'Link'
+                    rows.append(row)
+                    for sub_item in roots.get_target_item().get_sub_items():
+                        __generate_csv_dict(sub_item, account_id, email)
+                else:
+                    row['type'] = 'Directory'
+                    rows.append(row)
+                    for sub_item in roots.get_sub_items():
+                        __generate_csv_dict(sub_item, account_id, email)
+
+        for account in setup.get_accounts():
+            files_tree = account.get_synced_files_tree()
+            __generate_csv_dict(
+                [files_tree.get_root()] + files_tree.get_orphan_items() + files_tree.get_shared_with_me_items(),
+                account.get_account_id(),
+                account.get_account_email()
+            )
+
+        csv_writer.writerows(rows)
+
+
+def generate_csv_report(setup, output_file, search_results=None):
+    if search_results is None:
+        search_results = {}
+
+    if search_results:
+        parent_dir = os.path.abspath(os.path.join(output_file, os.pardir))
+        search_results_csv_path = os.path.join(parent_dir, 'search_results.csv')
+        __generate_csv_search_results_report(setup, search_results_csv_path, search_results)
+
+    __generate_csv_report(setup, output_file)
+
+
+def generate_html_report(setup, output_file, search_results=None):
+    if search_results is None:
+        search_results = {}
+    env = Environment(loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), 'html_resources')))
+    template = env.get_template("report_template.html")
+    headers = __build_headers(setup)
+
+    with open(output_file, 'w', encoding='utf-8') as report_file:
         report_file.write(template.render(setup=setup,
                                           search_results=search_results,
-                                          headers=list(set(headers))))
-
-
-# from drivefs_sleuth.utils import get_mirroring_roots_for_account
-# from drivefs_sleuth.setup import Account, Setup
-
-# drivefs_path = 'C:\\Amged\\Private\\Research\\DriveFS_Forensics\\2ed_login\\DriveFS'
-# drivefs_path = 'C:\\Users\\Amged Wageh\\AppData\\Local\\Google\DriveFS'
-# accounts = []
-# for account_id, account_info in get_accounts(drivefs_path).items():
-#     accounts.append(
-#         Account(
-#             drivefs_path,
-#             account_id,
-#             account_info['email'],
-#             account_info['logged_in'],
-#             get_mirroring_roots_for_account(drivefs_path, account_id)
-#         ))
-# setup = Setup(drivefs_path, accounts)
-#
-# search_results = {}
-# for account in setup.get_accounts():
-#     search_results[account.get_account_id()] = account.get_synced_files_tree().search_item_by_name('text file.txt')
-# generate_html_report(setup, search_results)
+                                          headers=headers))

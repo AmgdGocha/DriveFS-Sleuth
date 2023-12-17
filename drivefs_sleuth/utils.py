@@ -130,4 +130,14 @@ def get_properties_list(profile_path):
     with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
         cursor = metadata_sqlite_db.cursor()
         cursor.execute("SELECT DISTINCT key FROM item_properties")
-        return [prop[0] for prop in cursor.fetchall() if prop[0] != 'version-counter']
+        return [prop[0] for prop in cursor.fetchall()]
+
+
+def get_mirrored_items(profile_path):
+    with sqlite3.connect(os.path.join(profile_path, "mirror_sqlite.db")) as mirror_sqlite_db:
+        cursor = mirror_sqlite_db.cursor()
+        cursor.execute("SELECT local_stable_id, stable_id, volume, parent_local_stable_id, local_filename, "
+                       "cloud_filename, local_mtime_ms, cloud_mtime_ms, local_md5_checksum, cloud_md5_checksum,"
+                       "local_size, cloud_size, local_version, cloud_version, shared, read_only, is_root "
+                       "FROM mirror_item")
+        return cursor.fetchall()

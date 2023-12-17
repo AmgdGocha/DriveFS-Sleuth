@@ -270,10 +270,10 @@
         <div class="center-container">
             <div class="card">
                 <div class="text-container">
-                    <div class="DriveFS Path">{{ setup.get_drivefs_path() }}</div>
-                    <div class="card-info">Last Sync Date: {{ setup.get_last_sync_date() }}</div>
-                    <div class="card-info">Max Root IDs: {{ setup.get_max_root_ids() }} - {% if setup.is_mirroring_roots_modified() %}Modified{% else %}Not Modified{% endif %}</div>
-                    <div class="card-info">Last PID: {{ setup.get_last_pid() }}</div>
+                    <div>{{ setup.get_drivefs_path() }}</div>
+                    <div>Last Sync Date: {{ setup.get_last_sync_date() }}</div>
+                    <div>Max Root IDs: {{ setup.get_max_root_ids() }} - {% if setup.is_mirroring_roots_modified() %}Modified{% else %}Not Modified{% endif %}</div>
+                    <div>Last PID: {{ setup.get_last_pid() }}</div>
                 </div>
             </div>
         </div>
@@ -321,37 +321,87 @@
                     <h2>Mirroring Roots</h2>
 
                     <table>
-                            <thead>
+                        <thead>
+                            <tr>
+                                <th>Root ID</th>
+                                <th>Media ID</th>
+                                <th>Title</th>
+                                <th>Root Path</th>
+                                <th>Mirroring Destination</th>
+                                <th>Last Seen Absolute Path</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set mirrors=account.get_mirroring_roots() %}
+                            {% for mirror in mirrors %}
                                 <tr>
-                                    <th>Root ID</th>
-                                    <th>Media ID</th>
-                                    <th>Title</th>
-                                    <th>Root Path</th>
-                                    <th>Mirroring Destination</th>
-                                    <th>Last Seen Absolute Path</th>
+                                    <td>{{ mirror.get('root_id', None) }}</td>
+                                    <td>{{ mirror.get('media_id', None) }}</td>
+                                    <td>{{ mirror.get('title', None) }}</td>
+                                    <td>{{ mirror.get('root_path', None) }}</td>
+                                    <td>{{ mirror.get('destination', None) }}</td>
+                                    <td>{{ mirror.get('last_seen_absolute_path', None) }}</td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {% set mirrors=account.get_mirroring_roots() %}
-                                {% for mirror in mirrors %}
-                                    <tr>
-                                        <td>{{ mirror.get('root_id', None) }}</td>
-                                        <td>{{ mirror.get('media_id', None) }}</td>
-                                        <td>{{ mirror.get('title', None) }}</td>
-                                        <td>{{ mirror.get('root_path', None) }}</td>
-                                        <td>{{ mirror.get('destination', None) }}</td>
-                                        <td>{{ mirror.get('last_seen_absolute_path', None) }}</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    <h2>Mirrored Items</h2>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Local Stable ID</th>
+                                <th>Stable ID</th>
+                                <th>Volume</th>
+                                <th>Parent Local Stable ID</th>
+                                <th>Local Filename</th>
+                                <th>Cloud Filename</th>
+                                <th>Local Modified Timestamp</th>
+                                <th>Cloud Modified Timestamp</th>
+                                <th>Local MD5 Checksum</th>
+                                <th>Cloud MD5 Checksum</th>
+                                <th>Local Size</th>
+                                <th>Cloud Size</th>
+                                <th>Local Version</th>
+                                <th>Cloud Version</th>
+                                <th>Shared</th>
+                                <th>Read Only</th>
+                                <th>Is Root</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set mirrored_items=account.get_synced_files_tree().get_mirrored_items() %}
+                            {% for item in mirrored_items %}
+                                <tr>
+                                    <td>{{ item.local_stable_id }}</td>
+                                    <td>{{ item.stable_id }}</td>
+                                    <td>{{ item.volume }}</td>
+                                    <td>{{ item.parent }}</td>
+                                    <td>{{ item.local_filename }}</td>
+                                    <td>{{ item.cloud_filename }}</td>
+                                    <td>{{ item.get_local_mtime_utc() }}</td>
+                                    <td>{{ item.get_cloud_mtime_utc() }}</td>
+                                    <td>{{ item.local_md5 }}</td>
+                                    <td>{{ item.cloud_md5 }}</td>
+                                    <td>{{ item.local_size }}</td>
+                                    <td>{{ item.cloud_size }}</td>
+                                    <td>{{ item.local_version }}</td>
+                                    <td>{{ item.cloud_version }}</td>
+                                    <td>{{ item.shared }}</td>
+                                    <td>{{ item.read_only }}</td>
+                                    <td>{{ item.is_root }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 {% endif %}
 
-                {% if search_results.get(account.get_account_id(), None) %}
+                {% if search_results.get((account.get_account_id(), account.get_account_email()), None) %}
                     {% set searches=[] %}
 
                     <h2>Search Results</h2>
-                    {% for result in search_results[account.get_account_id()] %}
+                    {% for result in search_results[(account.get_account_id(), account.get_account_email())] %}
                         <li>{{ result.tree_path }}</li>
                         {{ searches.append(result.get_stable_id()) or '' }}
                     {% endfor %}
@@ -445,9 +495,9 @@
                                         <td>{{ detail.local_title }}</td>
                                         <td>{{ detail.mime_type }}</td>
                                         <td>{{ detail.is_owner }}</td>
-                                        <td>{{ detail.file_size }}</td>
-                                        <td>{{ detail.modified_date }}</td>
-                                        <td>{{ detail.viewed_by_me_date }}</td>
+                                        <td>{{ detail.get_file_size_mb() }}</td>
+                                        <td>{{ detail.get_modified_date_utc() }}</td>
+                                        <td>{{ detail.get_viewed_by_me_date_utc() }}</td>
                                         <td>{{ detail.trashed }}</td>
                                         <td>{{ detail.tree_path }}</td>
                                         {% for prop in properties %}
