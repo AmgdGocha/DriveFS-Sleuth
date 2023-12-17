@@ -2,7 +2,8 @@
 Google Drive File Stream works as a file-syncing application, facilitating the synchronization of files and photos with Google Drive and Google Photos services. The nomenclature "file stream" is attributed to its capability to stream files on demand, thereby avoiding the need to occupy disk space by downloading all files preemptively. Upon installation and login, users can promptly access all previously synced files through Windows Explorer, without the necessity of storing an offline version.
 
 # DriveFS Sleuth
-[//]: # (Bing creator photo)
+
+![](/assets/DriveFS Sleuth Logo.jpg)
 
 DriveFS Sleuth is a Python tool that automates investigating Google Drive File Stream disk artifacts, the tool has been developed based on research that has been performed by mounting different scenarios and noting down the changes in the Google Drive File Stream disk artifacts.
 
