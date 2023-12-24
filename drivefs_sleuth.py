@@ -209,7 +209,7 @@ if __name__ == '__main__':
             if result:
                 if not search_results.get((account.get_account_id(), account.get_account_email()), None):
                     search_results[(account.get_account_id(), account.get_account_email())] = []
-                search_results[(account.get_account_id(), account.get_account_email())].append(result)
+                search_results[(account.get_account_id(), account.get_account_email())] += result
 
     if args.html:
         print(f'[+] Generating an HTML report: {args.html}...')
