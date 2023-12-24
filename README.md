@@ -71,3 +71,5 @@ DriveFS Sleuth supports two types of outputs:
 
 A path can be passed to the `--csv` arguments so DriveFS Sleuth outputs 2 CSV files, the first file contains a list of all the processed files while the second CSV file lists the files and folders that match the search if the analyst provided any. Similarly, a path can be provided to the `--html` argument to generate an HTML report with the analysis results.
 
+# 🌟 Your Feedback Matters:
+I'm eager to hear your thoughts! Share your feedback and suggestions, or report issues on our GitHub repository. Your input is crucial in making DriveFS Sleuth even more robust. Consider starring the repo if you found it useful. 😉
