@@ -3,7 +3,7 @@ import os
 import sqlite3
 
 
-def get_account_ids(drivefs_path):
+def get_experiment_account_ids(drivefs_path):
     with sqlite3.connect(os.path.join(drivefs_path, "experiments.db")) as experiments_db:
         cursor = experiments_db.cursor()
         cursor.execute("SELECT value FROM PhenotypeValues WHERE key='account_ids'")

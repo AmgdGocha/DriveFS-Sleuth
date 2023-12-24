@@ -4,10 +4,10 @@ import csv
 from jinja2 import Environment
 from jinja2 import FileSystemLoader
 
-from drivefs_sleuth.utils import get_account_ids
 from drivefs_sleuth.utils import lookup_account_id
 from drivefs_sleuth.utils import get_properties_list
 from drivefs_sleuth.utils import get_available_profiles
+from drivefs_sleuth.utils import get_experiment_account_ids
 
 from drivefs_sleuth.synced_files_tree import File
 from drivefs_sleuth.synced_files_tree import Link
@@ -15,9 +15,10 @@ from drivefs_sleuth.synced_files_tree import Link
 
 def get_accounts(drivefs_path):
     accounts = {}
-    experiments_ids = get_account_ids(drivefs_path)
+    experiments_ids = get_experiment_account_ids(drivefs_path)
     profiles = get_available_profiles(drivefs_path)
-    for account_id in experiments_ids:
+    available_accounts = set(experiments_ids + profiles)
+    for account_id in available_accounts:
         accounts[account_id] = {
             'logged_in': account_id in profiles,
             'email': lookup_account_id(drivefs_path, account_id)
