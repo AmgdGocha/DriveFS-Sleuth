@@ -49,6 +49,9 @@
                 padding: 20px;
                 border-radius: 8px;
                 position: relative;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
             }
 
             .card:before {
@@ -247,6 +250,10 @@
                 padding-bottom: 2px;
             }
 
+            .image-container {
+                margin-left: 20px; /* Adjust the margin as needed for spacing */
+            }
+
         </style>
 
         <title>DriveFS-Sleuth - Synced Files Report</title>
@@ -311,7 +318,11 @@
                         <div class="text-container">
                             <div class="email">{{ account.get_account_email() }}</div>
                             <div class="card-info">Account ID: {{ account.get_account_id() }}</div>
+                            <div class="card-info">Display Name: {{ account.get_name() }}</div>
                             <div class="card-info">Currently Logged-In: {{ account.is_logged_in() }}</div>
+                        </div>
+                        <div class="image-container">
+                            <img src={{ account.get_photo_url() }} alt="Account Photo" style="width: 100px; height: 100px;">
                         </div>
                     </div>
                 </div>
