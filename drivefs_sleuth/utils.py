@@ -151,3 +151,10 @@ def parse_protobuf(protobuf):
         protodeep_schema = guess_schema(data=protobuf)
         print(protodeep_schema.values)
         return protodeep_schema.values
+
+
+def get_account_driveway(profile_path):
+    with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+        cursor = metadata_sqlite_db.cursor()
+        cursor.execute("SELECT value FROM properties WHERE property = 'driveway_account'")
+        return parse_protobuf(cursor.fetchone()[0])
