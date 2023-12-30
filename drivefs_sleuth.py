@@ -216,7 +216,7 @@ if __name__ == '__main__':
         generate_html_report(setup, args.html, search_results)
 
     if args.csv:
-        print(f'[+] Generating a CSV report: {args.html}...')
+        print(f'[+] Generating a CSV report: {args.csv}...')
         generate_csv_report(setup, args.csv, search_results)
 
     print('[+] DriveFS Sleuth completed the process.')

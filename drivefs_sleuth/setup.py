@@ -78,7 +78,7 @@ class Account:
         root_info = get_item_info(self.__profile_path, parent_relationships[0][0])
         root = Directory(root_info[1], root_info[2], root_info[3], root_info[4], root_info[5], root_info[6],
                          root_info[7], root_info[8], root_info[9],
-                         get_item_properties(self.__profile_path, root_info[1]), root_info[3])
+                         get_item_properties(self.__profile_path, root_info[1]), root_info[3], root_info[10])
         self.__synced_files_tree = SyncedFilesTree(root)
 
         parent_relationships_dict = OrderedDict()
@@ -108,7 +108,8 @@ class Account:
                         current_parent_dir = Directory(parent_info[1], parent_info[2], parent_info[3], parent_info[4],
                                                        parent_info[5], parent_info[6], parent_info[7], parent_info[8],
                                                        parent_info[9], get_item_properties(self.__profile_path,
-                                                                                           parent_id), parent_info[3])
+                                                                                           parent_id), parent_info[3],
+                                                       parent_info[10])
                         orphan_dirs[parent_id] = current_parent_dir
 
             for child_id in childs_ids:
@@ -122,7 +123,7 @@ class Account:
                         File(child_info[1], child_info[2], child_info[3], child_info[4], child_info[5], child_info[6],
                              child_info[7], child_info[8], child_info[9],
                              get_item_properties(self.__profile_path, child_id),
-                             f'{current_parent_dir.tree_path}\\{child_info[3]}')
+                             f'{current_parent_dir.tree_path}\\{child_info[3]}', child_info[10])
                     )
                 else:
                     if child_info[4] == 'application/vnd.google-apps.shortcut':
@@ -137,12 +138,12 @@ class Account:
                                 target = Directory(target_info[1], target_info[2], target_info[3], target_info[4],
                                                    target_info[5], target_info[6], target_info[7], target_info[8],
                                                    target_info[9], get_item_properties(self.__profile_path, child_id),
-                                                   f'{current_parent_dir.tree_path}\\{target_info[3]}')
+                                                   f'{current_parent_dir.tree_path}\\{target_info[3]}', target_info[10])
 
                             child = Link(child_info[1], child_info[2], child_info[3], child_info[4], child_info[5],
                                          child_info[6], child_info[7], child_info[8], child_info[9],
                                          get_item_properties(self.__profile_path, child_id),
-                                         f'{current_parent_dir.tree_path}\\{child_info[3]}', target)
+                                         f'{current_parent_dir.tree_path}\\{child_info[3]}', target, child_info[10])
                             added_dirs[target_stable_id] = target
                         else:
                             # TODO what if there is no target info, maybe create a dummy target
@@ -156,7 +157,7 @@ class Account:
                             child = Directory(child_info[1], child_info[2], child_info[3], child_info[4], child_info[5],
                                               child_info[6], child_info[7], child_info[8], child_info[9],
                                               get_item_properties(self.__profile_path, child_id),
-                                              f'{current_parent_dir.tree_path}\\{child_info[3]}')
+                                              f'{current_parent_dir.tree_path}\\{child_info[3]}', child_info[10])
 
                     added_dirs[child_id] = child
                     current_parent_dir.add_item(child)
@@ -169,7 +170,7 @@ class Account:
                          shared_with_me_item_info[4], shared_with_me_item_info[5], shared_with_me_item_info[6],
                          shared_with_me_item_info[7], shared_with_me_item_info[8], shared_with_me_item_info[9],
                          get_item_properties(self.__profile_path, shared_with_me_item_info[1]),
-                         f'Shared with me\\{shared_with_me_item_info[3]}')
+                         f'Shared with me\\{shared_with_me_item_info[3]}', shared_with_me_item_info[10])
                 )
             else:
                 shared_with_me_item = orphan_dirs.get(shared_with_me_item_info[1], None)
@@ -183,7 +184,8 @@ class Account:
                                                     shared_with_me_item_info[9],
                                                     get_item_properties(
                                                         self.__profile_path, shared_with_me_item_info[1]),
-                                                    f'{current_parent_dir.tree_path}\\{shared_with_me_item_info[3]}')
+                                                    f'{current_parent_dir.tree_path}\\{shared_with_me_item_info[3]}',
+                                                    shared_with_me_item_info[10])
                 self.__synced_files_tree.add_shared_with_me_item(shared_with_me_item)
 
         for orphan_id, orphan_dir in orphan_dirs.items():

@@ -1,10 +1,12 @@
 import re
 import datetime
 
+from drivefs_sleuth.utils import parse_protobuf
+
 
 class Item:
     def __init__(self, stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date,
-                 trashed, properties, tree_path):
+                 trashed, properties, tree_path, proto):
         self.__stable_id = stable_id
         self.url_id = url_id
         self.local_title = local_title
@@ -16,6 +18,7 @@ class Item:
         self.trashed = trashed
         self.properties = properties
         self.tree_path = tree_path
+        self.md5 = parse_protobuf(proto).get('48', '')
 
     def get_stable_id(self):
         return self.__stable_id
@@ -46,7 +49,8 @@ class Item:
             'modified_date': self.get_modified_date_utc(),
             'viewed_by_me_date': self.get_viewed_by_me_date_utc(),
             'trashed': self.trashed,
-            'tree_path': self.tree_path
+            'tree_path': self.tree_path,
+            'md5': self.md5
         }
         for prop_name, prop_value in self.properties.items():
             item_dict[prop_name] = prop_value
@@ -56,16 +60,16 @@ class Item:
 
 class File(Item):
     def __init__(self, stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date,
-                 trashed, properties, tree_path):
+                 trashed, properties, tree_path, proto):
         super().__init__(stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date,
-                         viewed_by_me_date, trashed, properties, tree_path)
+                         viewed_by_me_date, trashed, properties, tree_path, proto)
 
 
 class Directory(Item):
     def __init__(self, stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date,
-                 trashed, properties, tree_path):
+                 trashed, properties, tree_path, proto):
         super().__init__(stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date,
-                         viewed_by_me_date, trashed, properties, tree_path)
+                         viewed_by_me_date, trashed, properties, tree_path, proto)
         self.__sub_items = []
 
     def add_item(self, item):
@@ -82,9 +86,9 @@ class Directory(Item):
 
 class Link(Item):
     def __init__(self, stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date,
-                 trashed, properties, tree_path, target_item):
+                 trashed, properties, tree_path, target_item, proto):
         super().__init__(stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date,
-                         viewed_by_me_date, trashed, properties, tree_path)
+                         viewed_by_me_date, trashed, properties, tree_path, proto)
         self.__target_item = target_item
 
     def get_target_item(self):
