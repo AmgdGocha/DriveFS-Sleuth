@@ -54,8 +54,12 @@ class Account:
                 mirroring_root_info['destination'] = StorageDestinations.PHOTOS.value
 
             self.__mirroring_roots.append(mirroring_root_info)
-        self.__name = driveway['2']['1']['3']
-        self.__photo_url = driveway['2']['1']['5']
+        if driveway:
+            self.__name = driveway['2']['1']['3']
+            self.__photo_url = driveway['2']['1']['5']
+        else:
+            self.__name = ''
+            self.__photo_url = ''
 
     def get_profile_path(self):
         return self.__profile_path
