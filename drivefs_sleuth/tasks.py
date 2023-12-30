@@ -28,7 +28,7 @@ def get_accounts(drivefs_path):
 
 def __build_headers(setup):
     headers = ['stable_id', 'type', 'url_id', 'local_title', 'mime_type', 'is_owner', 'file_size', 'modified_date',
-               'viewed_by_me_date', 'trashed', 'tree_path']
+               'viewed_by_me_date', 'trashed', 'tree_path', 'md5']
     for account in setup.get_accounts():
         if account.is_logged_in():
             for prop in get_properties_list(os.path.join(setup.get_drivefs_path(), account.get_account_id())):

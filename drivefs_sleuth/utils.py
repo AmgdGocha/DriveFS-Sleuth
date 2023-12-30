@@ -1,6 +1,9 @@
 import re
 import os
 import sqlite3
+import contextlib
+
+from protodeep.lib import guess_schema
 
 
 def get_experiment_account_ids(drivefs_path):
@@ -35,7 +38,7 @@ def get_synced_files(profile_path):
     with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
         cursor = metadata_sqlite_db.cursor()
         cursor.execute("SELECT is_folder, stable_id, local_title, mime_type, is_owner, file_size, modified_date, "
-                       "viewed_by_me_date, trashed FROM items")
+                       "viewed_by_me_date, trashed, proto FROM items")
         return cursor.fetchall()
 
 
@@ -52,7 +55,7 @@ def get_item_info(profile_path, stable_id):
     with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
         cursor = metadata_sqlite_db.cursor()
         cursor.execute(f"SELECT is_folder, stable_id, id, local_title, mime_type, is_owner, file_size, modified_date, "
-                       f"viewed_by_me_date, trashed FROM items WHERE stable_id={stable_id}")
+                       f"viewed_by_me_date, trashed, proto FROM items WHERE stable_id={stable_id}")
         return cursor.fetchone()
 
 
@@ -117,7 +120,7 @@ def get_shared_with_me_without_link(profile_path):
     with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
         cursor = metadata_sqlite_db.cursor()
         cursor.execute("SELECT is_folder, stable_id, id, local_title, mime_type, is_owner, file_size, modified_date, "
-                       "viewed_by_me_date, trashed FROM items "
+                       "viewed_by_me_date, trashed, proto FROM items "
                        "LEFT JOIN stable_parents ON items.stable_id = stable_parents.item_stable_id "
                        "LEFT JOIN shortcut_details ON items.stable_id = shortcut_details.target_stable_id "
                        "WHERE items.is_owner=0 AND items.shared_with_me_date=1 AND stable_parents.item_stable_id IS NULL "
@@ -141,3 +144,10 @@ def get_mirrored_items(profile_path):
                        "local_size, cloud_size, local_version, cloud_version, shared, read_only, is_root "
                        "FROM mirror_item")
         return cursor.fetchall()
+
+
+def parse_protobuf(protobuf):
+    with contextlib.redirect_stdout(None):
+        protodeep_schema = guess_schema(data=protobuf)
+        print(protodeep_schema.values)
+        return protodeep_schema.values
