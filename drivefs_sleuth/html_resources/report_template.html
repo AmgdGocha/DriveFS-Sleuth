@@ -476,6 +476,17 @@
                         </ul>
 
                     <h2>Deleted Items</h2>
+                        {% for recovered_deleted_item in tree.get_recovered_deleted_items() %}
+                                {{ details.append(recovered_deleted_item) or '' }}
+                                <li>
+                                    <a
+                                        {% if recovered_deleted_item.get_stable_id() in searches %}
+                                            class="match"
+                                        {% endif %}
+                                        href="#{{ recovered_deleted_item.get_stable_id() }}">{{ recovered_deleted_item.tree_path }}</a>
+                                </li>
+                        {% endfor %}
+
                         {% for deleted_item in tree.get_deleted_items() %}
                             <li>{{ deleted_item }}</li>
                         {% endfor %}
