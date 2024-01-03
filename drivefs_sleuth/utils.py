@@ -158,3 +158,10 @@ def get_account_driveway(profile_path):
         cursor = metadata_sqlite_db.cursor()
         cursor.execute("SELECT value FROM properties WHERE property = 'driveway_account'")
         return parse_protobuf(cursor.fetchone()[0])
+
+
+def get_deleted_items(profile_path):
+    with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+        cursor = metadata_sqlite_db.cursor()
+        cursor.execute("SELECT stable_id, proto FROM deleted_items")
+        return cursor.fetchall()

@@ -6,7 +6,9 @@ from collections import OrderedDict
 from drivefs_sleuth.utils import get_last_pid
 from drivefs_sleuth.utils import get_item_info
 from drivefs_sleuth.utils import get_last_sync
+from drivefs_sleuth.utils import parse_protobuf
 from drivefs_sleuth.utils import get_max_root_ids
+from drivefs_sleuth.utils import get_deleted_items
 from drivefs_sleuth.utils import get_mirrored_items
 from drivefs_sleuth.utils import get_item_properties
 from drivefs_sleuth.utils import get_target_stable_id
@@ -210,6 +212,49 @@ class Account:
                            item[10], item[11], item[12], item[13], item[14], item[15], item[16]
                            )
             )
+
+        for deleted_item in get_deleted_items(self.__profile_path):
+            parsed_buf = parse_protobuf(deleted_item[1])
+            properties = {}
+            for index, props in parsed_buf.items():
+                if index == '55' or index.startswith('55-'):
+                    for prop in props:
+                        if isinstance(prop, dict):
+                            properties[prop['1']] = prop[[key for key in prop.keys() if key != '1'][0]]
+                        elif isinstance(prop, list):
+                            for p in prop:
+                                properties[p['1']] = p[[key for key in p.keys() if key != '1'][0]]
+            if parsed_buf['4'] == 'application/vnd.google-apps.folder':
+                self.__synced_files_tree.add_recovered_deleted_item(
+                    Directory(
+                        deleted_item[0], parsed_buf.get('1', ''), parsed_buf.get('3', ''), parsed_buf.get('4', ''),
+                        parsed_buf.get('63', 0), parsed_buf.get('14', 0), parsed_buf.get('11', 0),
+                        parsed_buf.get('13', 0), parsed_buf.get('7', 1), properties, parsed_buf.get('3', ''),
+                        deleted_item[1]
+                    )
+                )
+            elif parsed_buf['4'] == 'application/vnd.google-apps.shortcut':
+                target_item = None
+                target_info = parsed_buf.get('132', None)
+                if target_info:
+                    target_item = self.__synced_files_tree.get_item_by_id(target_info['2'])
+                self.__synced_files_tree.add_recovered_deleted_item(
+                    Link(
+                        deleted_item[0], parsed_buf.get('1', ''), parsed_buf.get('3', ''), parsed_buf.get('4', ''),
+                        parsed_buf.get('63', 0), parsed_buf.get('14', 0), parsed_buf.get('11', 0),
+                        parsed_buf.get('13', 0), parsed_buf.get('7', 1), properties, parsed_buf.get('3', ''),
+                        target_item, deleted_item[1]
+                    )
+                )
+            else:
+                self.__synced_files_tree.add_recovered_deleted_item(
+                    File(
+                        deleted_item[0], parsed_buf.get('1', ''), parsed_buf.get('3', ''),
+                        parsed_buf.get('4', ''), parsed_buf.get('63', 0), parsed_buf.get('14', 0),
+                        parsed_buf.get('11', 0), parsed_buf.get('13', 0), parsed_buf.get('7', 1), properties,
+                        parsed_buf.get('3', ''), deleted_item[1]
+                    )
+                )
 
 
 class Setup:

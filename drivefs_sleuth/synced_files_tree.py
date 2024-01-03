@@ -23,6 +23,9 @@ class Item:
     def get_stable_id(self):
         return self.__stable_id
 
+    def is_file(self):
+        return isinstance(self, File)
+
     def is_dir(self):
         return isinstance(self, Directory)
 
@@ -150,6 +153,7 @@ class SyncedFilesTree:
         self.__root = root
         self.__orphan_items = []
         self.__shared_with_me = []
+        self.__recovered_deleted_items = []
         self.__deleted_items = []
         self.__mirror_items = []
 
@@ -165,6 +169,9 @@ class SyncedFilesTree:
     def add_deleted_item(self, stable_id):
         self.__deleted_items.append(stable_id)
 
+    def add_recovered_deleted_item(self, item):
+        self.__recovered_deleted_items.append(item)
+
     def add_shared_with_me_item(self, item):
         self.__shared_with_me.append(item)
 
@@ -174,22 +181,29 @@ class SyncedFilesTree:
     def get_deleted_items(self):
         return self.__deleted_items
 
-    def get_item_by_id(self, target_id, orphan=False):
-        if not orphan:
-            dirs_queue = [self.get_root()] + self.get_orphan_items()
+    def get_recovered_deleted_items(self):
+        return self.__recovered_deleted_items
+
+    def get_item_by_id(self, target_id, is_owner=False):
+        if not is_owner:
+            queue = [self.get_root()] + self.get_orphan_items() + self.get_shared_with_me_items()
         else:
-            dirs_queue = self.get_orphan_items()
+            queue = [self.get_root()]
 
-        while dirs_queue:
-            current_dir = dirs_queue.pop(0)
+        while queue:
+            current_item = queue.pop(0)
 
-            for item in current_dir.get_sub_items():
-                if item.get_stable_id() == target_id:
-                    return item
+            if current_item.get_stable_id() == target_id:
+                return current_item
 
-                else:
-                    if item.is_dir():
-                        dirs_queue.append(item)
+            if current_item.is_file():
+                continue
+
+            elif current_item.is_dir():
+                queue += current_item.get_sub_items()
+
+            elif current_item.is_link():
+                queue += current_item.get_target_item()
 
         return None
 
@@ -263,6 +277,9 @@ class SyncedFilesTree:
         for shared_item in self.get_shared_with_me_items():
             search(shared_item)
 
+        for recovered_deleted_item in self.get_recovered_deleted_items():
+            search(recovered_deleted_item)
+
         return items
 
     def add_mirrored_item(self, mirrored_item):
@@ -277,6 +294,9 @@ class SyncedFilesTree:
         _print_tree([self.get_root()] + self.get_orphan_items())
 
         print('\n----------Deleted Items----------\n')
+
+        for recovered_deleted_items in self.__recovered_deleted_items:
+            print(f'- ({recovered_deleted_items.get_stable_id()}) {recovered_deleted_items.local_title}')
 
         for deleted_item in self.__deleted_items:
             print(f'- {deleted_item}')
