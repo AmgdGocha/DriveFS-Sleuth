@@ -287,29 +287,31 @@
 
         <div class="page-content">
 
-            <h2>Connected Devices</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Media ID</th>
-                        <th>Name</th>
-                        <th>Last Mount Point</th>
-                        <th>Capacity (GB)</th>
-                        <th>Ignore</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for device in setup.get_connected_devices() %}
+            {% if setup.get_connected_devices() %}
+                <h2>Connected Devices</h2>
+                <table>
+                    <thead>
                         <tr>
-                            <td>{{ device.get('media_id', None) }}</td>
-                            <td>{{ device.get('name', None) }}</td>
-                            <td>{{ device.get('last_mount_point', None) }}</td>
-                            <td>{{ device.get('capacity', None) }}</td>
-                            <td>{{ device.get('ignore', None) }}</td>
+                            <th>Media ID</th>
+                            <th>Name</th>
+                            <th>Last Mount Point</th>
+                            <th>Capacity (GB)</th>
+                            <th>Ignore</th>
                         </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {% for device in setup.get_connected_devices() %}
+                            <tr>
+                                <td>{{ device.get('media_id', None) }}</td>
+                                <td>{{ device.get('name', None) }}</td>
+                                <td>{{ device.get('last_mount_point', None) }}</td>
+                                <td>{{ device.get('capacity', None) }}</td>
+                                <td>{{ device.get('ignore', None) }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
 
             {% for account in setup.get_accounts() %}
 
@@ -317,13 +319,17 @@
                     <div class="card">
                         <div class="text-container">
                             <div class="email">{{ account.get_account_email() }}</div>
+                            {% if account.get_name() %}
+                                <div class="card-info">Display Name: {{ account.get_name() }}</div>
+                            {% endif %}
                             <div class="card-info">Account ID: {{ account.get_account_id() }}</div>
-                            <div class="card-info">Display Name: {{ account.get_name() }}</div>
                             <div class="card-info">Currently Logged-In: {{ account.is_logged_in() }}</div>
                         </div>
-                        <div class="image-container">
-                            <img src={{ account.get_photo_url() }} alt="Account Photo" style="width: 100px; height: 100px;">
-                        </div>
+                        {% if account.get_photo_url() %}
+                            <div class="image-container">
+                                <img src={{ account.get_photo_url() }} alt="Account Photo" style="width: 100px; height: 100px;">
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -469,27 +475,31 @@
                             {{ render_items([tree.get_root()] + tree.get_orphan_items()) }}
                         </ul>
 
-                    <h2>Shared with me files</h2>
+                    {% if tree.get_shared_with_me_items() %}
+                        <h2>Shared with me files</h2>
 
-                        <ul id="myUL">
-                            {{ render_items(tree.get_shared_with_me_items()) }}
-                        </ul>
+                            <ul id="myUL">
+                                {{ render_items(tree.get_shared_with_me_items()) }}
+                            </ul>
+                    {% endif %}
 
-                    <h2>Deleted Items</h2>
-                        {% for recovered_deleted_item in tree.get_recovered_deleted_items() %}
-                                {{ details.append(recovered_deleted_item) or '' }}
-                                <li>
-                                    <a
-                                        {% if recovered_deleted_item.get_stable_id() in searches %}
-                                            class="match"
-                                        {% endif %}
-                                        href="#{{ recovered_deleted_item.get_stable_id() }}">{{ recovered_deleted_item.tree_path }}</a>
-                                </li>
-                        {% endfor %}
+                    {% if tree.get_recovered_deleted_items() or tree.get_deleted_items() %}
+                        <h2>Deleted Items</h2>
+                            {% for recovered_deleted_item in tree.get_recovered_deleted_items() %}
+                                    {{ details.append(recovered_deleted_item) or '' }}
+                                    <li>
+                                        <a
+                                            {% if recovered_deleted_item.get_stable_id() in searches %}
+                                                class="match"
+                                            {% endif %}
+                                            href="#{{ recovered_deleted_item.get_stable_id() }}">{{ recovered_deleted_item.tree_path }}</a>
+                                    </li>
+                            {% endfor %}
 
-                        {% for deleted_item in tree.get_deleted_items() %}
-                            <li>{{ deleted_item }}</li>
-                        {% endfor %}
+                            {% for deleted_item in tree.get_deleted_items() %}
+                                <li>{{ deleted_item }}</li>
+                            {% endfor %}
+                    {% endif %}
 
                     <h2>Items Details</h2>
                     {% macro generate_items_details_table(headers) %}
