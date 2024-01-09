@@ -32,7 +32,7 @@ class StorageDestinations(Enum):
 
 
 class Account:
-    def __init__(self, drivefs_path, account_id, email, is_logged_in, mirroring_roots, driveway):
+    def __init__(self, drivefs_path, account_id, email, is_logged_in, mirroring_roots, properties):
         self.__profile_path = os.path.join(drivefs_path, account_id)
         self.__account_id = account_id
         self.__account_email = email
@@ -56,12 +56,8 @@ class Account:
                 mirroring_root_info['destination'] = StorageDestinations.PHOTOS.value
 
             self.__mirroring_roots.append(mirroring_root_info)
-        if driveway:
-            self.__name = driveway['2']['1']['3']
-            self.__photo_url = driveway['2']['1']['5']
-        else:
-            self.__name = ''
-            self.__photo_url = ''
+        self.__name = properties['name']
+        self.__photo_url = properties['photo_url']
 
     def get_profile_path(self):
         return self.__profile_path
@@ -286,14 +282,8 @@ class Setup:
                 continue
 
             self.__accounts.append(
-                Account(
-                    drivefs_path,
-                    account_id,
-                    account_info['email'],
-                    account_info['logged_in'],
-                    get_mirroring_roots_for_account(drivefs_path, account_id),
-                    account_info['driveway']
-                )
+                Account(drivefs_path, account_id, account_info['email'], account_info['logged_in'],
+                        get_mirroring_roots_for_account(drivefs_path, account_id), account_info['properties'])
             )
 
     def get_drivefs_path(self):

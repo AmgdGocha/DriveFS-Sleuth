@@ -6,7 +6,7 @@ from jinja2 import FileSystemLoader
 
 from drivefs_sleuth.utils import lookup_account_id
 from drivefs_sleuth.utils import get_properties_list
-from drivefs_sleuth.utils import get_account_driveway
+from drivefs_sleuth.utils import get_account_properties
 from drivefs_sleuth.utils import get_available_profiles
 from drivefs_sleuth.utils import get_experiment_account_ids
 
@@ -25,10 +25,7 @@ def get_accounts(drivefs_path):
         }
         logged_in = account_id in profiles
         accounts[account_id]['logged_in'] = logged_in
-        if logged_in:
-            accounts[account_id]['driveway'] = get_account_driveway(os.path.join(drivefs_path, account_id))
-        else:
-            accounts[account_id]['driveway'] = {}
+        accounts[account_id]['properties'] = get_account_properties(os.path.join(drivefs_path, account_id))
     return accounts
 
 
