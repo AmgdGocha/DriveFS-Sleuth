@@ -85,7 +85,7 @@ if __name__ == '__main__':
              'This argument suppresses this feature to only return the folder without listing it\'s sub-items.'
     )
 
-    output_formats_group = arg_parser.add_argument_group()
+    output_formats_group = arg_parser.add_argument_group('Output Formats')
 
     output_formats_group.add_argument(
         '--csv',
