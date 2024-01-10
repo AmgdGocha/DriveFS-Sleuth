@@ -16,7 +16,9 @@ DriveFS Sleuth is a Python tool that automates investigating Google Drive File S
 * Supports searching functionality to facilitate the investigations.
 * Generating HTML and CSV reports of the analysis results.
 
-Refer to: https://amgedwageh.medium.com/drivefs-sleuth-investigating-google-drive-file-streams-disk-artifacts-0b5ea637c980 for more information about the underlying research.
+For the underlying research, refer to: 
+* [DriveFS Sleuth — Your Ultimate Google Drive File Stream Investigator!](https://amgedwageh.medium.com/drivefs-sleuth-investigating-google-drive-file-streams-disk-artifacts-0b5ea637c980)
+* [DriveFS Sleuth — Revealing The Hidden Intelligence](https://amgedwageh.medium.com/drivefs-sleuth-revealing-the-hidden-intelligence-82f043c452e4)
 
 ## 🔍 Artifacts Collection Made Easy
 For those who are fans of Velociraptor, like myself, here is a Velociraptor offline collector ready to be used for triaging Google Drive File Stream artifacts to investigate them. The collector can be found here https://github.com/AmgdGocha/DriveFS-Sleuth/tree/main/collectors.
