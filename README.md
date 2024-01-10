@@ -96,33 +96,33 @@ DriveFS Sleuth provides support for two types of outputs:
 2. **HTML Report:** By supplying a path to the `--html` argument, you can trigger DriveFS Sleuth to create an HTML report summarizing the analysis results.
 
 ### Examples
-The following are some examples for the tool usage, change the paths and the searching criteria to match yours.
-* Processing a triage and output an HTML report.
+The following are some examples of the tool usage, change the paths and the searching criteria to match yours.
+* Processing a triage and outputting an HTML report.
 ```
 python3 drivefs_sleuth.py C:\triage_path\DriveFS --html C:\analysis_results\drivefs_report.html
 ```
-* Processing a triage and output a CSV report.
+* Processing a triage and outputting a CSV report.
 ```
 python3 drivefs_sleuth.py C:\triage_path\DriveFS --csv C:\analysis_results\drivefs_report.csv
 ```
-* Processing a triage, search for all files or folders with filenames containing the word 'DFIR', and output both CSV and HTML report.
+* Processing a triage, searching for all files or folders with filenames containing the word 'DFIR', and outputting both CSV and HTML reports.
 ```
 python3 drivefs_sleuth.py C:\triage_path\DriveFS -q DFIR --html C:\analysis_results\drivefs_report.html --csv C:\analysis_results\drivefs_report.csv
 ```
-* Processing a triage, search for all files or folders with the exact filename 'DFIR', and output both CSV and HTML report.
+* Processing a triage, searching for all files or folders with the exact filename 'DFIR', and outputting both CSV and HTML reports.
 ```
 python3 drivefs_sleuth.py C:\triage_path\DriveFS -q DFIR --exact --html C:\analysis_results\drivefs_report.html --csv C:\analysis_results\drivefs_report.csv
 ```
-* Processing a triage, search for all files or folders with filenames that matches the regex `*dfir_\d+*`, and output an HTML report with listing sub-items suppressed.
+* Processing a triage, searching for all files or folders with filenames that match the regex `*dfir_\d+*`, and outputting an HTML report with listing sub-items suppressed.
 ```
 python3 drivefs_sleuth.py C:\triage_path\DriveFS --regex '*dfir_\d+' --html C:\analysis_results\drivefs_report.html --dont-list-sub-items
 ```
-* Processing a triage, pass a csv file that contains the searching criteria, and output a CSV report.
+* Processing a triage passing a CSV file that contains the searching criteria, and outputting a CSV report.
 ```
 python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.csv --csv C:\analysis_results\drivefs_report.csv
 ```
 
-# 📰 Referenced In:
+# 📰 Referenced At:
 * [This Week In 4N6 - Week 52 - 2023](https://thisweekin4n6.com/2023/12/24/week-52-2023/)
 * [This Week In 4N6 - Week 01 - 2024](https://thisweekin4n6.com/2024/01/07/week-01-2024/)
 * [Help Net Security](https://www.helpnetsecurity.com/2024/01/04/drivefs-sleuth-investigating-google-drive-file-stream/)
