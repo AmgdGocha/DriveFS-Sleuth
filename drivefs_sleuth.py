@@ -1,3 +1,4 @@
+import os
 import csv
 import argparse
 from argparse import RawTextHelpFormatter
@@ -42,14 +43,16 @@ if __name__ == '__main__':
         type=str,
         help='Specifies account id/s or emails separated by space to be processed, defaults to all the accounts.')
 
-    arg_parser.add_argument(
+    searching_args = arg_parser.add_argument_group('Searching Arguments')
+
+    searching_args.add_argument(
         '--regex',
         nargs='+',
         type=str,
         help='Searches for files or folders by regular expressions. Multiple regex can be passed separated by spaces.'
     )
 
-    arg_parser.add_argument(
+    searching_args.add_argument(
         '-q',
         '--query-by-name',
         type=str,
@@ -59,14 +62,14 @@ if __name__ == '__main__':
              'Multiple file names can be passed separated by spaces.'
     )
 
-    arg_parser.add_argument(
+    searching_args.add_argument(
         '--search-csv',
         type=str,
         dest="search_csv",
         help='Searches for files or folders that satisfies the searching conditions in the provided CSV file.'
     )
 
-    arg_parser.add_argument(
+    searching_args.add_argument(
         '--exact',
         action='store_false',
         dest='exact',
@@ -74,7 +77,7 @@ if __name__ == '__main__':
              'The --query_by_name argument has to be passed. Defaults to False.'
     )
 
-    arg_parser.add_argument(
+    searching_args.add_argument(
         '--dont-list-sub-items',
         action='store_false',
         dest='list_sub_items',
@@ -82,17 +85,20 @@ if __name__ == '__main__':
              'This argument suppresses this feature to only return the folder without listing it\'s sub-items.'
     )
 
-    arg_parser.add_argument(
+    output_formats_group = arg_parser.add_argument_group()
+
+    output_formats_group.add_argument(
         '--csv',
         type=str,
         help='Generates an HTML report. The CSV report will only contain information regarding the queried files.'
+             ' Either --csv or --html should be specified.'
     )
 
-    arg_parser.add_argument(
+    output_formats_group.add_argument(
         '--html',
         type=str,
         help='Generates an HTML report. The HTML report contains comprehensive information about the analyzed '
-             'artifacts.'
+             'artifacts.  Either --csv or --html should be specified.'
     )
 
     args = arg_parser.parse_args()
@@ -101,6 +107,11 @@ if __name__ == '__main__':
     if not args.exact and not args.query_by_name:
         arg_parser.print_usage()
         print('DriveFS Sleuth: error: [--exact] can only be specified  with [-q QUERY_BY_NAME [QUERY_BY_NAME ...]]')
+        arg_parser.exit()
+
+    if not args.csv and not args.html:
+        arg_parser.print_usage()
+        print('DriveFS Sleuth: error: Either --csv or --html should be specified.')
         arg_parser.exit()
 
     print(f'[+] Processing {drivefs_path}...')
@@ -212,11 +223,19 @@ if __name__ == '__main__':
                 search_results[(account.get_account_id(), account.get_account_email())] += result
 
     if args.html:
-        print(f'[+] Generating an HTML report: {args.html}...')
-        generate_html_report(setup, args.html, search_results)
+        if os.path.isdir(args.html):
+            output_file = os.path.join(args.html, 'html_report.html')
+        else:
+            output_file = args.html
+        print(f'[+] Generating an HTML report: {output_file}...')
+        generate_html_report(setup, output_file, search_results)
 
     if args.csv:
-        print(f'[+] Generating a CSV report: {args.csv}...')
-        generate_csv_report(setup, args.csv, search_results)
+        if os.path.isdir(args.csv):
+            output_file = os.path.join(args.csv, 'items_listing.csv')
+        else:
+            output_file = args.csv
+        print(f'[+] Generating a CSV report: {output_file}...')
+        generate_csv_report(setup, output_file, search_results)
 
     print('[+] DriveFS Sleuth completed the process.')

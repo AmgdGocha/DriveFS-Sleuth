@@ -196,26 +196,6 @@ def parse_protobuf(protobuf):
         return protodeep_schema.values
 
 
-# def __get_account_driveway(profile_path):
-#     try:
-#         with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
-#             cursor = metadata_sqlite_db.cursor()
-#             cursor.execute("SELECT value FROM properties WHERE property = 'driveway_account'")
-#             return parse_protobuf(cursor.fetchone()[0])
-#     except (sqlite3.OperationalError, TypeError):
-#         return {}
-#
-#
-# def __get_account_properties(profile_path):
-#     try:
-#         with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
-#             cursor = metadata_sqlite_db.cursor()
-#             cursor.execute("SELECT value FROM properties WHERE property = 'account'")
-#             return parse_protobuf(cursor.fetchone()[0])
-#     except (sqlite3.OperationalError, TypeError):
-#         return {}
-
-
 def get_account_properties(profile_path):
     properties = {
         'name': '',
