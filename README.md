@@ -124,12 +124,13 @@ python3 drivefs_sleuth.py C:\triage_path\DriveFS --regex '*dfir_\d+' --html C:\a
 python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.csv --csv C:\analysis_results\drivefs_report.csv
 ```
 
-# 📰 Referenced At:
+# 📰 Featured At:
 * [This Week In 4N6 - Week 52 - 2023](https://thisweekin4n6.com/2023/12/24/week-52-2023/)
 * [This Week In 4N6 - Week 01 - 2024](https://thisweekin4n6.com/2024/01/07/week-01-2024/)
 * [Help Net Security](https://www.helpnetsecurity.com/2024/01/04/drivefs-sleuth-investigating-google-drive-file-stream/)
 * [AboutDFIR](https://aboutdfir.com/toolsandartifacts/google-workspace/)
 * [Digital Forensics Now Podcast - Episode 9](https://www.youtube.com/live/m_fP7qf3Pok?si=YVaqruW_NlMgpEpg&t=547)
+* [Forensic Focus Round-Up - Jan 11, 2024](https://www.forensicfocus.com/news/digital-forensics-round-up-january-11-2024/)
 
 # 🌟 Your Feedback Matters:
 I'm eager to hear your thoughts! Share your feedback and suggestions, or report issues on our GitHub repository. Your input is crucial in making DriveFS Sleuth even more robust. Consider starring the repo if you found it useful. 😉
