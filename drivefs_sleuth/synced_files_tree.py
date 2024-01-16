@@ -63,9 +63,18 @@ class Item:
 
 class File(Item):
     def __init__(self, stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date,
-                 trashed, properties, tree_path, proto):
+                 trashed, properties, tree_path, content_cache_path, proto):
         super().__init__(stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date,
                          viewed_by_me_date, trashed, properties, tree_path, proto)
+
+        self.__content_cache_path = content_cache_path
+        self.__file_type = parse_protobuf(proto).get('45', '')
+
+    def get_content_cache_path(self):
+        return self.__content_cache_path
+
+    def get_file_type(self):
+        return self.__file_type
 
 
 class Directory(Item):
@@ -156,6 +165,7 @@ class SyncedFilesTree:
         self.__recovered_deleted_items = []
         self.__deleted_items = []
         self.__mirror_items = []
+        self.__recoverable_items_from_cache = []
 
     def get_root(self):
         return self.__root
@@ -287,6 +297,12 @@ class SyncedFilesTree:
 
     def get_mirrored_items(self):
         return self.__mirror_items
+
+    def add_recoverable_item_from_cache(self, recoverable_from_cache_item):
+        self.__recoverable_items_from_cache.append(recoverable_from_cache_item)
+
+    def get_recoverable_items_from_cache(self):
+        return self.__recoverable_items_from_cache
 
     def print_synced_files_tree(self):
         print('\n----------Synced Items----------\n')

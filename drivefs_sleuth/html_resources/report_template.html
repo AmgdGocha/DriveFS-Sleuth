@@ -516,7 +516,7 @@
                                 {% for detail in details %}
                                     <tr>
                                         <td id='{{ detail.get_stable_id() }}'>{{ detail.get_stable_id() }}</td>
-                                        {% if not detail.is_dir() %}
+                                        {% if detail.is_file() %}
                                             <td>File</td>
                                         {% elif detail.is_link() %}
                                             <td>Link</td>
@@ -526,6 +526,11 @@
                                         <td>{{ detail.url_id }}</td>
                                         <td>{{ detail.local_title }}</td>
                                         <td>{{ detail.mime_type }}</td>
+                                        {% if detail.is_file() %}
+                                            <td>{{ detail.get_content_cache_path() }}</td>
+                                        {% else %}
+                                            <td></td>
+                                        {% endif %}
                                         <td>{{ detail.is_owner }}</td>
                                         <td>{{ detail.get_file_size_mb() }}</td>
                                         <td>{{ detail.get_modified_date_utc() }}</td>
