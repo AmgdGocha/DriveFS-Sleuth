@@ -14,6 +14,7 @@ DriveFS Sleuth is a Python tool that automates investigating Google Drive File S
 * Compiling information on mirroring folders.
 * Providing insights into connected device configurations.
 * Supports searching functionality to facilitate the investigations.
+* Recovering the synced items from the cache. The recovered items can be filtered based on the searching criteria.
 * Generating HTML and CSV reports of the analysis results.
 
 For the underlying research, refer to: 
@@ -32,6 +33,7 @@ usage: DriveFS Sleuth [-h] [--accounts ACCOUNTS [ACCOUNTS ...]]
                       [-q QUERY_BY_NAME [QUERY_BY_NAME ...]]
                       [--search-csv SEARCH_CSV] [--exact]
                       [--dont-list-sub-items] [--csv CSV] [--html HTML]
+                      [--recover-from-cache RECOVER_FROM_CACHE | --recover-search-results RECOVER_SEARCH_RESULTS]
                       path
 
 ██████╗ ██████╗ ██╗██╗   ██╗███████╗███████╗███████╗    ███████╗██╗     ███████╗██╗   ██╗████████╗██╗  ██╗
@@ -56,6 +58,10 @@ options:
   -h, --help            show this help message and exit
   --accounts ACCOUNTS [ACCOUNTS ...]
                         Specifies account id/s or emails separated by space to be processed, defaults to all the accounts.
+  --recover-from-cache RECOVER_FROM_CACHE
+                        Recover the cached items from the content cache. The recovery will be in the passed location.
+  --recover-search-results RECOVER_SEARCH_RESULTS
+                        Recover the search results items that are cached. The recovery will be in the passed location.
 
 Searching Arguments:
   --regex REGEX [REGEX ...]
@@ -92,6 +98,9 @@ Tailor the tool's behavior with additional parameters:
     * **CONTAINS:** Use `FALSE` for an exact search or `TRUE` to search for any filename containing the specified target.
     * `LIST_SUB_ITEMS:` Enable or disable the listing of sub-items for matching folders, indicated by `TRUE` or `FALSE`, respectively.
 
+### Recovery From Cache
+Drive Sleuth can parse and recover the cached synced items, the destination recovery path can be passed through the `--recover-from-cache` option. Only the search results can be recovered if the recovery path is passed through the `--recover-search-results` option.
+
 ### Output Options
 DriveFS Sleuth provides support for two types of outputs:
 1. **CSV Files:** You can specify a path using the `--csv` argument to instruct DriveFS Sleuth to generate two CSV files. The first CSV file includes a comprehensive list of all processed files, while the second CSV file specifically enumerates files and folders that match the search criteria if provided by the analyst.
@@ -122,6 +131,14 @@ python3 drivefs_sleuth.py C:\triage_path\DriveFS --regex '*dfir_\d+' --html C:\a
 * Processing a triage passing a CSV file that contains the searching criteria, and outputting a CSV report.
 ```
 python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.csv --csv C:\analysis_results\drivefs_report.csv
+```
+* Processing a triage , and recover the cached synced items from the content cache.
+```
+python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.csv --csv C:\analysis_results\drivefs_report.csv -- recover-from-cache C:\recovery_path
+```
+* Processing a triage passing a CSV file that contains the searching criteria, outputting a CSV report, and recover the search results from the content cache.
+```
+python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.csv --csv C:\analysis_results\drivefs_report.csv -- recover-search-results C:\recovery_path
 ```
 
 # 📰 Referenced At:

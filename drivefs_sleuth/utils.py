@@ -1,5 +1,6 @@
 import re
 import os
+import shutil
 import sqlite3
 import contextlib
 
@@ -191,6 +192,9 @@ def get_mirrored_items(profile_path):
 
 
 def parse_protobuf(protobuf):
+    if not protobuf:
+        return {}
+
     with contextlib.redirect_stdout(None):
         protodeep_schema = guess_schema(data=protobuf)
         return protodeep_schema.values
@@ -242,3 +246,32 @@ def get_deleted_items(profile_path):
             return cursor.fetchall()
     except sqlite3.OperationalError:
         return []
+
+
+def get_content_caches_paths(content_cache_dir):
+    content_caches_paths = {}
+
+    for root, _, content_caches in os.walk(content_cache_dir):
+        for content_cache in content_caches:
+            content_caches_paths[content_cache] = os.path.abspath(os.path.join(root, content_cache))
+    del(content_caches_paths['chunks.db'])
+
+    return content_caches_paths
+
+
+def get_file_content_cache_path(content_entry, content_caches_paths):
+    if content_entry:
+        parsed_content_entry = parse_protobuf(content_entry)
+        content_entry_filename = str(parsed_content_entry['1'])
+        return content_caches_paths.get(content_entry_filename, '')
+    return ''
+
+
+def copy_file(file_path, dest_filename, recovery_path=''):
+    if not recovery_path:
+        recovery_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'recovered_items')
+
+    if not os.path.exists(recovery_path):
+        os.makedirs(recovery_path)
+
+    shutil.copy2(file_path, os.path.join(recovery_path, dest_filename))

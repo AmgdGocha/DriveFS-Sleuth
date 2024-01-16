@@ -4,6 +4,7 @@ import csv
 from jinja2 import Environment
 from jinja2 import FileSystemLoader
 
+from drivefs_sleuth.utils import copy_file
 from drivefs_sleuth.utils import lookup_account_id
 from drivefs_sleuth.utils import get_properties_list
 from drivefs_sleuth.utils import get_account_properties
@@ -30,8 +31,8 @@ def get_accounts(drivefs_path):
 
 
 def __build_headers(setup):
-    headers = ['stable_id', 'type', 'url_id', 'local_title', 'mime_type', 'is_owner', 'file_size', 'modified_date',
-               'viewed_by_me_date', 'trashed', 'tree_path', 'md5']
+    headers = ['stable_id', 'type', 'url_id', 'local_title', 'mime_type', 'path_in_content_cache', 'is_owner',
+               'file_size', 'modified_date', 'viewed_by_me_date', 'trashed', 'tree_path', 'md5']
     for account in setup.get_accounts():
         if account.is_logged_in():
             for prop in get_properties_list(os.path.join(setup.get_drivefs_path(), account.get_account_id())):
@@ -50,8 +51,10 @@ def __generate_csv_search_results_report(setup, output_file, search_results):
                 row = result.to_dict()
                 row['account_id'] = account[0]
                 row['email'] = account[1]
-                if not result.is_dir():
+                if result.is_file():
                     row['type'] = 'File'
+                    if result.get_content_cache_path():
+                        row['path_in_content_cache'] = result.get_content_cache_path()
                 elif result.is_link():
                     row['type'] = 'Link'
                 else:
@@ -76,6 +79,8 @@ def __generate_csv_report(setup, output_file):
                 row['email'] = email
                 if isinstance(roots, File):
                     row['type'] = 'File'
+                    if roots.get_content_cache_path():
+                        row['path_in_content_cache'] = roots.get_content_cache_path()
                     rows.append(row)
                     return
                 elif isinstance(roots, Link):
@@ -123,3 +128,14 @@ def generate_html_report(setup, output_file, search_results=None):
         report_file.write(template.render(setup=setup,
                                           search_results=search_results,
                                           headers=headers))
+
+
+def recover_from_content_cache(recoverable_items, recovery_path):
+    for item in recoverable_items:
+        if isinstance(item, File):
+            if item.get_content_cache_path():
+                copy_file(
+                    item.get_content_cache_path(),
+                    item.local_title,
+                    recovery_path
+                )

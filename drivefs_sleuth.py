@@ -5,8 +5,9 @@ from argparse import RawTextHelpFormatter
 
 from drivefs_sleuth.setup import Setup
 
-from drivefs_sleuth.tasks import generate_html_report
 from drivefs_sleuth.tasks import generate_csv_report
+from drivefs_sleuth.tasks import generate_html_report
+from drivefs_sleuth.tasks import recover_from_content_cache
 
 
 if __name__ == '__main__':
@@ -101,6 +102,22 @@ if __name__ == '__main__':
              'artifacts.  Either --csv or --html should be specified.'
     )
 
+    recovery_group = arg_parser.add_mutually_exclusive_group()
+
+    recovery_group.add_argument(
+        '--recover-from-cache',
+        dest='recover_from_cache',
+        type=str,
+        help='Recover the cached items from the content cache. The recovery will be in the passed location.'
+    )
+
+    recovery_group.add_argument(
+        '--recover-search-results',
+        dest='recover_search_results',
+        type=str,
+        help='Recover the search results items that are cached. The recovery will be in the passed location.'
+    )
+
     args = arg_parser.parse_args()
 
     drivefs_path = args.path
@@ -112,6 +129,13 @@ if __name__ == '__main__':
     if not args.csv and not args.html:
         arg_parser.print_usage()
         print('DriveFS Sleuth: error: Either --csv or --html should be specified.')
+        arg_parser.exit()
+
+    if args.recover_search_results and not (args.query_by_name or args.regex or args.search_csv):
+        arg_parser.print_usage()
+        print('DriveFS Sleuth: error: --recover-search-results option can\'t be specified without specifying searching '
+              'criteria via [--regex REGEX [REGEX ...]] or [-q QUERY_BY_NAME [QUERY_BY_NAME ...]] or '
+              '[--search-csv SEARCH_CSV]')
         arg_parser.exit()
 
     print(f'[+] Processing {drivefs_path}...')
@@ -237,5 +261,23 @@ if __name__ == '__main__':
             output_file = args.csv
         print(f'[+] Generating a CSV report: {output_file}...')
         generate_csv_report(setup, output_file, search_results)
+
+    if args.recover_from_cache:
+        print(f'[+] Recovering from cache into: {args.recover_from_cache}...')
+        for account in setup.get_accounts():
+            if account.is_logged_in():
+                synced_files_tree = account.get_synced_files_tree()
+                recover_from_content_cache(
+                    synced_files_tree.get_recoverable_items_from_cache(), args.recover_from_cache)
+    elif args.recover_search_results:
+        if not search_results.values():
+            print('[+] Can\'t recover any items as there is no results available, you may need to consider modifying'
+                  ' the searching criteria or using the --recover-from-cache option to recover all the cached items.')
+        else:
+            print(f'[+] Recovering search results from cache into: {args.recover_search_results}...')
+            recoverable_items = []
+            for results in search_results.values():
+                recoverable_items += results
+            recover_from_content_cache(recoverable_items, args.recover_search_results)
 
     print('[+] DriveFS Sleuth completed the process.')

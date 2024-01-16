@@ -14,6 +14,8 @@ from drivefs_sleuth.utils import get_item_properties
 from drivefs_sleuth.utils import get_target_stable_id
 from drivefs_sleuth.utils import get_connected_devices
 from drivefs_sleuth.utils import get_parent_relationships
+from drivefs_sleuth.utils import get_content_caches_paths
+from drivefs_sleuth.utils import get_file_content_cache_path
 from drivefs_sleuth.utils import get_shared_with_me_without_link
 from drivefs_sleuth.utils import get_mirroring_roots_for_account
 
@@ -91,6 +93,8 @@ class Account:
                          get_item_properties(self.__profile_path, root_info[1]), root_info[3], root_info[10])
         self.__synced_files_tree = SyncedFilesTree(root)
 
+        content_caches_paths = get_content_caches_paths(os.path.join(self.__profile_path, 'content_cache'))
+
         parent_relationships_dict = OrderedDict()
         for parent, child in parent_relationships:
             if parent not in parent_relationships_dict.keys():
@@ -124,17 +128,22 @@ class Account:
 
             for child_id in childs_ids:
                 child_info = get_item_info(self.__profile_path, child_id)
+                child_properties = get_item_properties(self.__profile_path, child_id)
+
                 if not child_info:
                     self.__synced_files_tree.add_deleted_item(child_id)
                     continue
 
                 if child_info[0] == 0:
-                    current_parent_dir.add_item(
-                        File(child_info[1], child_info[2], child_info[3], child_info[4], child_info[5], child_info[6],
-                             child_info[7], child_info[8], child_info[9],
-                             get_item_properties(self.__profile_path, child_id),
-                             f'{current_parent_dir.tree_path}\\{child_info[3]}', child_info[10])
-                    )
+                    content_cache_path = get_file_content_cache_path(
+                        child_properties.get('content-entry', None), content_caches_paths)
+                    child_file = File(child_info[1], child_info[2], child_info[3], child_info[4], child_info[5],
+                                      child_info[6], child_info[7], child_info[8], child_info[9], child_properties,
+                                      f'{current_parent_dir.tree_path}\\{child_info[3]}', content_cache_path,
+                                      child_info[10])
+                    current_parent_dir.add_item(child_file)
+                    if content_cache_path:
+                        self.__synced_files_tree.add_recoverable_item_from_cache(child_file)
                 else:
                     if child_info[4] == 'application/vnd.google-apps.shortcut':
                         target_stable_id = get_target_stable_id(self.__profile_path, child_info[1])
@@ -151,8 +160,7 @@ class Account:
                                                    f'{current_parent_dir.tree_path}\\{target_info[3]}', target_info[10])
 
                             child = Link(child_info[1], child_info[2], child_info[3], child_info[4], child_info[5],
-                                         child_info[6], child_info[7], child_info[8], child_info[9],
-                                         get_item_properties(self.__profile_path, child_id),
+                                         child_info[6], child_info[7], child_info[8], child_info[9], child_properties,
                                          f'{current_parent_dir.tree_path}\\{child_info[3]}', target, child_info[10])
                             added_dirs[target_stable_id] = target
                         else:
@@ -166,7 +174,7 @@ class Account:
                         else:
                             child = Directory(child_info[1], child_info[2], child_info[3], child_info[4], child_info[5],
                                               child_info[6], child_info[7], child_info[8], child_info[9],
-                                              get_item_properties(self.__profile_path, child_id),
+                                              child_properties,
                                               f'{current_parent_dir.tree_path}\\{child_info[3]}', child_info[10])
 
                     added_dirs[child_id] = child
@@ -174,14 +182,21 @@ class Account:
 
         # TODO: check if I can add a link in the shared with me
         for shared_with_me_item_info in get_shared_with_me_without_link(self.__profile_path):
+            shared_with_me_item_properties = get_item_properties(self.__profile_path, shared_with_me_item_info[1])
+
             if shared_with_me_item_info[0] == 0:
-                self.__synced_files_tree.add_shared_with_me_item(
-                    File(shared_with_me_item_info[1], shared_with_me_item_info[2], shared_with_me_item_info[3],
-                         shared_with_me_item_info[4], shared_with_me_item_info[5], shared_with_me_item_info[6],
-                         shared_with_me_item_info[7], shared_with_me_item_info[8], shared_with_me_item_info[9],
-                         get_item_properties(self.__profile_path, shared_with_me_item_info[1]),
-                         f'Shared with me\\{shared_with_me_item_info[3]}', shared_with_me_item_info[10])
-                )
+                content_cache_path = get_file_content_cache_path(
+                    shared_with_me_item_properties.get('content-entry', None), content_caches_paths)
+                shared_with_me_file = File(shared_with_me_item_info[1], shared_with_me_item_info[2],
+                                           shared_with_me_item_info[3], shared_with_me_item_info[4],
+                                           shared_with_me_item_info[5], shared_with_me_item_info[6],
+                                           shared_with_me_item_info[7], shared_with_me_item_info[8],
+                                           shared_with_me_item_info[9], shared_with_me_item_properties,
+                                           f'Shared with me\\{shared_with_me_item_info[3]}', content_cache_path,
+                                           shared_with_me_item_info[10])
+                self.__synced_files_tree.add_shared_with_me_item(shared_with_me_file)
+                if shared_with_me_file:
+                    self.__synced_files_tree.add_recoverable_item_from_cache(shared_with_me_file)
             else:
                 shared_with_me_item = orphan_dirs.get(shared_with_me_item_info[1], None)
                 if shared_with_me_item:
@@ -191,9 +206,7 @@ class Account:
                                                     shared_with_me_item_info[3], shared_with_me_item_info[4],
                                                     shared_with_me_item_info[5], shared_with_me_item_info[6],
                                                     shared_with_me_item_info[7], shared_with_me_item_info[8],
-                                                    shared_with_me_item_info[9],
-                                                    get_item_properties(
-                                                        self.__profile_path, shared_with_me_item_info[1]),
+                                                    shared_with_me_item_info[9], shared_with_me_item_properties,
                                                     f'{current_parent_dir.tree_path}\\{shared_with_me_item_info[3]}',
                                                     shared_with_me_item_info[10])
                 self.__synced_files_tree.add_shared_with_me_item(shared_with_me_item)
@@ -222,12 +235,10 @@ class Account:
                                 properties[p['1']] = p[[key for key in p.keys() if key != '1'][0]]
             if parsed_buf['4'] == 'application/vnd.google-apps.folder':
                 self.__synced_files_tree.add_recovered_deleted_item(
-                    Directory(
-                        deleted_item[0], parsed_buf.get('1', ''), parsed_buf.get('3', ''), parsed_buf.get('4', ''),
-                        parsed_buf.get('63', 0), parsed_buf.get('14', 0), parsed_buf.get('11', 0),
-                        parsed_buf.get('13', 0), parsed_buf.get('7', 1), properties, parsed_buf.get('3', ''),
-                        deleted_item[1]
-                    )
+                    Directory(deleted_item[0], parsed_buf.get('1', ''), parsed_buf.get('3', ''),
+                              parsed_buf.get('4', ''), parsed_buf.get('63', 0), parsed_buf.get('14', 0),
+                              parsed_buf.get('11', 0), parsed_buf.get('13', 0), parsed_buf.get('7', 1),
+                              properties, parsed_buf.get('3', ''), deleted_item[1])
                 )
             elif parsed_buf['4'] == 'application/vnd.google-apps.shortcut':
                 target_item = None
@@ -235,22 +246,21 @@ class Account:
                 if target_info:
                     target_item = self.__synced_files_tree.get_item_by_id(target_info['2'])
                 self.__synced_files_tree.add_recovered_deleted_item(
-                    Link(
-                        deleted_item[0], parsed_buf.get('1', ''), parsed_buf.get('3', ''), parsed_buf.get('4', ''),
-                        parsed_buf.get('63', 0), parsed_buf.get('14', 0), parsed_buf.get('11', 0),
-                        parsed_buf.get('13', 0), parsed_buf.get('7', 1), properties, parsed_buf.get('3', ''),
-                        target_item, deleted_item[1]
-                    )
+                    Link(deleted_item[0], parsed_buf.get('1', ''), parsed_buf.get('3', ''), parsed_buf.get('4', ''),
+                         parsed_buf.get('63', 0), parsed_buf.get('14', 0), parsed_buf.get('11', 0),
+                         parsed_buf.get('13', 0), parsed_buf.get('7', 1), properties, parsed_buf.get('3', ''),
+                         target_item, deleted_item[1])
                 )
             else:
-                self.__synced_files_tree.add_recovered_deleted_item(
-                    File(
-                        deleted_item[0], parsed_buf.get('1', ''), parsed_buf.get('3', ''),
-                        parsed_buf.get('4', ''), parsed_buf.get('63', 0), parsed_buf.get('14', 0),
-                        parsed_buf.get('11', 0), parsed_buf.get('13', 0), parsed_buf.get('7', 1), properties,
-                        parsed_buf.get('3', ''), deleted_item[1]
-                    )
-                )
+                content_cache_path = get_file_content_cache_path(
+                    properties.get('content-entry', None), content_caches_paths)
+                recovered_file = File(deleted_item[0], parsed_buf.get('1', ''), parsed_buf.get('3', ''),
+                                      parsed_buf.get('4', ''), parsed_buf.get('63', 0), parsed_buf.get('14', 0),
+                                      parsed_buf.get('11', 0), parsed_buf.get('13', 0), parsed_buf.get('7', 1),
+                                      properties, parsed_buf.get('3', ''), content_cache_path, deleted_item[1])
+                self.__synced_files_tree.add_recovered_deleted_item(recovered_file)
+                if content_cache_path:
+                    self.__synced_files_tree.add_recoverable_item_from_cache(recovered_file)
 
 
 class Setup:
