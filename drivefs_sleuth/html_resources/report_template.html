@@ -445,18 +445,33 @@
                                     </ul>
                                 </li>
                             {% elif item.is_link() %}
-                                <li>
-                                    <span class="caret">
-                                        <a
-                                            {% if item.get_stable_id() in searches %}
-                                                class="match"
-                                            {% endif %}
-                                            href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
-                                    </span>
-                                    <ul class="nested">
-                                        {{ render_items(item.get_target_item().get_sub_items()) }}
-                                    </ul>
-                                </li>
+                                {% if item.get_target_item().is_file() %}
+                                    <li>
+                                        <span class="caret">
+                                            <a
+                                                {% if item.get_stable_id() in searches %}
+                                                    class="match"
+                                                {% endif %}
+                                                href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
+                                        </span>
+                                        <ul class="nested">
+                                            {{ render_items(item.get_target_item()) }}
+                                        </ul>
+                                    </li>
+                                {% else %}
+                                    <li>
+                                        <span class="caret">
+                                            <a
+                                                {% if item.get_stable_id() in searches %}
+                                                    class="match"
+                                                {% endif %}
+                                                href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
+                                        </span>
+                                        <ul class="nested">
+                                            {{ render_items(item.get_target_item().get_sub_items()) }}
+                                        </ul>
+                                    </li>
+                                {% endif %}
                             {% else %}
                                 <li>
                                     <a
@@ -497,7 +512,7 @@
                             {% endfor %}
 
                             {% for deleted_item in tree.get_deleted_items() %}
-                                <li>{{ deleted_item }}</li>
+                                <li>{{ deleted_item.get_stable_id() }}</li>
                             {% endfor %}
                     {% endif %}
 

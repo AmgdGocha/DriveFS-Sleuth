@@ -86,8 +86,12 @@ def __generate_csv_report(setup, output_file):
                 elif isinstance(roots, Link):
                     row['type'] = 'Link'
                     rows.append(row)
-                    for sub_item in roots.get_target_item().get_sub_items():
-                        __generate_csv_dict(sub_item, account_id, email)
+                    target = roots.get_target_item()
+                    if isinstance(target, File):
+                        __generate_csv_dict(target, account_id, email)
+                    else:
+                        for sub_item in target.get_sub_items():
+                            __generate_csv_dict(sub_item, account_id, email)
                 else:
                     row['type'] = 'Directory'
                     rows.append(row)

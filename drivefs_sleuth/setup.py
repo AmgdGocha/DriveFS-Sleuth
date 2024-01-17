@@ -22,6 +22,7 @@ from drivefs_sleuth.utils import get_mirroring_roots_for_account
 from drivefs_sleuth.synced_files_tree import File
 from drivefs_sleuth.synced_files_tree import Link
 from drivefs_sleuth.synced_files_tree import Directory
+from drivefs_sleuth.synced_files_tree import DummyItem
 from drivefs_sleuth.synced_files_tree import MirrorItem
 from drivefs_sleuth.synced_files_tree import SyncedFilesTree
 
@@ -116,8 +117,7 @@ class Account:
                 else:
                     parent_info = get_item_info(self.__profile_path, parent_id)
                     if not parent_info:
-                        # TODO handle the parent in the tree when the parent is deleted, maybe creating a dummy parent
-                        self.__synced_files_tree.add_deleted_item(parent_id)
+                        self.__synced_files_tree.add_deleted_item(DummyItem(parent_id))
                     else:
                         current_parent_dir = Directory(parent_info[1], parent_info[2], parent_info[3], parent_info[4],
                                                        parent_info[5], parent_info[6], parent_info[7], parent_info[8],
@@ -131,7 +131,7 @@ class Account:
                 child_properties = get_item_properties(self.__profile_path, child_id)
 
                 if not child_info:
-                    self.__synced_files_tree.add_deleted_item(child_id)
+                    self.__synced_files_tree.add_deleted_item(DummyItem(child_id))
                     continue
 
                 if child_info[0] == 0:
@@ -150,22 +150,41 @@ class Account:
                         if target_stable_id:
                             target = orphan_dirs.get(target_stable_id, None)
                             if target:
+                                added_dirs[target_stable_id] = target
                                 del orphan_dirs[target_stable_id]
 
                             else:
                                 target_info = get_item_info(self.__profile_path, target_stable_id)
-                                target = Directory(target_info[1], target_info[2], target_info[3], target_info[4],
-                                                   target_info[5], target_info[6], target_info[7], target_info[8],
-                                                   target_info[9], get_item_properties(self.__profile_path, child_id),
-                                                   f'{current_parent_dir.tree_path}\\{target_info[3]}', target_info[10])
+                                if target_info:
+                                    if target_info[0] == 0:
+                                        content_cache_path = get_file_content_cache_path(
+                                            child_properties.get('content-entry', None), content_caches_paths)
+                                        target = File(target_info[1], target_info[2], target_info[3], target_info[4],
+                                                      target_info[5], target_info[6], target_info[7], target_info[8],
+                                                      target_info[9],
+                                                      get_item_properties(self.__profile_path, target_info[1]),
+                                                      f'{current_parent_dir.tree_path}\\{target_info[3]}',
+                                                      content_cache_path, target_info[10])
+                                    else:
+                                        target = Directory(target_info[1], target_info[2], target_info[3],
+                                                           target_info[4], target_info[5], target_info[6],
+                                                           target_info[7], target_info[8], target_info[9],
+                                                           get_item_properties(self.__profile_path, target_info[1]),
+                                                           f'{current_parent_dir.tree_path}\\{target_info[3]}',
+                                                           target_info[10])
+                                        added_dirs[target_stable_id] = target
+                                else:
+                                    target = DummyItem(target_stable_id)
+                                    self.__synced_files_tree.add_deleted_item(target)
 
                             child = Link(child_info[1], child_info[2], child_info[3], child_info[4], child_info[5],
                                          child_info[6], child_info[7], child_info[8], child_info[9], child_properties,
                                          f'{current_parent_dir.tree_path}\\{child_info[3]}', target, child_info[10])
-                            added_dirs[target_stable_id] = target
                         else:
-                            # TODO what if there is no target info, maybe create a dummy target
-                            pass
+                            target = DummyItem('-1')
+                            child = Link(child_info[1], child_info[2], child_info[3], child_info[4], child_info[5],
+                                         child_info[6], child_info[7], child_info[8], child_info[9], child_properties,
+                                         f'{current_parent_dir.tree_path}\\{child_info[3]}', target, child_info[10])
                     else:
                         child = orphan_dirs.get(child_id, None)
                         if child:
