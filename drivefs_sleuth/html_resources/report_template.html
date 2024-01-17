@@ -497,7 +497,7 @@
                             {% endfor %}
 
                             {% for deleted_item in tree.get_deleted_items() %}
-                                <li>{{ deleted_item }}</li>
+                                <li>{{ deleted_item.get_stable_id() }}</li>
                             {% endfor %}
                     {% endif %}
 

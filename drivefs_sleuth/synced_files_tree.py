@@ -96,6 +96,14 @@ class Directory(Item):
         return self.__sub_items
 
 
+class DummyItem(Item):
+    def __init__(self, stable_id):
+        super().__init__(stable_id, '', 'DELETED_ITEM', '', '', '', '', '', '', '', '', '')
+
+    def get_sub_items(self):
+        return []
+
+
 class Link(Item):
     def __init__(self, stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date, viewed_by_me_date,
                  trashed, properties, tree_path, target_item, proto):
@@ -143,8 +151,14 @@ def _print_tree(roots, indent=''):
     elif isinstance(roots, Link):
         print(f'{indent}+ ({roots.get_stable_id()}) {roots.local_title} - ({roots.tree_path})')
 
-        for sub_item in roots.get_target_item().get_sub_items():
-            _print_tree(sub_item, indent + f'\t')
+        target = roots.get_target_item()
+
+        if isinstance(target, File):
+            print(f'{indent}- ({target.get_stable_id()}) {target.local_title} - ({target.tree_path})')
+
+        else:
+            for sub_item in target.get_sub_items():
+                _print_tree(sub_item, indent + f'\t')
 
     elif isinstance(roots, Directory):
         print(f'{indent}+ ({roots.get_stable_id()}) {roots.local_title} - ({roots.tree_path})')
@@ -230,8 +244,12 @@ class SyncedFilesTree:
                 return
 
             elif isinstance(item, Link):
-                for sub_item in item.get_target_item().get_sub_items():
-                    append_item_childs(sub_item)
+                target = item.get_target_item()
+                if isinstance(item, File):
+                    append_item_childs(target)
+                else:
+                    for sub_item in target.get_sub_items():
+                        append_item_childs(sub_item)
 
             elif isinstance(item, Directory):
                 for sub_item in item.get_sub_items():
@@ -265,8 +283,12 @@ class SyncedFilesTree:
                 return
 
             elif isinstance(current_item, Link) and hit and list_sub_items:
-                for sub_item in current_item.get_target_item().get_sub_items():
-                    append_item_childs(sub_item)
+                target = current_item.get_target_item()
+                if isinstance(target, File):
+                    append_item_childs(target)
+                else:
+                    for sub_item in target.get_sub_items():
+                        append_item_childs(sub_item)
 
             elif isinstance(current_item, Directory) and hit and list_sub_items:
                 for sub_item in current_item.get_sub_items():
@@ -274,8 +296,12 @@ class SyncedFilesTree:
 
             else:
                 if isinstance(current_item, Link):
-                    for sub_item in current_item.get_target_item().get_sub_items():
-                        search(sub_item)
+                    target = current_item.get_target_item()
+                    if isinstance(target, File):
+                        search(target)
+                    else:
+                        for sub_item in target.get_sub_items():
+                            search(sub_item)
                 else:
                     for sub_item in current_item.get_sub_items():
                         search(sub_item)
