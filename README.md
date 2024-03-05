@@ -142,6 +142,7 @@ python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.
 ```
 
 # 📰 Featured At:
+* [SANS FOR500: Windows Forensic Analysis Course - Feb 21, 2024 Update](https://www.sans.org/blog/whats-new-in-for500-windows-forensic-analysis/)
 * [This Week In 4N6 - Week 52 - 2023](https://thisweekin4n6.com/2023/12/24/week-52-2023/)
 * [This Week In 4N6 - Week 01 - 2024](https://thisweekin4n6.com/2024/01/07/week-01-2024/)
 * [Help Net Security](https://www.helpnetsecurity.com/2024/01/04/drivefs-sleuth-investigating-google-drive-file-stream/)
