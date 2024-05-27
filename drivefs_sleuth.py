@@ -39,21 +39,28 @@ if __name__ == '__main__':
     )
 
     arg_parser.add_argument(
+        '-o',
+        '--output',
+        required=True,
+        type=str,
+        help='A path to a directory to save the output.')
+
+    arg_parser.add_argument(
         '--accounts',
         nargs='+',
         type=str,
         help='Specifies account id/s or emails separated by space to be processed, defaults to all the accounts.')
 
-    searching_args = arg_parser.add_argument_group('Searching Arguments')
+    searching_group = arg_parser.add_argument_group('Searching Arguments')
 
-    searching_args.add_argument(
+    searching_group.add_argument(
         '--regex',
         nargs='+',
         type=str,
         help='Searches for files or folders by regular expressions. Multiple regex can be passed separated by spaces.'
     )
 
-    searching_args.add_argument(
+    searching_group.add_argument(
         '-q',
         '--query-by-name',
         type=str,
@@ -63,14 +70,14 @@ if __name__ == '__main__':
              'Multiple file names can be passed separated by spaces.'
     )
 
-    searching_args.add_argument(
+    searching_group.add_argument(
         '--search-csv',
         type=str,
         dest="search_csv",
         help='Searches for files or folders that satisfies the searching conditions in the provided CSV file.'
     )
 
-    searching_args.add_argument(
+    searching_group.add_argument(
         '--exact',
         action='store_false',
         dest='exact',
@@ -78,7 +85,7 @@ if __name__ == '__main__':
              'The --query_by_name argument has to be passed. Defaults to False.'
     )
 
-    searching_args.add_argument(
+    searching_group.add_argument(
         '--dont-list-sub-items',
         action='store_false',
         dest='list_sub_items',
@@ -90,32 +97,33 @@ if __name__ == '__main__':
 
     output_formats_group.add_argument(
         '--csv',
-        type=str,
-        help='Generates an HTML report. The CSV report will only contain information regarding the queried files.'
+        action='store_true',
+        help='Generates a CSV report. The CSV report will only contain information about the files and folders.'
              ' Either --csv or --html should be specified.'
     )
 
     output_formats_group.add_argument(
         '--html',
-        type=str,
+        action='store_true',
         help='Generates an HTML report. The HTML report contains comprehensive information about the analyzed '
              'artifacts.  Either --csv or --html should be specified.'
     )
 
-    recovery_group = arg_parser.add_mutually_exclusive_group()
+    recovery_group = arg_parser.add_argument_group('Recovery Options')
+    recovery_exclusive_group = recovery_group.add_mutually_exclusive_group()
 
-    recovery_group.add_argument(
+    recovery_exclusive_group.add_argument(
         '--recover-from-cache',
         dest='recover_from_cache',
-        type=str,
-        help='Recover the cached items from the content cache. The recovery will be in the passed location.'
+        action='store_true',
+        help='Recover the cached items from the content cache.'
     )
 
-    recovery_group.add_argument(
+    recovery_exclusive_group.add_argument(
         '--recover-search-results',
         dest='recover_search_results',
-        type=str,
-        help='Recover the search results items that are cached. The recovery will be in the passed location.'
+        action='store_true',
+        help='Recover the search results items that are cached.'
     )
 
     args = arg_parser.parse_args()
@@ -137,6 +145,17 @@ if __name__ == '__main__':
               'criteria via [--regex REGEX [REGEX ...]] or [-q QUERY_BY_NAME [QUERY_BY_NAME ...]] or '
               '[--search-csv SEARCH_CSV]')
         arg_parser.exit()
+
+    if os.path.isfile(args.output):
+        arg_parser.print_usage()
+        print('DriveFS Sleuth: error: -o/--output should contain a path to a file.')
+        arg_parser.exit()
+    else:
+        if not os.path.exists(args.output):
+            try:
+                os.mkdir(args.output)
+            except OSError as e:
+                print(f'DriveFS Sleuth: error: couldn\'t create output directory {args.output}\n Error Message: {e}')
 
     print(f'[+] Processing {drivefs_path}...')
     setup = Setup(drivefs_path, args.accounts)
@@ -247,37 +266,37 @@ if __name__ == '__main__':
                 search_results[(account.get_account_id(), account.get_account_email())] += result
 
     if args.html:
-        if os.path.isdir(args.html):
-            output_file = os.path.join(args.html, 'html_report.html')
-        else:
-            output_file = args.html
-        print(f'[+] Generating an HTML report: {output_file}...')
-        generate_html_report(setup, output_file, search_results)
+        html_output_path = os.path.join(args.output, 'html_report.html')
+        print(f'[+] Generating an HTML report: {html_output_path}...')
+        generate_html_report(setup, html_output_path, search_results)
 
     if args.csv:
-        if os.path.isdir(args.csv):
-            output_file = os.path.join(args.csv, 'items_listing.csv')
-        else:
-            output_file = args.csv
-        print(f'[+] Generating a CSV report: {output_file}...')
-        generate_csv_report(setup, output_file, search_results)
+        csv_output_path = os.path.join(args.output, 'csv_report.csv')
+        print(f'[+] Generating a CSV report: {csv_output_path}...')
+        generate_csv_report(setup, csv_output_path, search_results)
 
     if args.recover_from_cache:
-        print(f'[+] Recovering from cache into: {args.recover_from_cache}...')
+        recovery_from_cache_path = csv_output_path = os.path.join(args.output, 'recovery')
+        if not os.path.exists(recovery_from_cache_path):
+            os.mkdir(recovery_from_cache_path)
+        print(f'[+] Recovering from cache into: {recovery_from_cache_path}...')
         for account in setup.get_accounts():
             if account.is_logged_in():
                 synced_files_tree = account.get_synced_files_tree()
                 recover_from_content_cache(
-                    synced_files_tree.get_recoverable_items_from_cache(), args.recover_from_cache)
+                    synced_files_tree.get_recoverable_items_from_cache(), recovery_from_cache_path)
     elif args.recover_search_results:
         if not search_results.values():
             print('[+] Can\'t recover any items as there is no results available, you may need to consider modifying'
                   ' the searching criteria or using the --recover-from-cache option to recover all the cached items.')
         else:
-            print(f'[+] Recovering search results from cache into: {args.recover_search_results}...')
+            search_recovery_results_path = csv_output_path = os.path.join(args.output, 'search_results_recovery')
+            if not os.path.exists(search_recovery_results_path):
+                os.mkdir(search_recovery_results_path)
+            print(f'[+] Recovering search results from cache into: {search_recovery_results_path}...')
             recoverable_items = []
             for results in search_results.values():
                 recoverable_items += results
-            recover_from_content_cache(recoverable_items, args.recover_search_results)
+            recover_from_content_cache(recoverable_items, search_recovery_results_path)
 
     print('[+] DriveFS Sleuth completed the process.')
