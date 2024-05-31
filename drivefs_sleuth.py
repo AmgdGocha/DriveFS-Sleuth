@@ -5,6 +5,7 @@ from argparse import RawTextHelpFormatter
 
 from drivefs_sleuth.setup import Setup
 
+from drivefs_sleuth.tasks import recover_thumbnail
 from drivefs_sleuth.tasks import generate_csv_report
 from drivefs_sleuth.tasks import generate_html_report
 from drivefs_sleuth.tasks import recover_from_content_cache
@@ -276,27 +277,40 @@ if __name__ == '__main__':
         generate_csv_report(setup, csv_output_path, search_results)
 
     if args.recover_from_cache:
-        recovery_from_cache_path = csv_output_path = os.path.join(args.output, 'recovery')
+        recovery_from_cache_path = os.path.join(args.output, 'recovery')
         if not os.path.exists(recovery_from_cache_path):
             os.mkdir(recovery_from_cache_path)
         print(f'[+] Recovering from cache into: {recovery_from_cache_path}...')
         for account in setup.get_accounts():
             if account.is_logged_in():
+                acc_recovery_from_cache_path = os.path.join(recovery_from_cache_path, account.get_name())
+                acc_thumbnails_path = os.path.join(acc_recovery_from_cache_path, 'thumbnails')
+                if not os.path.exists(acc_recovery_from_cache_path):
+                    os.mkdir(acc_recovery_from_cache_path)
+                if not os.path.exists(acc_thumbnails_path):
+                    os.mkdir(acc_thumbnails_path)
                 synced_files_tree = account.get_synced_files_tree()
                 recover_from_content_cache(
-                    synced_files_tree.get_recoverable_items_from_cache(), recovery_from_cache_path)
+                    synced_files_tree.get_recoverable_items_from_cache(), acc_recovery_from_cache_path)
+                recover_thumbnail(
+                    synced_files_tree.get_thumbnail_items(), acc_thumbnails_path)
     elif args.recover_search_results:
         if not search_results.values():
             print('[+] Can\'t recover any items as there is no results available, you may need to consider modifying'
                   ' the searching criteria or using the --recover-from-cache option to recover all the cached items.')
         else:
-            search_recovery_results_path = csv_output_path = os.path.join(args.output, 'search_results_recovery')
+            search_recovery_results_path = os.path.join(args.output, 'search_results_recovery')
             if not os.path.exists(search_recovery_results_path):
                 os.mkdir(search_recovery_results_path)
             print(f'[+] Recovering search results from cache into: {search_recovery_results_path}...')
-            recoverable_items = []
-            for results in search_results.values():
-                recoverable_items += results
-            recover_from_content_cache(recoverable_items, search_recovery_results_path)
+            for account in search_results:
+                acc_search_recovery_results_path = os.path.join(search_recovery_results_path, account[1])
+                acc_thumbnails_path = os.path.join(acc_search_recovery_results_path, 'thumbnails')
+                if not os.path.exists(acc_search_recovery_results_path):
+                    os.mkdir(acc_search_recovery_results_path)
+                if not os.path.exists(acc_thumbnails_path):
+                    os.mkdir(acc_thumbnails_path)
+                recover_from_content_cache(search_results[account], acc_search_recovery_results_path)
+                recover_thumbnail(search_results[account], acc_thumbnails_path)
 
     print('[+] DriveFS Sleuth completed the process.')

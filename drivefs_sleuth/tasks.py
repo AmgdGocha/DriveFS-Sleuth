@@ -31,8 +31,8 @@ def get_accounts(drivefs_path):
 
 
 def __build_headers(setup):
-    headers = ['stable_id', 'type', 'url_id', 'local_title', 'mime_type', 'path_in_content_cache', 'is_owner',
-               'file_size', 'modified_date', 'viewed_by_me_date', 'trashed', 'tree_path', 'md5']
+    headers = ['stable_id', 'type', 'url_id', 'local_title', 'mime_type', 'path_in_content_cache', 'thumbnail_path',
+               'is_owner', 'file_size', 'modified_date', 'viewed_by_me_date', 'trashed', 'tree_path', 'md5']
     for account in setup.get_accounts():
         if account.is_logged_in():
             for prop in get_properties_list(os.path.join(setup.get_drivefs_path(), account.get_account_id())):
@@ -43,7 +43,7 @@ def __build_headers(setup):
 
 def __generate_csv_search_results_report(setup, output_file, search_results):
     search_results_headers = ['account_id', 'email'] + __build_headers(setup)
-    with open(output_file, 'w', encoding='utf-8') as search_results_csv_file:
+    with open(output_file, 'w', encoding='utf-8', newline='') as search_results_csv_file:
         csv_writer = csv.DictWriter(search_results_csv_file, fieldnames=search_results_headers)
         csv_writer.writeheader()
         for account, results in search_results.items():
@@ -55,6 +55,8 @@ def __generate_csv_search_results_report(setup, output_file, search_results):
                     row['type'] = 'File'
                     if result.get_content_cache_path():
                         row['path_in_content_cache'] = result.get_content_cache_path()
+                    if result.get_content_cache_path():
+                        row['thumbnail_path'] = result.get_thumbnail_path()
                 elif result.is_link():
                     row['type'] = 'Link'
                 else:
@@ -64,7 +66,7 @@ def __generate_csv_search_results_report(setup, output_file, search_results):
 
 def __generate_csv_report(setup, output_file):
     headers = ['account_id', 'email'] + __build_headers(setup)
-    with open(output_file, 'w', encoding='utf-8') as csv_report_file:
+    with open(output_file, 'w', encoding='utf-8', newline='') as csv_report_file:
         csv_writer = csv.DictWriter(csv_report_file, fieldnames=headers)
         csv_writer.writeheader()
         rows = []
@@ -81,6 +83,8 @@ def __generate_csv_report(setup, output_file):
                     row['type'] = 'File'
                     if roots.get_content_cache_path():
                         row['path_in_content_cache'] = roots.get_content_cache_path()
+                    if roots.get_content_cache_path():
+                        row['thumbnail_path'] = roots.get_thumbnail_path()
                     rows.append(row)
                     return
                 elif isinstance(roots, Link):
@@ -140,6 +144,17 @@ def recover_from_content_cache(recoverable_items, recovery_path):
             if item.get_content_cache_path():
                 copy_file(
                     item.get_content_cache_path(),
+                    item.local_title,
+                    recovery_path
+                )
+
+
+def recover_thumbnail(recoverable_items, recovery_path):
+    for item in recoverable_items:
+        if isinstance(item, File):
+            if item.get_thumbnail_path():
+                copy_file(
+                    item.get_thumbnail_path(),
                     item.local_title,
                     recovery_path
                 )

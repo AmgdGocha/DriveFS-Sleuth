@@ -546,6 +546,11 @@
                                         {% else %}
                                             <td></td>
                                         {% endif %}
+                                        {% if detail.is_file() %}
+                                            <td>{{ detail.get_thumbnail_path() }}</td>
+                                        {% else %}
+                                            <td></td>
+                                        {% endif %}
                                         <td>{{ detail.is_owner }}</td>
                                         <td>{{ detail.get_file_size_mb() }}</td>
                                         <td>{{ detail.get_modified_date_utc() }}</td>
@@ -554,7 +559,9 @@
                                         <td>{{ detail.tree_path }}</td>
                                         <td>{{ detail.md5 }}</td>
                                         {% for prop in properties %}
-                                            <td>{{ detail.properties[prop] }}</td>
+                                            {% if prop not in ["trashed", "tree_path", "md5"] %}
+                                                <td>{{ detail.properties[prop] }}</td>
+                                            {% endif %}
                                         {% endfor %}
                                     </tr>
                                 {% endfor %}
