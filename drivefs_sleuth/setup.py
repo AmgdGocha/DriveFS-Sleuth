@@ -290,7 +290,7 @@ class Account:
                 recovered_file = File(deleted_item[0], parsed_buf.get('1', ''), parsed_buf.get('3', ''),
                                       parsed_buf.get('4', ''), parsed_buf.get('63', 0), parsed_buf.get('14', 0),
                                       parsed_buf.get('11', 0), parsed_buf.get('13', 0), parsed_buf.get('7', 1),
-                                      properties, parsed_buf.get('3', ''), content_cache_path,thumbnail_path,
+                                      properties, parsed_buf.get('3', ''), content_cache_path, thumbnail_path,
                                       deleted_item[1])
                 self.__synced_files_tree.add_recovered_deleted_item(recovered_file)
                 if content_cache_path:
