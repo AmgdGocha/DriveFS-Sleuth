@@ -252,10 +252,8 @@ if __name__ == '__main__':
                             search_results[(account.get_account_id(), account.get_account_email())] = []
                     search_results[(account.get_account_id(), account.get_account_email())] += result
 
-    logged_in_accounts = 0
     for account in setup.get_accounts():
         if account.is_logged_in():
-            logged_in_accounts += 1
             result = account.get_synced_files_tree().search_item_by_name(
                 filenames=args.query_by_name,
                 regex=args.regex,
