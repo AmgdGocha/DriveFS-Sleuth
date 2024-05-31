@@ -11,6 +11,7 @@ from drivefs_sleuth.utils import get_max_root_ids
 from drivefs_sleuth.utils import get_deleted_items
 from drivefs_sleuth.utils import get_mirrored_items
 from drivefs_sleuth.utils import get_item_properties
+from drivefs_sleuth.utils import get_thumbnails_paths
 from drivefs_sleuth.utils import get_target_stable_id
 from drivefs_sleuth.utils import get_connected_devices
 from drivefs_sleuth.utils import get_parent_relationships
@@ -95,6 +96,7 @@ class Account:
         self.__synced_files_tree = SyncedFilesTree(root)
 
         content_caches_paths = get_content_caches_paths(os.path.join(self.__profile_path, 'content_cache'))
+        thumbnails_paths = get_thumbnails_paths(os.path.join(self.__profile_path, 'thumbnails_cache'))
 
         parent_relationships_dict = OrderedDict()
         for parent, child in parent_relationships:
@@ -137,13 +139,16 @@ class Account:
                 if child_info[0] == 0:
                     content_cache_path = get_file_content_cache_path(
                         child_properties.get('content-entry', None), content_caches_paths)
+                    thumbnail_path = thumbnails_paths.get(str(child_info[1]), '')
                     child_file = File(child_info[1], child_info[2], child_info[3], child_info[4], child_info[5],
                                       child_info[6], child_info[7], child_info[8], child_info[9], child_properties,
                                       f'{current_parent_dir.tree_path}\\{child_info[3]}', content_cache_path,
-                                      child_info[10])
+                                      thumbnail_path, child_info[10])
                     current_parent_dir.add_item(child_file)
                     if content_cache_path:
                         self.__synced_files_tree.add_recoverable_item_from_cache(child_file)
+                    if thumbnail_path:
+                        self.__synced_files_tree.add_thumbnail_item(child_file)
                 else:
                     if child_info[4] == 'application/vnd.google-apps.shortcut':
                         target_stable_id = get_target_stable_id(self.__profile_path, child_info[1])
@@ -159,12 +164,17 @@ class Account:
                                     if target_info[0] == 0:
                                         content_cache_path = get_file_content_cache_path(
                                             child_properties.get('content-entry', None), content_caches_paths)
+                                        thumbnail_path = thumbnails_paths.get(str(target_info[1]), '')
                                         target = File(target_info[1], target_info[2], target_info[3], target_info[4],
                                                       target_info[5], target_info[6], target_info[7], target_info[8],
                                                       target_info[9],
                                                       get_item_properties(self.__profile_path, target_info[1]),
                                                       f'{current_parent_dir.tree_path}\\{target_info[3]}',
-                                                      content_cache_path, target_info[10])
+                                                      content_cache_path, thumbnail_path, target_info[10])
+                                        if content_cache_path:
+                                            self.__synced_files_tree.add_recoverable_item_from_cache(target)
+                                        if thumbnail_path:
+                                            self.__synced_files_tree.add_thumbnail_item(target)
                                     else:
                                         target = Directory(target_info[1], target_info[2], target_info[3],
                                                            target_info[4], target_info[5], target_info[6],
@@ -206,16 +216,19 @@ class Account:
             if shared_with_me_item_info[0] == 0:
                 content_cache_path = get_file_content_cache_path(
                     shared_with_me_item_properties.get('content-entry', None), content_caches_paths)
+                thumbnail_path = thumbnails_paths.get(str(shared_with_me_item_info[1]), '')
                 shared_with_me_file = File(shared_with_me_item_info[1], shared_with_me_item_info[2],
                                            shared_with_me_item_info[3], shared_with_me_item_info[4],
                                            shared_with_me_item_info[5], shared_with_me_item_info[6],
                                            shared_with_me_item_info[7], shared_with_me_item_info[8],
                                            shared_with_me_item_info[9], shared_with_me_item_properties,
                                            f'Shared with me\\{shared_with_me_item_info[3]}', content_cache_path,
-                                           shared_with_me_item_info[10])
+                                           thumbnail_path, shared_with_me_item_info[10])
                 self.__synced_files_tree.add_shared_with_me_item(shared_with_me_file)
-                if shared_with_me_file:
+                if content_cache_path:
                     self.__synced_files_tree.add_recoverable_item_from_cache(shared_with_me_file)
+                if thumbnail_path:
+                    self.__synced_files_tree.add_thumbnail_item(shared_with_me_file)
             else:
                 shared_with_me_item = orphan_dirs.get(shared_with_me_item_info[1], None)
                 if shared_with_me_item:
@@ -273,13 +286,17 @@ class Account:
             else:
                 content_cache_path = get_file_content_cache_path(
                     properties.get('content-entry', None), content_caches_paths)
+                thumbnail_path = thumbnails_paths.get(str(deleted_item[0]), '')
                 recovered_file = File(deleted_item[0], parsed_buf.get('1', ''), parsed_buf.get('3', ''),
                                       parsed_buf.get('4', ''), parsed_buf.get('63', 0), parsed_buf.get('14', 0),
                                       parsed_buf.get('11', 0), parsed_buf.get('13', 0), parsed_buf.get('7', 1),
-                                      properties, parsed_buf.get('3', ''), content_cache_path, deleted_item[1])
+                                      properties, parsed_buf.get('3', ''), content_cache_path,thumbnail_path,
+                                      deleted_item[1])
                 self.__synced_files_tree.add_recovered_deleted_item(recovered_file)
                 if content_cache_path:
                     self.__synced_files_tree.add_recoverable_item_from_cache(recovered_file)
+                if thumbnail_path:
+                    self.__synced_files_tree.add_thumbnail_item(recovered_file)
 
 
 class Setup:

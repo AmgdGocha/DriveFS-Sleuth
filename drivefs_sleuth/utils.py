@@ -254,9 +254,24 @@ def get_content_caches_paths(content_cache_dir):
     for root, _, content_caches in os.walk(content_cache_dir):
         for content_cache in content_caches:
             content_caches_paths[content_cache] = os.path.abspath(os.path.join(root, content_cache))
-    del(content_caches_paths['chunks.db'])
+    del (content_caches_paths['chunks.db'])
+    del (content_caches_paths['chunks.db-shm'])
+    del (content_caches_paths['chunks.db-wal'])
 
     return content_caches_paths
+
+
+def get_thumbnails_paths(thumbnails_dir):
+    thumbnails_paths = {}
+
+    for root, _, thumbnails in os.walk(thumbnails_dir):
+        for thumbnail in thumbnails:
+            thumbnails_paths[thumbnail] = os.path.abspath(os.path.join(root, thumbnail))
+    del (thumbnails_paths['chunks.db'])
+    del (thumbnails_paths['chunks.db-shm'])
+    del (thumbnails_paths['chunks.db-wal'])
+
+    return thumbnails_paths
 
 
 def get_file_content_cache_path(content_entry, content_caches_paths):
