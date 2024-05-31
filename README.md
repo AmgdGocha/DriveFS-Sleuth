@@ -1,5 +1,5 @@
-# Google Drive File Stream - What is it?
-Google Drive File Stream works as a file-syncing application, facilitating the synchronization of files and photos with Google Drive and Google Photos services. The nomenclature "file stream" is attributed to its capability to stream files on demand, thereby avoiding the need to occupy disk space by downloading all files preemptively. Upon installation and login, users can promptly access all previously synced files through Windows Explorer, without the necessity of storing an offline version.
+# Google Drive For Desktop - What is it?
+Google Drive for Desktop (formerly known as Google Drive File Stream) works as a file-syncing application, facilitating the synchronization of files and photos with Google Drive and Google Photos services. The nomenclature "file stream" is attributed to its capability to stream files on demand, thereby avoiding the need to occupy disk space by downloading all files preemptively. Upon installation and login, users can promptly access all previously synced files through Windows Explorer, without the necessity of storing an offline version.
 
 # 🕵️ DriveFS Sleuth
 
@@ -10,16 +10,18 @@ DriveFS Sleuth is a Python tool that automates investigating Google Drive File S
 
 ## 🚀 DriveFS Sleuth is capable of:
 * Parsing the disk artifacts and building a filesystem tree-like structure enumerating the synchronized files along with their respective properties. 
-* Detecting synchronized items and items that have been shared with the user.
+* Detecting synchronized items and items that have been shared with the account under investigation.
 * Compiling information on mirroring folders.
 * Providing insights into connected device configurations.
 * Supports searching functionality to facilitate the investigations.
 * Recovering the synced items from the cache. The recovered items can be filtered based on the searching criteria.
+* Recovering the cached thumbnails of the synced items if available. The recovered thumbnails can be filtered based on the searching criteria.
 * Generating HTML and CSV reports of the analysis results.
 
 For the underlying research, refer to: 
 * [DriveFS Sleuth — Your Ultimate Google Drive File Stream Investigator!](https://amgedwageh.medium.com/drivefs-sleuth-investigating-google-drive-file-streams-disk-artifacts-0b5ea637c980)
 * [DriveFS Sleuth — Revealing The Hidden Intelligence](https://amgedwageh.medium.com/drivefs-sleuth-revealing-the-hidden-intelligence-82f043c452e4)
+* [DriveFS Sleuth — Recovery Made Possible!](https://amgedwageh.medium.com/drivefs-sleuth-recovery-made-possible-f3847c0b0ac9)
 
 ## 🔍 Artifacts Collection Made Easy
 For those who are fans of Velociraptor, like myself, here is a Velociraptor offline collector ready to be used for triaging Google Drive File Stream artifacts to investigate them. The collector can be found here https://github.com/AmgdGocha/DriveFS-Sleuth/tree/main/collectors.
@@ -28,12 +30,12 @@ You can also use this Kape target to gather the same artifacts: https://github.c
 
 ## 🧑‍💻 DriveFS Sleuth Usage
 ```
-usage: DriveFS Sleuth [-h] [--accounts ACCOUNTS [ACCOUNTS ...]]
+usage: DriveFS Sleuth [-h] -o OUTPUT [--accounts ACCOUNTS [ACCOUNTS ...]]
                       [--regex REGEX [REGEX ...]]
                       [-q QUERY_BY_NAME [QUERY_BY_NAME ...]]
                       [--search-csv SEARCH_CSV] [--exact]
-                      [--dont-list-sub-items] [--csv CSV] [--html HTML]
-                      [--recover-from-cache RECOVER_FROM_CACHE | --recover-search-results RECOVER_SEARCH_RESULTS]
+                      [--dont-list-sub-items] [--csv] [--html]
+                      [--recover-from-cache | --recover-search-results]
                       path
 
 ██████╗ ██████╗ ██╗██╗   ██╗███████╗███████╗███████╗    ███████╗██╗     ███████╗██╗   ██╗████████╗██╗  ██╗
@@ -56,12 +58,10 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
+  -o OUTPUT, --output OUTPUT
+                        A path to a directory to save the output.
   --accounts ACCOUNTS [ACCOUNTS ...]
                         Specifies account id/s or emails separated by space to be processed, defaults to all the accounts.
-  --recover-from-cache RECOVER_FROM_CACHE
-                        Recover the cached items from the content cache. The recovery will be in the passed location.
-  --recover-search-results RECOVER_SEARCH_RESULTS
-                        Recover the search results items that are cached. The recovery will be in the passed location.
 
 Searching Arguments:
   --regex REGEX [REGEX ...]
@@ -75,8 +75,13 @@ Searching Arguments:
                         By default, if a folder matches the search criteria, the results will contain all of it's sub-items. This argument suppresses this feature to only return the folder without listing it's sub-items.
 
 Output Formats:
-  --csv CSV             Generates an HTML report. The CSV report will only contain information regarding the queried files. Either --csv or --html should be specified.
-  --html HTML           Generates an HTML report. The HTML report contains comprehensive information about the analyzed artifacts.  Either --csv or --html should be specified.
+  --csv                 Generates a CSV report. The CSV report will only contain information about the files and folders. Either --csv or --html should be specified.
+  --html                Generates an HTML report. The HTML report contains comprehensive information about the analyzed artifacts.  Either --csv or --html should be specified.
+
+Recovery Options:
+  --recover-from-cache  Recover the cached items from the content cache.
+  --recover-search-results
+                        Recover the search results items that are cached.
 ```
 ### Automated Investigation
 Easily automate the examination of Google Drive File Stream artifacts by providing the tool with the path to the DriveFS triaged folder.
@@ -99,46 +104,47 @@ Tailor the tool's behavior with additional parameters:
     * `LIST_SUB_ITEMS:` Enable or disable the listing of sub-items for matching folders, indicated by `TRUE` or `FALSE`, respectively.
 
 ### Recovery From Cache
-Drive Sleuth can parse and recover the cached synced items, the destination recovery path can be passed through the `--recover-from-cache` option. Only the search results can be recovered if the recovery path is passed through the `--recover-search-results` option.
+Drive Sleuth can parse and recover the cached synced items and their thumbnails if available, the recovery path will be under a subdirectory with the account name/email that will be created under the output path passed via the `[-o|--output]` argument. Only the search results will be recovered if the argument `--recover-search-results` is set.
 
 ### Output Options
 DriveFS Sleuth provides support for two types of outputs:
-1. **CSV Files:** You can specify a path using the `--csv` argument to instruct DriveFS Sleuth to generate two CSV files. The first CSV file includes a comprehensive list of all processed files, while the second CSV file specifically enumerates files and folders that match the search criteria if provided by the analyst.
-2. **HTML Report:** By supplying a path to the `--html` argument, you can trigger DriveFS Sleuth to create an HTML report summarizing the analysis results.
+1. **CSV Files:** Can be specified via the `--csv` argument to instruct DriveFS Sleuth to generate two CSV files. The first CSV file includes a comprehensive list of all processed files, while the second CSV file specifically enumerates files and folders that match the search criteria if provided by the analyst.
+2. **HTML Report:** Can be specified via the `--html` argument to instruct DriveFS Sleuth to generate an HTML report summarizing the analysis results.
+The reports will created under the output directory passed via the `[-o|--output]` agrument.
 
 ### Examples
 The following are some examples of the tool usage, change the paths and the searching criteria to match yours.
 * Processing a triage and outputting an HTML report.
 ```
-python3 drivefs_sleuth.py C:\triage_path\DriveFS --html C:\analysis_results\drivefs_report.html
+python3 drivefs_sleuth.py C:\triage_path\DriveFS --html -o C:\analysis_results
 ```
 * Processing a triage and outputting a CSV report.
 ```
-python3 drivefs_sleuth.py C:\triage_path\DriveFS --csv C:\analysis_results\drivefs_report.csv
+python3 drivefs_sleuth.py C:\triage_path\DriveFS --csv -o C:\analysis_results
 ```
 * Processing a triage, searching for all files or folders with filenames containing the word 'DFIR', and outputting both CSV and HTML reports.
 ```
-python3 drivefs_sleuth.py C:\triage_path\DriveFS -q DFIR --html C:\analysis_results\drivefs_report.html --csv C:\analysis_results\drivefs_report.csv
+python3 drivefs_sleuth.py C:\triage_path\DriveFS -q DFIR --html --csv --output C:\analysis_results
 ```
 * Processing a triage, searching for all files or folders with the exact filename 'DFIR', and outputting both CSV and HTML reports.
 ```
-python3 drivefs_sleuth.py C:\triage_path\DriveFS -q DFIR --exact --html C:\analysis_results\drivefs_report.html --csv C:\analysis_results\drivefs_report.csv
+python3 drivefs_sleuth.py C:\triage_path\DriveFS -q DFIR --exact --html --csv --output C:\analysis_results
 ```
 * Processing a triage, searching for all files or folders with filenames that match the regex `*dfir_\d+*`, and outputting an HTML report with listing sub-items suppressed.
 ```
-python3 drivefs_sleuth.py C:\triage_path\DriveFS --regex '*dfir_\d+' --html C:\analysis_results\drivefs_report.html --dont-list-sub-items
+python3 drivefs_sleuth.py C:\triage_path\DriveFS --regex "*dfir_\d+" --html --dont-list-sub-items -o C:\analysis_results
 ```
 * Processing a triage passing a CSV file that contains the searching criteria, and outputting a CSV report.
 ```
-python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.csv --csv C:\analysis_results\drivefs_report.csv
+python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.csv --csv --outputo C:\analysis_results
 ```
 * Processing a triage , and recover the cached synced items from the content cache.
 ```
-python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.csv --csv C:\analysis_results\drivefs_report.csv -- recover-from-cache C:\recovery_path
+python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.csv --csv --recover-from-cache -o C:\analysis_results
 ```
 * Processing a triage passing a CSV file that contains the searching criteria, outputting a CSV report, and recover the search results from the content cache.
 ```
-python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.csv --csv C:\analysis_results\drivefs_report.csv -- recover-search-results C:\recovery_path
+python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.csv --recover-search-results --csv -o C:\analysis_results
 ```
 
 # 📰 Featured At:
