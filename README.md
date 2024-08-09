@@ -33,8 +33,8 @@ You can also use this Kape target to gather the same artifacts: https://github.c
 usage: DriveFS Sleuth [-h] -o OUTPUT [--accounts ACCOUNTS [ACCOUNTS ...]]
                       [--regex REGEX [REGEX ...]]
                       [-q QUERY_BY_NAME [QUERY_BY_NAME ...]]
-                      [--search-csv SEARCH_CSV] [--exact]
-                      [--dont-list-sub-items] [--csv] [--html]
+                      [--md5 MD5 [MD5 ...]] [--search-csv SEARCH_CSV]
+                      [--exact] [--dont-list-sub-items] [--csv] [--html]
                       [--recover-from-cache | --recover-search-results]
                       path
 
@@ -68,6 +68,7 @@ Searching Arguments:
                         Searches for files or folders by regular expressions. Multiple regex can be passed separated by spaces.
   -q QUERY_BY_NAME [QUERY_BY_NAME ...], --query-by-name QUERY_BY_NAME [QUERY_BY_NAME ...]
                         Searches for files or folders by name. The search will be case insensitive. Multiple file names can be passed separated by spaces.
+  --md5 MD5 [MD5 ...]   Searches for files by the MD5 hash. Multiple hashes can be passed separated by spaces.
   --search-csv SEARCH_CSV
                         Searches for files or folders that satisfies the searching conditions in the provided CSV file.
   --exact               If selected, only files or folders with exact file names will be returned. The --query_by_name argument has to be passed. Defaults to False.
@@ -91,15 +92,16 @@ Utilize the `--accounts` argument to specify the email or account ID of the targ
 
 ### Flexible Search Functionality
 DriveFS Sleuth supports various search functionalities to meet your investigative needs:
-* **Regular Expressions:** Use the `--regex` parameter to employ regular expressions for searching. Multiple expressions can be specified, separated by spaces.
+* **Regular Expressions:** Use the `--regex` parameter to employ regular expressions for searching. Multiple expressions can be specified separated by spaces.
 * **Simple Text Search:** Perform a simple text search using the `[-q|--query-by-name]` optional parameter. Input single or multiple texts separated by spaces. The tool searches for files or folders with names containing the provided text. Toggle the `--exact` parameter for an exact name search.
+* **MD5 Search:** Use the `--md5` parameter to search by the MD5 hash of the files. Multiple MD5s can be specified separated by spaces.
 
 ### Customization Options
 Tailor the tool's behavior with additional parameters:
 * **Listing Control:** Use the `--dont-list-sub-items` parameter to suppress listing sub-items and only display matching folders.
 * **Complex Criteria:** Enable a more complex combination of search criteria by providing a CSV file through the `--search-csv parameter`. The CSV file includes case-sensitive headers: `TARGET`, `TYPE`, `CONTAINS`, and `LIST_SUB_ITEMS`.
     * **TARGET:** Holds the searching regex or simple text.
-    * **TYPE:** Classifies the search type as either `FILENAME` or `REGEX`.
+    * **TYPE:** Classifies the search type as either `FILENAME`, `REGEX`, or `MD5`.
     * **CONTAINS:** Use `FALSE` for an exact search or `TRUE` to search for any filename containing the specified target.
     * `LIST_SUB_ITEMS:` Enable or disable the listing of sub-items for matching folders, indicated by `TRUE` or `FALSE`, respectively.
 
@@ -110,7 +112,7 @@ Drive Sleuth can parse and recover the cached synced items and their thumbnails 
 DriveFS Sleuth provides support for two types of outputs:
 1. **CSV Files:** Can be specified via the `--csv` argument to instruct DriveFS Sleuth to generate two CSV files. The first CSV file includes a comprehensive list of all processed files, while the second CSV file specifically enumerates files and folders that match the search criteria if provided by the analyst.
 2. **HTML Report:** Can be specified via the `--html` argument to instruct DriveFS Sleuth to generate an HTML report summarizing the analysis results.
-The reports will created under the output directory passed via the `[-o|--output]` agrument.
+The reports will be created under the output directory passed via the `[-o|--output]` argument.
 
 ### Examples
 The following are some examples of the tool usage, change the paths and the searching criteria to match yours.
@@ -133,6 +135,10 @@ python3 drivefs_sleuth.py C:\triage_path\DriveFS -q DFIR --exact --html --csv --
 * Processing a triage, searching for all files or folders with filenames that match the regex `*dfir_\d+*`, and outputting an HTML report with listing sub-items suppressed.
 ```
 python3 drivefs_sleuth.py C:\triage_path\DriveFS --regex "*dfir_\d+" --html --dont-list-sub-items -o C:\analysis_results
+```
+* Processing a triage, searching for files by multiple md5 hashes, and outputting an HTML report.
+```
+python3 drivefs_sleuth.py C:\triage_path\DriveFS --md5 e03d35c4792f1e2b773c1c03d71d96ef	8018f9c57bb40ed5f42dfac859dd7405 --html -o C:\analysis_results
 ```
 * Processing a triage passing a CSV file that contains the searching criteria, and outputting a CSV report.
 ```

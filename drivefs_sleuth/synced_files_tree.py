@@ -323,6 +323,40 @@ class SyncedFilesTree:
 
         return items
 
+    def search_item_by_md5(self, md5_hashes):
+        items = []
+
+        def search(current_item):
+            if isinstance(current_item, File):
+                for md5_hash in md5_hashes:
+                    if md5_hash and md5_hash.lower() == current_item.md5:
+                        items.append(current_item)
+                        return
+
+            else:
+                if isinstance(current_item, Link):
+                    target = current_item.get_target_item()
+                    if isinstance(target, File):
+                        search(target)
+                    else:
+                        for sub_item in target.get_sub_items():
+                            search(sub_item)
+                else:
+                    for sub_item in current_item.get_sub_items():
+                        search(sub_item)
+
+        search(self.get_root())
+        for orphan_item in self.get_orphan_items():
+            search(orphan_item)
+
+        for shared_item in self.get_shared_with_me_items():
+            search(shared_item)
+
+        for recovered_deleted_item in self.get_recovered_deleted_items():
+            search(recovered_deleted_item)
+
+        return items
+
     def add_mirrored_item(self, mirrored_item):
         self.__mirror_items.append(mirrored_item)
 
