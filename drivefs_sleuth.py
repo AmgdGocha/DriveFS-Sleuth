@@ -72,6 +72,13 @@ if __name__ == '__main__':
     )
 
     searching_group.add_argument(
+        '--md5',
+        type=str,
+        nargs='+',
+        help='Searches for files by the MD5 hash. Multiple hashes can be passed separated by spaces.'
+    )
+
+    searching_group.add_argument(
         '--search-csv',
         type=str,
         dest="search_csv",
@@ -140,7 +147,7 @@ if __name__ == '__main__':
         print('DriveFS Sleuth: error: Either --csv or --html should be specified.')
         arg_parser.exit()
 
-    if args.recover_search_results and not (args.query_by_name or args.regex or args.search_csv):
+    if args.recover_search_results and not (args.query_by_name or args.regex or args.search_csv or args.md5):
         arg_parser.print_usage()
         print('DriveFS Sleuth: error: --recover-search-results option can\'t be specified without specifying searching '
               'criteria via [--regex REGEX [REGEX ...]] or [-q QUERY_BY_NAME [QUERY_BY_NAME ...]] or '
@@ -170,11 +177,14 @@ if __name__ == '__main__':
             'contains-listing': [],
             'contains-no-listing': [],
             'regex-listing': [],
-            'regex-no-listing': []
+            'regex-no-listing': [],
+            'md5': []
         }
         with open(args.search_csv, 'r', encoding='utf-8') as search_csv_file:
             for criteria in csv.DictReader(search_csv_file):
-                if criteria['TYPE'].lower() == 'regex':
+                if criteria['TYPE'].lower() == 'md5':
+                    searching_criteria['md5'].append(criteria['TARGET'])
+                elif criteria['TYPE'].lower() == 'regex':
                     if criteria['LIST_SUB_ITEMS'].lower() == 'false':
                         searching_criteria['regex-no-listing'].append(criteria['TARGET'])
                     else:
@@ -252,19 +262,32 @@ if __name__ == '__main__':
                             search_results[(account.get_account_id(), account.get_account_email())] = []
                     search_results[(account.get_account_id(), account.get_account_email())] += result
 
-    for account in setup.get_accounts():
-        if account.is_logged_in():
-            result = account.get_synced_files_tree().search_item_by_name(
-                filenames=args.query_by_name,
-                regex=args.regex,
-                contains=args.exact,
-                list_sub_items=args.list_sub_items
-            )
+    if args.query_by_name or args.regex:
+        for account in setup.get_accounts():
+            if account.is_logged_in():
 
-            if result:
-                if not search_results.get((account.get_account_id(), account.get_account_email()), None):
-                    search_results[(account.get_account_id(), account.get_account_email())] = []
-                search_results[(account.get_account_id(), account.get_account_email())] += result
+                result = account.get_synced_files_tree().search_item_by_name(
+                    filenames=args.query_by_name,
+                    regex=args.regex,
+                    contains=args.exact,
+                    list_sub_items=args.list_sub_items
+                )
+
+                if result:
+                    if not search_results.get((account.get_account_id(), account.get_account_email()), None):
+                        search_results[(account.get_account_id(), account.get_account_email())] = []
+                    search_results[(account.get_account_id(), account.get_account_email())] += result
+
+    if args.md5:
+        for account in setup.get_accounts():
+            if account.is_logged_in():
+
+                result = account.get_synced_files_tree().search_item_by_md5(args.md5)
+
+                if result:
+                    if not search_results.get((account.get_account_id(), account.get_account_email()), None):
+                        search_results[(account.get_account_id(), account.get_account_email())] = []
+                    search_results[(account.get_account_id(), account.get_account_email())] += result
 
     if args.html:
         html_output_path = os.path.join(args.output, 'html_report.html')
