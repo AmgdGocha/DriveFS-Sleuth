@@ -211,7 +211,7 @@ if __name__ == '__main__':
                     if result:
                         if not search_results.get((account.get_account_id(), account.get_account_email()), None):
                             search_results[(account.get_account_id(), account.get_account_email())] = []
-                    search_results[(account.get_account_id(), account.get_account_email())] += result
+                        search_results[(account.get_account_id(), account.get_account_email())] += result
 
                 if searching_criteria['exact-no-listing']:
                     result = account.get_synced_files_tree().search_item_by_name(
@@ -222,7 +222,7 @@ if __name__ == '__main__':
                     if result:
                         if not search_results.get((account.get_account_id(), account.get_account_email()), None):
                             search_results[(account.get_account_id(), account.get_account_email())] = []
-                    search_results[(account.get_account_id(), account.get_account_email())] += result
+                        search_results[(account.get_account_id(), account.get_account_email())] += result
 
                 if searching_criteria['contains-listing']:
                     result = account.get_synced_files_tree().search_item_by_name(
@@ -231,7 +231,7 @@ if __name__ == '__main__':
                     if result:
                         if not search_results.get((account.get_account_id(), account.get_account_email()), None):
                             search_results[(account.get_account_id(), account.get_account_email())] = []
-                    search_results[(account.get_account_id(), account.get_account_email())] += result
+                        search_results[(account.get_account_id(), account.get_account_email())] += result
 
                 if searching_criteria['contains-no-listing']:
                     result = account.get_synced_files_tree().search_item_by_name(
@@ -241,7 +241,7 @@ if __name__ == '__main__':
                     if result:
                         if not search_results.get((account.get_account_id(), account.get_account_email()), None):
                             search_results[(account.get_account_id(), account.get_account_email())] = []
-                    search_results[(account.get_account_id(), account.get_account_email())] += result
+                        search_results[(account.get_account_id(), account.get_account_email())] += result
 
                 if searching_criteria['regex-listing']:
                     result = account.get_synced_files_tree().search_item_by_name(
@@ -250,7 +250,7 @@ if __name__ == '__main__':
                     if result:
                         if not search_results.get((account.get_account_id(), account.get_account_email()), None):
                             search_results[(account.get_account_id(), account.get_account_email())] = []
-                    search_results[(account.get_account_id(), account.get_account_email())] += result
+                        search_results[(account.get_account_id(), account.get_account_email())] += result
 
                 if searching_criteria['regex-no-listing']:
                     result = account.get_synced_files_tree().search_item_by_name(
@@ -260,7 +260,7 @@ if __name__ == '__main__':
                     if result:
                         if not search_results.get((account.get_account_id(), account.get_account_email()), None):
                             search_results[(account.get_account_id(), account.get_account_email())] = []
-                    search_results[(account.get_account_id(), account.get_account_email())] += result
+                        search_results[(account.get_account_id(), account.get_account_email())] += result
 
     if args.query_by_name or args.regex:
         for account in setup.get_accounts():
