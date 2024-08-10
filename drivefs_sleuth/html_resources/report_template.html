@@ -85,6 +85,20 @@
                 text-align: left;
             }
 
+            .icon-container {
+                position: absolute;
+                bottom: 0;
+                left: 50%;
+                transform: translateX(-50%);
+                text-align: center;
+                width: 100%;
+                font-size: 24px; /* Adjust size as needed */
+            }
+
+            .eye-icon {
+                display: inline-block;
+            }
+
             .page-content {
                 font-family: 'Open Sans', sans-serif;
                 margin: 20px;
@@ -314,8 +328,7 @@
             {% endif %}
 
             {% for account in setup.get_accounts() %}
-
-                <div class="center-container">
+                <div class="center-container" onclick="toggleVisibility('account-details-{{ account.get_account_email() }}', 'eye-icon-{{ account.get_account_email() }}')">
                     <div class="card">
                         <div class="text-container">
                             <div class="email">{{ account.get_account_email() }}</div>
@@ -330,248 +343,254 @@
                                 <img src={{ account.get_photo_url() }} alt="Account Photo" style="width: 100px; height: 100px;">
                             </div>
                         {% endif %}
+                    <div class="icon-container">
+                        <span id="eye-icon-{{ account.get_account_email() }}" class="eye-icon">👁️</span>
+                    </div>
                     </div>
                 </div>
 
-                {% if account.get_mirroring_roots() %}
+                <div id="account-details-{{ account.get_account_email() }}">
+                    {% if account.get_mirroring_roots() %}
 
-                    <h2>Mirroring Roots</h2>
+                        <h2>Mirroring Roots</h2>
 
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Root ID</th>
-                                <th>Media ID</th>
-                                <th>Title</th>
-                                <th>Root Path</th>
-                                <th>Mirroring Destination</th>
-                                <th>Last Seen Absolute Path</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% set mirrors=account.get_mirroring_roots() %}
-                            {% for mirror in mirrors %}
+                        <table>
+                            <thead>
                                 <tr>
-                                    <td>{{ mirror.get('root_id', None) }}</td>
-                                    <td>{{ mirror.get('media_id', None) }}</td>
-                                    <td>{{ mirror.get('title', None) }}</td>
-                                    <td>{{ mirror.get('root_path', None) }}</td>
-                                    <td>{{ mirror.get('destination', None) }}</td>
-                                    <td>{{ mirror.get('last_seen_absolute_path', None) }}</td>
+                                    <th>Root ID</th>
+                                    <th>Media ID</th>
+                                    <th>Title</th>
+                                    <th>Root Path</th>
+                                    <th>Mirroring Destination</th>
+                                    <th>Last Seen Absolute Path</th>
                                 </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {% set mirrors=account.get_mirroring_roots() %}
+                                {% for mirror in mirrors %}
+                                    <tr>
+                                        <td>{{ mirror.get('root_id', None) }}</td>
+                                        <td>{{ mirror.get('media_id', None) }}</td>
+                                        <td>{{ mirror.get('title', None) }}</td>
+                                        <td>{{ mirror.get('root_path', None) }}</td>
+                                        <td>{{ mirror.get('destination', None) }}</td>
+                                        <td>{{ mirror.get('last_seen_absolute_path', None) }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
 
-                    <h2>Mirrored Items</h2>
+                        <h2>Mirrored Items</h2>
 
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Local Stable ID</th>
-                                <th>Stable ID</th>
-                                <th>Volume</th>
-                                <th>Parent Local Stable ID</th>
-                                <th>Local Filename</th>
-                                <th>Cloud Filename</th>
-                                <th>Local Modified Timestamp</th>
-                                <th>Cloud Modified Timestamp</th>
-                                <th>Local MD5 Checksum</th>
-                                <th>Cloud MD5 Checksum</th>
-                                <th>Local Size</th>
-                                <th>Cloud Size</th>
-                                <th>Local Version</th>
-                                <th>Cloud Version</th>
-                                <th>Shared</th>
-                                <th>Read Only</th>
-                                <th>Is Root</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% set mirrored_items=account.get_synced_files_tree().get_mirrored_items() %}
-                            {% for item in mirrored_items %}
+                        <table>
+                            <thead>
                                 <tr>
-                                    <td>{{ item.local_stable_id }}</td>
-                                    <td>{{ item.stable_id }}</td>
-                                    <td>{{ item.volume }}</td>
-                                    <td>{{ item.parent }}</td>
-                                    <td>{{ item.local_filename }}</td>
-                                    <td>{{ item.cloud_filename }}</td>
-                                    <td>{{ item.get_local_mtime_utc() }}</td>
-                                    <td>{{ item.get_cloud_mtime_utc() }}</td>
-                                    <td>{{ item.local_md5 }}</td>
-                                    <td>{{ item.cloud_md5 }}</td>
-                                    <td>{{ item.local_size }}</td>
-                                    <td>{{ item.cloud_size }}</td>
-                                    <td>{{ item.local_version }}</td>
-                                    <td>{{ item.cloud_version }}</td>
-                                    <td>{{ item.shared }}</td>
-                                    <td>{{ item.read_only }}</td>
-                                    <td>{{ item.is_root }}</td>
+                                    <th>Local Stable ID</th>
+                                    <th>Stable ID</th>
+                                    <th>Volume</th>
+                                    <th>Parent Local Stable ID</th>
+                                    <th>Local Filename</th>
+                                    <th>Cloud Filename</th>
+                                    <th>Local Modified Timestamp</th>
+                                    <th>Cloud Modified Timestamp</th>
+                                    <th>Local MD5 Checksum</th>
+                                    <th>Cloud MD5 Checksum</th>
+                                    <th>Local Size</th>
+                                    <th>Cloud Size</th>
+                                    <th>Local Version</th>
+                                    <th>Cloud Version</th>
+                                    <th>Shared</th>
+                                    <th>Read Only</th>
+                                    <th>Is Root</th>
                                 </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                {% endif %}
+                            </thead>
+                            <tbody>
+                                {% set mirrored_items=account.get_synced_files_tree().get_mirrored_items() %}
+                                {% for item in mirrored_items %}
+                                    <tr>
+                                        <td>{{ item.local_stable_id }}</td>
+                                        <td>{{ item.stable_id }}</td>
+                                        <td>{{ item.volume }}</td>
+                                        <td>{{ item.parent }}</td>
+                                        <td>{{ item.local_filename }}</td>
+                                        <td>{{ item.cloud_filename }}</td>
+                                        <td>{{ item.get_local_mtime_utc() }}</td>
+                                        <td>{{ item.get_cloud_mtime_utc() }}</td>
+                                        <td>{{ item.local_md5 }}</td>
+                                        <td>{{ item.cloud_md5 }}</td>
+                                        <td>{{ item.local_size }}</td>
+                                        <td>{{ item.cloud_size }}</td>
+                                        <td>{{ item.local_version }}</td>
+                                        <td>{{ item.cloud_version }}</td>
+                                        <td>{{ item.shared }}</td>
+                                        <td>{{ item.read_only }}</td>
+                                        <td>{{ item.is_root }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% endif %}
 
-                {% if search_results.get((account.get_account_id(), account.get_account_email()), None) %}
-                    {% set searches=[] %}
+                    {% if search_results.get((account.get_account_id(), account.get_account_email()), None) %}
+                        {% set searches=[] %}
 
-                    <h2>Search Results</h2>
-                    {% for result in search_results[(account.get_account_id(), account.get_account_email())] %}
-                        <li>{{ result.tree_path }}</li>
-                        {{ searches.append(result.get_stable_id()) or '' }}
-                    {% endfor %}
-                {% endif %}
+                        <h2>Search Results</h2>
+                        {% for result in search_results[(account.get_account_id(), account.get_account_email())] %}
+                            <li>
+                                <a href="#{{ result.get_stable_id() }}">{{ result.tree_path }}</a>
+                            </li>
+                            {{ searches.append(result.get_stable_id()) or '' }}
+                        {% endfor %}
+                    {% endif %}
 
-                {% if account.is_logged_in() %}
-                    {% set tree=account.get_synced_files_tree() %}
-                    {% set details=[] %}
+                    {% if account.is_logged_in() %}
+                        {% set tree=account.get_synced_files_tree() %}
+                        {% set details=[] %}
 
-                    {% macro render_items(items) %}
-                        {% for item in items %}
-                            {{ details.append(item) or '' }}
-                            {% if item.is_dir() %}
-                                <li>
-                                    <span class="caret">
+                        {% macro render_items(items) %}
+                            {% for item in items %}
+                                {{ details.append(item) or '' }}
+                                {% if item.is_dir() %}
+                                    <li>
+                                        <span class="caret">
+                                            <a
+                                                {% if item.get_stable_id() in searches %}
+                                                    class="match"
+                                                {% endif %}
+                                                href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
+                                        </span>
+                                        <ul class="nested">
+                                            {{ render_items(item.get_sub_items()) }}
+                                        </ul>
+                                    </li>
+                                {% elif item.is_link() %}
+                                    {% if item.get_target_item().is_file() %}
+                                        <li>
+                                            <span class="caret">
+                                                <a
+                                                    {% if item.get_stable_id() in searches %}
+                                                        class="match"
+                                                    {% endif %}
+                                                    href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
+                                            </span>
+                                            <ul class="nested">
+                                                {{ render_items(item.get_target_item()) }}
+                                            </ul>
+                                        </li>
+                                    {% else %}
+                                        <li>
+                                            <span class="caret">
+                                                <a
+                                                    {% if item.get_stable_id() in searches %}
+                                                        class="match"
+                                                    {% endif %}
+                                                    href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
+                                            </span>
+                                            <ul class="nested">
+                                                {{ render_items(item.get_target_item().get_sub_items()) }}
+                                            </ul>
+                                        </li>
+                                    {% endif %}
+                                {% else %}
+                                    <li>
                                         <a
                                             {% if item.get_stable_id() in searches %}
                                                 class="match"
                                             {% endif %}
                                             href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
-                                    </span>
-                                    <ul class="nested">
-                                        {{ render_items(item.get_sub_items()) }}
-                                    </ul>
-                                </li>
-                            {% elif item.is_link() %}
-                                {% if item.get_target_item().is_file() %}
-                                    <li>
-                                        <span class="caret">
-                                            <a
-                                                {% if item.get_stable_id() in searches %}
-                                                    class="match"
-                                                {% endif %}
-                                                href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
-                                        </span>
-                                        <ul class="nested">
-                                            {{ render_items(item.get_target_item()) }}
-                                        </ul>
-                                    </li>
-                                {% else %}
-                                    <li>
-                                        <span class="caret">
-                                            <a
-                                                {% if item.get_stable_id() in searches %}
-                                                    class="match"
-                                                {% endif %}
-                                                href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
-                                        </span>
-                                        <ul class="nested">
-                                            {{ render_items(item.get_target_item().get_sub_items()) }}
-                                        </ul>
                                     </li>
                                 {% endif %}
-                            {% else %}
-                                <li>
-                                    <a
-                                        {% if item.get_stable_id() in searches %}
-                                            class="match"
-                                        {% endif %}
-                                        href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
-                                </li>
-                            {% endif %}
-                        {% endfor %}
-                    {% endmacro %}
+                            {% endfor %}
+                        {% endmacro %}
 
-                    <h2>Synced Files Tree</h2>
-
-                        <ul id="myUL">
-                            {{ render_items([tree.get_root()] + tree.get_orphan_items()) }}
-                        </ul>
-
-                    {% if tree.get_shared_with_me_items() %}
-                        <h2>Shared with me files</h2>
+                        <h2>Synced Files Tree</h2>
 
                             <ul id="myUL">
-                                {{ render_items(tree.get_shared_with_me_items()) }}
+                                {{ render_items([tree.get_root()] + tree.get_orphan_items()) }}
                             </ul>
-                    {% endif %}
 
-                    {% if tree.get_recovered_deleted_items() or tree.get_deleted_items() %}
-                        <h2>Deleted Items</h2>
-                            {% for recovered_deleted_item in tree.get_recovered_deleted_items() %}
-                                    {{ details.append(recovered_deleted_item) or '' }}
-                                    <li>
-                                        <a
-                                            {% if recovered_deleted_item.get_stable_id() in searches %}
-                                                class="match"
-                                            {% endif %}
-                                            href="#{{ recovered_deleted_item.get_stable_id() }}">{{ recovered_deleted_item.tree_path }}</a>
-                                    </li>
-                            {% endfor %}
+                        {% if tree.get_shared_with_me_items() %}
+                            <h2>Shared with me files</h2>
 
-                            {% for deleted_item in tree.get_deleted_items() %}
-                                <li>{{ deleted_item.get_stable_id() }}</li>
-                            {% endfor %}
-                    {% endif %}
+                                <ul id="myUL">
+                                    {{ render_items(tree.get_shared_with_me_items()) }}
+                                </ul>
+                        {% endif %}
 
-                    <h2>Items Details</h2>
-                    {% macro generate_items_details_table(headers) %}
-                        {% set properties = headers[11:] %}
-                        <table>
-                            <thead>
-                                <tr>
-                                    {% for header in headers %}
-                                        <th>{{ header }}</th>
-                                    {% endfor %}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for detail in details %}
+                        {% if tree.get_recovered_deleted_items() or tree.get_deleted_items() %}
+                            <h2>Deleted Items</h2>
+                                {% for recovered_deleted_item in tree.get_recovered_deleted_items() %}
+                                        {{ details.append(recovered_deleted_item) or '' }}
+                                        <li>
+                                            <a
+                                                {% if recovered_deleted_item.get_stable_id() in searches %}
+                                                    class="match"
+                                                {% endif %}
+                                                href="#{{ recovered_deleted_item.get_stable_id() }}">{{ recovered_deleted_item.tree_path }}</a>
+                                        </li>
+                                {% endfor %}
+
+                                {% for deleted_item in tree.get_deleted_items() %}
+                                    <li>{{ deleted_item.get_stable_id() }}</li>
+                                {% endfor %}
+                        {% endif %}
+
+                        <h2>Items Details</h2>
+                        {% macro generate_items_details_table(headers) %}
+                            {% set properties = headers[11:] %}
+                            <table>
+                                <thead>
                                     <tr>
-                                        <td id='{{ detail.get_stable_id() }}'>{{ detail.get_stable_id() }}</td>
-                                        {% if detail.is_file() %}
-                                            <td>File</td>
-                                        {% elif detail.is_link() %}
-                                            <td>Link</td>
-                                        {% else %}
-                                            <td>Directory</td>
-                                        {% endif %}
-                                        <td>{{ detail.url_id }}</td>
-                                        <td>{{ detail.local_title }}</td>
-                                        <td>{{ detail.mime_type }}</td>
-                                        {% if detail.is_file() %}
-                                            <td>{{ detail.get_content_cache_path() }}</td>
-                                        {% else %}
-                                            <td></td>
-                                        {% endif %}
-                                        {% if detail.is_file() %}
-                                            <td>{{ detail.get_thumbnail_path() }}</td>
-                                        {% else %}
-                                            <td></td>
-                                        {% endif %}
-                                        <td>{{ detail.is_owner }}</td>
-                                        <td>{{ detail.get_file_size_mb() }}</td>
-                                        <td>{{ detail.get_modified_date_utc() }}</td>
-                                        <td>{{ detail.get_viewed_by_me_date_utc() }}</td>
-                                        <td>{{ detail.trashed }}</td>
-                                        <td>{{ detail.tree_path }}</td>
-                                        <td>{{ detail.md5 }}</td>
-                                        {% for prop in properties %}
-                                            {% if prop not in ["trashed", "tree_path", "md5"] %}
-                                                <td>{{ detail.properties[prop] }}</td>
-                                            {% endif %}
+                                        {% for header in headers %}
+                                            <th>{{ header }}</th>
                                         {% endfor %}
                                     </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    {% endmacro %}
-                    {{ generate_items_details_table(headers) }}
+                                </thead>
+                                <tbody>
+                                    {% for detail in details %}
+                                        <tr>
+                                            <td id='{{ detail.get_stable_id() }}'>{{ detail.get_stable_id() }}</td>
+                                            {% if detail.is_file() %}
+                                                <td>File</td>
+                                            {% elif detail.is_link() %}
+                                                <td>Link</td>
+                                            {% else %}
+                                                <td>Directory</td>
+                                            {% endif %}
+                                            <td>{{ detail.url_id }}</td>
+                                            <td>{{ detail.local_title }}</td>
+                                            <td>{{ detail.mime_type }}</td>
+                                            {% if detail.is_file() %}
+                                                <td>{{ detail.get_content_cache_path() }}</td>
+                                            {% else %}
+                                                <td></td>
+                                            {% endif %}
+                                            {% if detail.is_file() %}
+                                                <td>{{ detail.get_thumbnail_path() }}</td>
+                                            {% else %}
+                                                <td></td>
+                                            {% endif %}
+                                            <td>{{ detail.is_owner }}</td>
+                                            <td>{{ detail.get_file_size_mb() }}</td>
+                                            <td>{{ detail.get_modified_date_utc() }}</td>
+                                            <td>{{ detail.get_viewed_by_me_date_utc() }}</td>
+                                            <td>{{ detail.trashed }}</td>
+                                            <td>{{ detail.tree_path }}</td>
+                                            <td>{{ detail.md5 }}</td>
+                                            {% for prop in properties %}
+                                                {% if prop not in ["trashed", "tree_path", "md5"] %}
+                                                    <td>{{ detail.properties[prop] }}</td>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        {% endmacro %}
+                        {{ generate_items_details_table(headers) }}
 
-                {% endif %}
-
+                    {% endif %}
+                </div>
             {% endfor %}
 
         </div>
@@ -587,6 +606,18 @@
                 this.parentElement.querySelector(".nested").classList.toggle("active");
                 this.classList.toggle("caret-down");
               });
+            }
+
+            function toggleVisibility(contentId, iconId) {
+                var element = document.getElementById(contentId);
+                var icon = document.getElementById(iconId);
+                if (element.style.display === "none") {
+                    element.style.display = "block";
+                    icon.innerHTML = "👁️";
+                } else {
+                    element.style.display = "none";
+                    icon.innerHTML = "👁️‍🗨️";
+                }
             }
         </script>
 
