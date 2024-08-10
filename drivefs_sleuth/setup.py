@@ -1,5 +1,7 @@
 import os.path
 import datetime
+import threading
+from queue import Queue
 from enum import Enum
 from collections import OrderedDict
 
@@ -306,6 +308,7 @@ class Setup:
         self.__max_root_ids = get_max_root_ids(drivefs_path)
         self.__last_pid = get_last_pid(drivefs_path)
         self.__connected_devices = []
+
         for connected_device in get_connected_devices(drivefs_path):
             device = {
                 "media_id": connected_device[0],
@@ -323,14 +326,31 @@ class Setup:
         if not accounts:
             accounts = []
         self.__accounts = []
+
+        account_queue = Queue()
+        threads = []
+
         for account_id, account_info in get_accounts(drivefs_path).items():
             if accounts and not (account_id in accounts or account_info['email'] in accounts):
                 continue
 
-            self.__accounts.append(
-                Account(drivefs_path, account_id, account_info['email'], account_info['logged_in'],
-                        get_mirroring_roots_for_account(drivefs_path, account_id), account_info['properties'])
+            thread = threading.Thread(
+                target=self.__account_worker,
+                args=(account_queue, account_id, account_info)
             )
+            threads.append(thread)
+            thread.start()
+
+        for thread in threads:
+            thread.join()
+
+        while not account_queue.empty():
+            self.__accounts.append(account_queue.get())
+
+    def __account_worker(self, queue, account_id, account_info):
+        account = Account(self.__drivefs_path, account_id, account_info['email'], account_info['logged_in'],
+                          get_mirroring_roots_for_account(self.__drivefs_path, account_id), account_info['properties'])
+        queue.put(account)
 
     def get_drivefs_path(self):
         return self.__drivefs_path
