@@ -132,10 +132,17 @@ def generate_html_report(setup, output_file, search_results=None):
     template = env.get_template("report_template.html")
     headers = __build_headers(setup)
 
-    with open(output_file, 'w', encoding='utf-8') as report_file:
-        report_file.write(template.render(setup=setup,
-                                          search_results=search_results,
-                                          headers=headers))
+    stream_template = template.stream(
+        setup=setup,
+        search_results=search_results,
+        headers=headers
+    )
+    stream_template.dump(output_file)
+
+    # with open(output_file, 'w', encoding='utf-8') as report_file:
+    #     report_file.write(template.render(setup=setup,
+    #                                       search_results=search_results,
+    #                                       headers=headers))
 
 
 def recover_from_content_cache(recoverable_items, recovery_path):
