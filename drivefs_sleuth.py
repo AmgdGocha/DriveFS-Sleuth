@@ -11,10 +11,6 @@ from drivefs_sleuth.tasks import generate_html_report
 from drivefs_sleuth.tasks import recover_from_content_cache
 
 
-# TODO (Amged): for testing only, remove!
-import time
-from memory_profiler import memory_usage
-
 if __name__ == '__main__':
     description = """
 
@@ -296,14 +292,7 @@ if __name__ == '__main__':
     if args.html:
         html_output_path = os.path.join(args.output, 'html_report.html')
         print(f'[+] Generating an HTML report: {html_output_path}...')
-        # TODO (Amged): Remove the time and memory consumption testing
-        start_stime = time.time()
-        mem_before = memory_usage()[0]
         generate_html_report(setup, html_output_path, search_results)
-        mem_after = memory_usage()[0]
-        end_time = time.time()
-        print(f"!!!! HTML Generation Time: {end_time - start_stime} seconds")
-        print(f"!!!! HTML Generation Memory: {mem_after - mem_before} MiB")
 
     if args.csv:
         csv_output_path = os.path.join(args.output, 'csv_report.csv')
