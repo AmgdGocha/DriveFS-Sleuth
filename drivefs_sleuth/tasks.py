@@ -12,7 +12,6 @@ from drivefs_sleuth.utils import get_available_profiles
 from drivefs_sleuth.utils import get_experiment_account_ids
 
 from drivefs_sleuth.synced_files_tree import File
-from drivefs_sleuth.synced_files_tree import Link
 
 
 def get_accounts(drivefs_path):
@@ -64,53 +63,18 @@ def __generate_csv_search_results_report(setup, output_file, search_results):
                 csv_writer.writerow(row)
 
 
-def __generate_csv_report(setup, output_file):
+def __generate_csv_report_gen(setup, output_file):
     headers = ['account_id', 'email'] + __build_headers(setup)
     with open(output_file, 'w', encoding='utf-8', newline='') as csv_report_file:
         csv_writer = csv.DictWriter(csv_report_file, fieldnames=headers)
         csv_writer.writeheader()
-        rows = []
-
-        def __generate_csv_dict(roots, account_id, email):
-            if isinstance(roots, list):
-                for item in roots:
-                    __generate_csv_dict(item, account_id, email)
-            else:
-                row = roots.to_dict()
-                row['account_id'] = account_id
-                row['email'] = email
-                if isinstance(roots, File):
-                    row['type'] = 'File'
-                    if roots.get_content_cache_path():
-                        row['path_in_content_cache'] = roots.get_content_cache_path()
-                    if roots.get_content_cache_path():
-                        row['thumbnail_path'] = roots.get_thumbnail_path()
-                    rows.append(row)
-                    return
-                elif isinstance(roots, Link):
-                    row['type'] = 'Link'
-                    rows.append(row)
-                    target = roots.get_target_item()
-                    if isinstance(target, File):
-                        __generate_csv_dict(target, account_id, email)
-                    else:
-                        for sub_item in target.get_sub_items():
-                            __generate_csv_dict(sub_item, account_id, email)
-                else:
-                    row['type'] = 'Directory'
-                    rows.append(row)
-                    for sub_item in roots.get_sub_items():
-                        __generate_csv_dict(sub_item, account_id, email)
 
         for account in setup.get_accounts():
             files_tree = account.get_synced_files_tree()
-            __generate_csv_dict(
-                [files_tree.get_root()] + files_tree.get_orphan_items() + files_tree.get_shared_with_me_items(),
-                account.get_account_id(),
-                account.get_account_email()
-            )
-
-        csv_writer.writerows(rows)
+            for row in files_tree.generate_synced_files_tree_dicts():
+                row['account_id'] = account.get_account_id()
+                row['email'] = account.get_account_email()
+                csv_writer.writerow(row)
 
 
 def generate_csv_report(setup, output_file, search_results=None):
@@ -122,7 +86,7 @@ def generate_csv_report(setup, output_file, search_results=None):
         search_results_csv_path = os.path.join(parent_dir, 'search_results.csv')
         __generate_csv_search_results_report(setup, search_results_csv_path, search_results)
 
-    __generate_csv_report(setup, output_file)
+    __generate_csv_report_gen(setup, output_file)
 
 
 def generate_html_report(setup, output_file, search_results=None):
@@ -132,10 +96,12 @@ def generate_html_report(setup, output_file, search_results=None):
     template = env.get_template("report_template.html")
     headers = __build_headers(setup)
 
-    with open(output_file, 'w', encoding='utf-8') as report_file:
-        report_file.write(template.render(setup=setup,
-                                          search_results=search_results,
-                                          headers=headers))
+    stream_template = template.stream(
+        setup=setup,
+        search_results=search_results,
+        headers=headers
+    )
+    stream_template.dump(output_file)
 
 
 def recover_from_content_cache(recoverable_items, recovery_path):

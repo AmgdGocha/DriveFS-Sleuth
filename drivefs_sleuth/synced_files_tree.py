@@ -148,33 +148,6 @@ class MirrorItem:
         return datetime.datetime.fromtimestamp(int(self.cloud_mtime)/1000.0, datetime.timezone.utc)
 
 
-def _print_tree(roots, indent=''):
-    if isinstance(roots, File):
-        print(f'{indent}- ({roots.get_stable_id()}) {roots.local_title} - ({roots.tree_path})')
-
-    elif isinstance(roots, Link):
-        print(f'{indent}+ ({roots.get_stable_id()}) {roots.local_title} - ({roots.tree_path})')
-
-        target = roots.get_target_item()
-
-        if isinstance(target, File):
-            print(f'{indent}- ({target.get_stable_id()}) {target.local_title} - ({target.tree_path})')
-
-        else:
-            for sub_item in target.get_sub_items():
-                _print_tree(sub_item, indent + f'\t')
-
-    elif isinstance(roots, Directory):
-        print(f'{indent}+ ({roots.get_stable_id()}) {roots.local_title} - ({roots.tree_path})')
-
-        for sub_item in roots.get_sub_items():
-            _print_tree(sub_item, indent + f'\t')
-
-    else:
-        for item in roots:
-            _print_tree(item, indent)
-
-
 class SyncedFilesTree:
     def __init__(self, root):
         self.__root = root
@@ -376,6 +349,32 @@ class SyncedFilesTree:
         return self.__thumbnail_items
 
     def print_synced_files_tree(self):
+        def _print_tree(roots, indent=''):
+            if isinstance(roots, File):
+                print(f'{indent}- ({roots.get_stable_id()}) {roots.local_title} - ({roots.tree_path})')
+
+            elif isinstance(roots, Link):
+                print(f'{indent}+ ({roots.get_stable_id()}) {roots.local_title} - ({roots.tree_path})')
+
+                target = roots.get_target_item()
+
+                if isinstance(target, File):
+                    print(f'{indent}- ({target.get_stable_id()}) {target.local_title} - ({target.tree_path})')
+
+                else:
+                    for sub_item in target.get_sub_items():
+                        _print_tree(sub_item, indent + f'\t')
+
+            elif isinstance(roots, Directory):
+                print(f'{indent}+ ({roots.get_stable_id()}) {roots.local_title} - ({roots.tree_path})')
+
+                for sub_item in roots.get_sub_items():
+                    _print_tree(sub_item, indent + f'\t')
+
+            else:
+                for item in roots:
+                    _print_tree(item, indent)
+
         print('\n----------Synced Items----------\n')
 
         _print_tree([self.get_root()] + self.get_orphan_items())
@@ -397,3 +396,39 @@ class SyncedFilesTree:
 
         for shared_with_me_item in self.get_shared_with_me_items():
             print(f'- ({shared_with_me_item.get_stable_id()}) {shared_with_me_item.local_title}')
+
+    def generate_synced_files_tree_dicts(self):
+        def _traverse_tree(node):
+            if isinstance(node, File):
+                row = node.to_dict()
+                row['type'] = 'File'
+                if node.get_content_cache_path():
+                    row['path_in_content_cache'] = node.get_content_cache_path()
+                if node.get_thumbnail_path():
+                    row['thumbnail_path'] = node.get_thumbnail_path()
+                yield row
+
+            elif isinstance(node, Link):
+                row = node.to_dict()
+                row['type'] = 'Link'
+                yield row
+                target = node.get_target_item()
+                if isinstance(target, File):
+                    yield from _traverse_tree(target)
+                else:
+                    for sub_item in target.get_sub_items():
+                        yield from _traverse_tree(sub_item)
+
+            elif isinstance(node, Directory):
+                row = node.to_dict()
+                row['type'] = 'Directory'
+                yield row
+                for sub_item in node.get_sub_items():
+                    yield from _traverse_tree(sub_item)
+
+            elif isinstance(node, list):
+                for item in node:
+                    yield from _traverse_tree(item)
+
+        for node in [self.get_root()] + self.get_orphan_items() + self.get_shared_with_me_items():
+            yield from _traverse_tree(node)
