@@ -431,19 +431,20 @@
                         </table>
                     {% endif %}
 
-                    {% if search_results.get((account.get_account_id(), account.get_account_email()), None) %}
-                        {% set searches=[] %}
-
-                        <h2>Search Results</h2>
-                        {% for result in search_results[(account.get_account_id(), account.get_account_email())] %}
-                            <li>
-                                <a href="#{{ result.get_stable_id() }}">{{ result.tree_path }}</a>
-                            </li>
-                            {{ searches.append(result.get_stable_id()) or '' }}
-                        {% endfor %}
-                    {% endif %}
-
                     {% if account.is_logged_in() %}
+
+                        {% if search_results.get((account.get_account_id(), account.get_account_email()), None) %}
+                            {% set searches=[] %}
+
+                            <h2>Search Results</h2>
+                            {% for result in search_results[(account.get_account_id(), account.get_account_email())] %}
+                                <li>
+                                    <a href="#{{ result.get_stable_id() }}">{{ result.tree_path }}</a>
+                                </li>
+                                {{ searches.append(result.get_stable_id()) or '' }}
+                            {% endfor %}
+                        {% endif %}
+
                         {% set tree=account.get_synced_files_tree() %}
                         {% set details=[] %}
 
