@@ -209,14 +209,10 @@ class SyncedFilesTree:
 
         return None
 
-    def search_item_by_name(self, filenames=None, regex=None, contains=True, list_sub_items=True):
-        if filenames is None:
-            filenames = []
-        if regex is None:
-            regex = []
+    def search(self, conditions):
         items = []
 
-        def append_item_childs(item):
+        def append_item_childes(item):
             items.append(item)
             if isinstance(item, File):
                 return
@@ -224,109 +220,80 @@ class SyncedFilesTree:
             elif isinstance(item, Link):
                 target = item.get_target_item()
                 if isinstance(item, File):
-                    append_item_childs(target)
+                    append_item_childes(target)
                 else:
                     for sub_item in target.get_sub_items():
-                        append_item_childs(sub_item)
+                        append_item_childes(sub_item)
 
             elif isinstance(item, Directory):
                 for sub_item in item.get_sub_items():
-                    append_item_childs(sub_item)
+                    append_item_childes(sub_item)
 
             else:
                 for sub_item in item:
-                    append_item_childs(sub_item)
+                    append_item_childes(sub_item)
 
-        def search(current_item):
-            hit = False
-            if regex:
-                for exp in regex:
-                    match = re.search(exp, current_item.local_title)
-                    if match:
-                        items.append(current_item)
-                        hit = True
+        def add_sub_items(item):
+            if isinstance(item, Link):
+                target = item.get_target_item()
+                if isinstance(target, File):
+                    append_item_childes(target)
+                else:
+                    for sub_item in target.get_sub_items():
+                        append_item_childes(sub_item)
 
-            if contains:
-                for filename in filenames:
-                    if filename.lower() in current_item.local_title.lower():
+            elif isinstance(item, Directory):
+                for sub_item in item.get_sub_items():
+                    append_item_childes(sub_item)
+
+        def __search(current_item):
+            for condition in [(target, c['LIST_SUB_ITEMS']) for c in conditions if c['TYPE'] == 'regex' for target in c['TARGET']]:
+                match = re.search(condition[0], current_item.local_title)
+                if match:
+                    items.append(current_item)
+                    if condition[1]:
+                        add_sub_items(current_item)
+
+            for condition in [(target.lower(), c['LIST_SUB_ITEMS'], c['CONTAINS']) for c in conditions if c['TYPE'] == 'filename' for target in c['TARGET']]:
+                if condition[2]:
+                    if condition[0] in current_item.local_title.lower():
                         items.append(current_item)
-                        hit = True
-            else:
-                for filename in filenames:
-                    if filename.lower() == current_item.local_title.lower():
+                        if condition[1]:
+                            add_sub_items(current_item)
+                else:
+                    if condition[0] == current_item.local_title.lower():
                         items.append(current_item)
-                        hit = True
+                        if condition[1]:
+                            add_sub_items(current_item)
+
+            for condition in [target.lower() for c in conditions if c['TYPE'] == 'md5' for target in c['TARGET']]:
+                if isinstance(current_item, File):
+                    if condition == current_item.md5:
+                        items.append(current_item)
 
             if isinstance(current_item, File):
                 return
 
-            elif isinstance(current_item, Link) and hit and list_sub_items:
+            if isinstance(current_item, Link):
                 target = current_item.get_target_item()
                 if isinstance(target, File):
-                    append_item_childs(target)
+                    __search(target)
                 else:
                     for sub_item in target.get_sub_items():
-                        append_item_childs(sub_item)
-
-            elif isinstance(current_item, Directory) and hit and list_sub_items:
+                        __search(sub_item)
+            else:
                 for sub_item in current_item.get_sub_items():
-                    append_item_childs(sub_item)
+                    __search(sub_item)
 
-            else:
-                if isinstance(current_item, Link):
-                    target = current_item.get_target_item()
-                    if isinstance(target, File):
-                        search(target)
-                    else:
-                        for sub_item in target.get_sub_items():
-                            search(sub_item)
-                else:
-                    for sub_item in current_item.get_sub_items():
-                        search(sub_item)
-
-        search(self.get_root())
+        __search(self.get_root())
         for orphan_item in self.get_orphan_items():
-            search(orphan_item)
+            __search(orphan_item)
 
         for shared_item in self.get_shared_with_me_items():
-            search(shared_item)
+            __search(shared_item)
 
         for recovered_deleted_item in self.get_recovered_deleted_items():
-            search(recovered_deleted_item)
-
-        return items
-
-    def search_item_by_md5(self, md5_hashes):
-        items = []
-
-        def search(current_item):
-            if isinstance(current_item, File):
-                for md5_hash in md5_hashes:
-                    if md5_hash and md5_hash.lower() == current_item.md5:
-                        items.append(current_item)
-                        return
-
-            else:
-                if isinstance(current_item, Link):
-                    target = current_item.get_target_item()
-                    if isinstance(target, File):
-                        search(target)
-                    else:
-                        for sub_item in target.get_sub_items():
-                            search(sub_item)
-                else:
-                    for sub_item in current_item.get_sub_items():
-                        search(sub_item)
-
-        search(self.get_root())
-        for orphan_item in self.get_orphan_items():
-            search(orphan_item)
-
-        for shared_item in self.get_shared_with_me_items():
-            search(shared_item)
-
-        for recovered_deleted_item in self.get_recovered_deleted_items():
-            search(recovered_deleted_item)
+            __search(recovered_deleted_item)
 
         return items
 
