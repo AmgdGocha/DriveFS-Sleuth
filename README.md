@@ -28,8 +28,36 @@ For those who are fans of Velociraptor, like myself, here is a Velociraptor offl
 
 You can also use this Kape target to gather the same artifacts: https://github.com/EricZimmerman/KapeFiles/blob/master/Targets/Apps/GoogleDrive_Metadata.tkape
 
-## 🧑‍💻 DriveFS Sleuth Usage
+## ⚙️ Installation
+DriveFS Sleuth can be easily installed using pip. https://pypi.org/project/drivefs-sleuth/
+```commandline
+pip install drivefs-sleuth
 ```
+It also can be directly used from the source code by:
+1. Clone the repo
+  ```commandline
+  git clone https://github.com/AmgdGocha/DriveFS-Sleuth.git
+  ```
+2. Optionally, Inside the downloaded folder, create a new virtual environment
+  ```commandline
+  python -m venv drivefs_sleuth
+  ```
+* Activate the virtual environment:
+  * On windows:
+  ```commandline
+  .\drivefs_sleuth\Scripts\activate
+  ```
+  * On Linux and macOS
+  ```commandline
+  source drivefs_sleuth/bin/activate
+  ```
+3. Install Dependencies
+```commandline
+pip install -r requirements.txt
+```
+
+## 🧑‍💻 DriveFS Sleuth Usage
+```commandline
 usage: DriveFS Sleuth [-h] -o OUTPUT [--accounts ACCOUNTS [ACCOUNTS ...]]
                       [--regex REGEX [REGEX ...]]
                       [-q QUERY_BY_NAME [QUERY_BY_NAME ...]]
@@ -117,39 +145,39 @@ The reports will be created under the output directory passed via the `[-o|--out
 ### Examples
 The following are some examples of the tool usage, change the paths and the searching criteria to match yours.
 * Processing a triage and outputting an HTML report.
-```
+```commandline
 python3 drivefs_sleuth.py C:\triage_path\DriveFS --html -o C:\analysis_results
 ```
 * Processing a triage and outputting a CSV report.
-```
+```commandline
 python3 drivefs_sleuth.py C:\triage_path\DriveFS --csv -o C:\analysis_results
 ```
 * Processing a triage, searching for all files or folders with filenames containing the word 'DFIR', and outputting both CSV and HTML reports.
-```
+```commandline
 python3 drivefs_sleuth.py C:\triage_path\DriveFS -q DFIR --html --csv --output C:\analysis_results
 ```
 * Processing a triage, searching for all files or folders with the exact filename 'DFIR', and outputting both CSV and HTML reports.
-```
+```commandline
 python3 drivefs_sleuth.py C:\triage_path\DriveFS -q DFIR --exact --html --csv --output C:\analysis_results
 ```
 * Processing a triage, searching for all files or folders with filenames that match the regex `*dfir_\d+*`, and outputting an HTML report with listing sub-items suppressed.
-```
+```commandline
 python3 drivefs_sleuth.py C:\triage_path\DriveFS --regex "*dfir_\d+" --html --dont-list-sub-items -o C:\analysis_results
 ```
 * Processing a triage, searching for files by multiple md5 hashes, and outputting an HTML report.
-```
+```commandline
 python3 drivefs_sleuth.py C:\triage_path\DriveFS --md5 e03d35c4792f1e2b773c1c03d71d96ef	8018f9c57bb40ed5f42dfac859dd7405 --html -o C:\analysis_results
 ```
 * Processing a triage passing a CSV file that contains the searching criteria, and outputting a CSV report.
-```
+```commandline
 python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.csv --csv --outputo C:\analysis_results
 ```
 * Processing a triage , and recover the cached synced items from the content cache.
-```
+```commandline
 python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.csv --csv --recover-from-cache -o C:\analysis_results
 ```
 * Processing a triage passing a CSV file that contains the searching criteria, outputting a CSV report, and recover the search results from the content cache.
-```
+```commandline
 python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.csv --recover-search-results --csv -o C:\analysis_results
 ```
 
