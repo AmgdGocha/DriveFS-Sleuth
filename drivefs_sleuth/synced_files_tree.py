@@ -1,3 +1,10 @@
+"""
+Author: Amged Wageh
+Email: amged_wageh@outlook.com
+LinkedIn: https://www.linkedin.com/in/amgedwageh/
+Description: this module contains classes used to represent parsed items and construct them into a tree.
+"""
+
 import re
 import datetime
 
