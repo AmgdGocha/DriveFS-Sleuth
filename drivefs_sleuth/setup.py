@@ -1,3 +1,10 @@
+"""
+Author: Amged Wageh
+Email: amged_wageh@outlook.com
+LinkedIn: https://www.linkedin.com/in/amgedwageh/setup
+Description: this module contains a class to represent an investigation.
+"""
+
 import os.path
 import datetime
 import threading

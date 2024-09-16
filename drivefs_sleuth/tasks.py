@@ -1,3 +1,10 @@
+"""
+Author: Amged Wageh
+Email: amged_wageh@outlook.com
+LinkedIn: https://www.linkedin.com/in/amgedwageh/
+Description: this module contains tasks related to the drivefs-sleuth execution.
+"""
+
 import os
 import csv
 
@@ -92,6 +99,7 @@ def generate_csv_report(setup, output_file, search_results=None):
 def generate_html_report(setup, output_file, search_results=None):
     if search_results is None:
         search_results = {}
+    print(f"{os.path.join(os.path.dirname(__file__), 'html_resources')}")
     env = Environment(loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), 'html_resources')))
     template = env.get_template("report_template.html")
     headers = __build_headers(setup)

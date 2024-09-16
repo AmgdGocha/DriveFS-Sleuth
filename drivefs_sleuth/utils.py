@@ -1,3 +1,10 @@
+"""
+Author: Amged Wageh
+Email: amged_wageh@outlook.com
+LinkedIn: https://www.linkedin.com/in/amgedwageh/
+Description: this module contains the auxiliary utilities for executing drivefs-sleuth.
+"""
+
 import re
 import os
 import shutil
