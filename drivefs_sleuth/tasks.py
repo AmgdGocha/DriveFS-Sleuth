@@ -77,11 +77,12 @@ def __generate_csv_report_gen(setup, output_file):
         csv_writer.writeheader()
 
         for account in setup.get_accounts():
-            files_tree = account.get_synced_files_tree()
-            for row in files_tree.generate_synced_files_tree_dicts():
-                row['account_id'] = account.get_account_id()
-                row['email'] = account.get_account_email()
-                csv_writer.writerow(row)
+            if account.is_logged_in():
+                files_tree = account.get_synced_files_tree()
+                for row in files_tree.generate_synced_files_tree_dicts():
+                    row['account_id'] = account.get_account_id()
+                    row['email'] = account.get_account_email()
+                    csv_writer.writerow(row)
 
 
 def generate_csv_report(setup, output_file, search_results=None):

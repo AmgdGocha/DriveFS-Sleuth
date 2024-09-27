@@ -8,7 +8,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='drivefs_sleuth',
-    version='1.0.0',
+    version='1.1.0',
     description='The ultimate Google Drive File Stream Investigator!',
     long_description=open('README.md', encoding='utf-8').read(),
     long_description_content_type='text/markdown',
@@ -18,7 +18,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         'Jinja2~=3.1.2',
-        'protodeep~=1.1.0',
+        'bbpb',
     ],
     entry_points={
         'console_scripts': [

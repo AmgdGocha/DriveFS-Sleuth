@@ -9,9 +9,8 @@ import re
 import os
 import shutil
 import sqlite3
-import contextlib
 
-from protodeep.lib import guess_schema
+import blackboxprotobuf
 
 
 def get_experiment_account_ids(drivefs_path):
@@ -202,9 +201,7 @@ def parse_protobuf(protobuf):
     if not protobuf:
         return {}
 
-    with contextlib.redirect_stdout(None):
-        protodeep_schema = guess_schema(data=protobuf)
-        return protodeep_schema.values
+    return blackboxprotobuf.decode_message(protobuf)[0]
 
 
 def get_account_properties(profile_path):
