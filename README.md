@@ -123,13 +123,14 @@ DriveFS Sleuth supports various search functionalities to meet your investigativ
 * **Regular Expressions:** Use the `--regex` parameter to employ regular expressions for searching. Multiple expressions can be specified separated by spaces.
 * **Simple Text Search:** Perform a simple text search using the `[-q|--query-by-name]` optional parameter. Input single or multiple texts separated by spaces. The tool searches for files or folders with names containing the provided text. Toggle the `--exact` parameter for an exact name search.
 * **MD5 Search:** Use the `--md5` parameter to search by the MD5 hash of the files. Multiple MD5s can be specified separated by spaces.
+* **URL ID:** Use the `--url-id` parameter to search by the URL ID of the item. Multiple MD5s can be specified separated by spaces. _URL ID is the ID of the item when it's being accessed by HTTP requests._
 
 ### Customization Options
 Tailor the tool's behavior with additional parameters:
 * **Listing Control:** Use the `--dont-list-sub-items` parameter to suppress listing sub-items and only display matching folders.
 * **Complex Criteria:** Enable a more complex combination of search criteria by providing a CSV file through the `--search-csv parameter`. The CSV file includes case-sensitive headers: `TARGET`, `TYPE`, `CONTAINS`, and `LIST_SUB_ITEMS`.
     * **TARGET:** Holds the searching regex or simple text.
-    * **TYPE:** Classifies the search type as either `FILENAME`, `REGEX`, or `MD5`.
+    * **TYPE:** Classifies the search type as either `FILENAME`, `REGEX`, `MD5`, or `urlid`.
     * **CONTAINS:** Use `FALSE` for an exact search or `TRUE` to search for any filename containing the specified target.
     * `LIST_SUB_ITEMS:` Enable or disable the listing of sub-items for matching folders, indicated by `TRUE` or `FALSE`, respectively.
 

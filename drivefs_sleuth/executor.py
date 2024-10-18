@@ -96,6 +96,15 @@ def execute():
     )
 
     searching_group.add_argument(
+        '--url-id',
+        type=str,
+        nargs='+',
+        default=[],
+        dest='url_id',
+        help='Searches for files by the URL ID. Multiple hashes can be passed separated by spaces.'
+    )
+
+    searching_group.add_argument(
         '--search-csv',
         type=str,
         dest="search_csv",
@@ -201,8 +210,21 @@ def execute():
                             "TYPE": "md5",
                             "TARGET": [criteria['TARGET']]
                         })
+                    elif criteria['TYPE'].lower() == 'urlid':
+                        if (criteria['LIST_SUB_ITEMS'] or 'true').lower() == 'false':
+                            searching_criteria.append({
+                                "TYPE": "urlid",
+                                "TARGET": [criteria['TARGET']],
+                                "LIST_SUB_ITEMS": False
+                            })
+                        else:
+                            searching_criteria.append({
+                                "TYPE": "urlid",
+                                "TARGET": [criteria['TARGET']],
+                                "LIST_SUB_ITEMS": True
+                            })
                     elif criteria['TYPE'].lower() == 'regex':
-                        if criteria['LIST_SUB_ITEMS'].lower() == 'false':
+                        if (criteria['LIST_SUB_ITEMS'] or 'true').lower() == 'false':
                             searching_criteria.append({
                                 "TYPE": "regex",
                                 "TARGET": [criteria['TARGET']],
@@ -215,8 +237,8 @@ def execute():
                                 "LIST_SUB_ITEMS": True
                             })
                     else:
-                        if criteria['CONTAINS'].lower() == 'false':
-                            if criteria['LIST_SUB_ITEMS'].lower() == 'false':
+                        if (criteria['CONTAINS'] or 'true').lower() == 'false':
+                            if (criteria['LIST_SUB_ITEMS'] or 'true').lower() == 'false':
                                 searching_criteria.append({
                                     "TYPE": "filename",
                                     "TARGET": [criteria['TARGET']],
@@ -231,7 +253,7 @@ def execute():
                                     "LIST_SUB_ITEMS": True
                                 })
                         else:
-                            if criteria['LIST_SUB_ITEMS'].lower() == 'false':
+                            if (criteria['LIST_SUB_ITEMS'] or 'true').lower() == 'false':
                                 searching_criteria.append({
                                     "TYPE": "filename",
                                     "TARGET": [criteria['TARGET']],
@@ -250,8 +272,8 @@ def execute():
                 'Searching CSV file should be formated as follows:\n'
                 '\t- The Head should be TYPE,TARGET,CONTAINS,LIST_SUB_ITEMS (case sensitive), '
                 'where the values should be as follows:\n'
-                '\t- TYPE: [md5|filename|regex] (case insensitive)\n'
-                '\t- TARGET: the value to be searched. (case insensitive for md5 and filename only)\n'
+                '\t- TYPE: [md5|filename|regex|urlid] (case insensitive)\n'
+                '\t- TARGET: the value to be searched. (case sensitive for regex only)\n'
                 '\t- CONTAINS: [True|False] (case insensitive)\n'
                 '\t- LIST_SUB_ITEMS: [True|False] (case insensitive)')
             arg_parser.exit()
@@ -307,6 +329,20 @@ def execute():
             "TYPE": "md5",
             "TARGET": args.md5
         })
+
+    if args.url_id:
+        if args.list_sub_items:
+            searching_criteria.append({
+                "TYPE": "urlid",
+                "TARGET": args.url_id,
+                "LIST_SUB_ITEMS": True
+            })
+        else:
+            searching_criteria.append({
+                "TYPE": "urlid",
+                "TARGET": args.url_id,
+                "LIST_SUB_ITEMS": False
+            })
 
     print(f'{__get_status_emoji("🔍", "[SEARCHING]")} Searching... [IN PROGRESS]')
 

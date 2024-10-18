@@ -135,6 +135,8 @@ class Account:
                                                        parent_info[9], get_item_properties(self.__profile_path,
                                                                                            parent_id), parent_info[3],
                                                        parent_info[10])
+                        if parent_info[9] == 1:
+                            self.__synced_files_tree.add_recovered_deleted_item(current_parent_dir)
                         orphan_dirs[parent_id] = current_parent_dir
 
             for child_id in childs_ids:
@@ -154,6 +156,8 @@ class Account:
                                       f'{current_parent_dir.tree_path}\\{child_info[3]}', content_cache_path,
                                       thumbnail_path, child_info[10])
                     current_parent_dir.add_item(child_file)
+                    if child_info[9] == 1:
+                        self.__synced_files_tree.add_recovered_deleted_item(child_file)
                     if content_cache_path:
                         self.__synced_files_tree.add_recoverable_item_from_cache(child_file)
                     if thumbnail_path:
@@ -192,6 +196,8 @@ class Account:
                                                            f'{current_parent_dir.tree_path}\\{target_info[3]}',
                                                            target_info[10])
                                         added_dirs[target_stable_id] = target
+                                        if target_info[9] == 1:
+                                            self.__synced_files_tree.add_recovered_deleted_item(target)
                                 else:
                                     target = DummyItem(target_stable_id)
                                     self.__synced_files_tree.add_deleted_item(target)
@@ -217,6 +223,8 @@ class Account:
 
                     added_dirs[child_id] = child
                     current_parent_dir.add_item(child)
+                    if child_info[9] == 1:
+                        self.__synced_files_tree.add_recovered_deleted_item(child)
 
         # TODO: check if I can add a link in the shared with me
         for shared_with_me_item_info in get_shared_with_me_without_link(self.__profile_path):
@@ -238,6 +246,8 @@ class Account:
                     self.__synced_files_tree.add_recoverable_item_from_cache(shared_with_me_file)
                 if thumbnail_path:
                     self.__synced_files_tree.add_thumbnail_item(shared_with_me_file)
+                if shared_with_me_item_info[9] == 1:
+                    self.__synced_files_tree.add_recovered_deleted_item(shared_with_me_file)
             else:
                 shared_with_me_item = orphan_dirs.get(shared_with_me_item_info[1], None)
                 if shared_with_me_item:
@@ -250,6 +260,8 @@ class Account:
                                                     shared_with_me_item_info[9], shared_with_me_item_properties,
                                                     f'{current_parent_dir.tree_path}\\{shared_with_me_item_info[3]}',
                                                     shared_with_me_item_info[10])
+                    if shared_with_me_item_info[9] == 1:
+                        self.__synced_files_tree.add_recovered_deleted_item(shared_with_me_item)
                 self.__synced_files_tree.add_shared_with_me_item(shared_with_me_item)
 
         for orphan_id, orphan_dir in orphan_dirs.items():
