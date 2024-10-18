@@ -109,7 +109,7 @@ class Directory(Item):
 
 class DummyItem(Item):
     def __init__(self, stable_id):
-        super().__init__(stable_id, '', 'DELETED_ITEM', '', '', '', '', '', '', '', '', '')
+        super().__init__(stable_id, '', 'DELETED_ITEM', '', '', '', '', '', '', '', 'DELETED_ITEM', '')
 
     def get_sub_items(self):
         return []
@@ -257,6 +257,12 @@ class SyncedFilesTree:
             for condition in [(target, c['LIST_SUB_ITEMS']) for c in conditions if c['TYPE'] == 'regex' for target in c['TARGET']]:
                 match = re.search(condition[0], current_item.local_title)
                 if match:
+                    items.append(current_item)
+                    if condition[1]:
+                        add_sub_items(current_item)
+
+            for condition in [(target.lower(), c['LIST_SUB_ITEMS']) for c in conditions if c['TYPE'] == 'urlid' for target in c['TARGET']]:
+                if condition[0] == current_item.url_id.lower():
                     items.append(current_item)
                     if condition[1]:
                         add_sub_items(current_item)
