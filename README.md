@@ -19,6 +19,7 @@ DriveFS Sleuth is a Python tool that automates investigating Google Drive File S
 * Generating HTML and CSV reports of the analysis results.
 
 For the underlying research, refer to: 
+* [(BlackHat Presentation Slides) DriveFS Sleuth — Your Ultimate Google Drive File Stream Investigator!](https://github.com/AmgdGocha/DriveFS-Sleuth/blob/main/assets/DriveFS-Sleuth_Amged-Wageh.pdf)
 * [DriveFS Sleuth — Your Ultimate Google Drive File Stream Investigator!](https://amgedwageh.medium.com/drivefs-sleuth-investigating-google-drive-file-streams-disk-artifacts-0b5ea637c980)
 * [DriveFS Sleuth — Revealing The Hidden Intelligence](https://amgedwageh.medium.com/drivefs-sleuth-revealing-the-hidden-intelligence-82f043c452e4)
 * [DriveFS Sleuth — Recovery Made Possible!](https://amgedwageh.medium.com/drivefs-sleuth-recovery-made-possible-f3847c0b0ac9)
@@ -61,25 +62,26 @@ pip install -r requirements.txt
 usage: DriveFS Sleuth [-h] -o OUTPUT [--accounts ACCOUNTS [ACCOUNTS ...]]
                       [--regex REGEX [REGEX ...]]
                       [-q QUERY_BY_NAME [QUERY_BY_NAME ...]]
-                      [--md5 MD5 [MD5 ...]] [--search-csv SEARCH_CSV]
-                      [--exact] [--dont-list-sub-items] [--csv] [--html]
+                      [--md5 MD5 [MD5 ...]] [--url-id URL_ID [URL_ID ...]]
+                      [--search-csv SEARCH_CSV] [--exact]
+                      [--dont-list-sub-items] [--csv] [--html]
                       [--recover-from-cache | --recover-search-results]
                       path
 
-██████╗ ██████╗ ██╗██╗   ██╗███████╗███████╗███████╗    ███████╗██╗     ███████╗██╗   ██╗████████╗██╗  ██╗
-██╔══██╗██╔══██╗██║██║   ██║██╔════╝██╔════╝██╔════╝    ██╔════╝██║     ██╔════╝██║   ██║╚══██╔══╝██║  ██║
-██║  ██║██████╔╝██║██║   ██║█████╗  █████╗  ███████╗    ███████╗██║     █████╗  ██║   ██║   ██║   ███████║
-██║  ██║██╔══██╗██║╚██╗ ██╔╝██╔══╝  ██╔══╝  ╚════██║    ╚════██║██║     ██╔══╝  ██║   ██║   ██║   ██╔══██║
-██████╔╝██║  ██║██║ ╚████╔╝ ███████╗██║     ███████║    ███████║███████╗███████╗╚██████╔╝   ██║   ██║  ██║
-╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝  ╚══════╝╚═╝     ╚══════╝    ╚══════╝╚══════╝╚══════╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝
-               A tool for investigating Google Drive File Stream's disk forensic artifacts.
-                 
-                                           By: Amged Wageh
-                                         Twitter: @amgdgocha
-                                   GitHub: https://github.com/AmgdGocha
-                                  Medium: https://medium.com/@amgedwageh
-                             Linked In: https://www.linkedin.com/in/amgedwageh
-    
+    ██████╗ ██████╗ ██╗██╗   ██╗███████╗███████╗███████╗    ███████╗██╗     ███████╗██╗   ██╗████████╗██╗  ██╗
+    ██╔══██╗██╔══██╗██║██║   ██║██╔════╝██╔════╝██╔════╝    ██╔════╝██║     ██╔════╝██║   ██║╚══██╔══╝██║  ██║
+    ██║  ██║██████╔╝██║██║   ██║█████╗  █████╗  ███████╗    ███████╗██║     █████╗  ██║   ██║   ██║   ███████║
+    ██║  ██║██╔══██╗██║╚██╗ ██╔╝██╔══╝  ██╔══╝  ╚════██║    ╚════██║██║     ██╔══╝  ██║   ██║   ██║   ██╔══██║
+    ██████╔╝██║  ██║██║ ╚████╔╝ ███████╗██║     ███████║    ███████║███████╗███████╗╚██████╔╝   ██║   ██║  ██║
+    ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝  ╚══════╝╚═╝     ╚══════╝    ╚══════╝╚══════╝╚══════╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝
+                   A tool for investigating Google Drive File Stream's disk forensic artifacts.
+
+                                               By: Amged Wageh
+                                             Twitter: @amgdgocha
+                                       GitHub: https://github.com/AmgdGocha
+                                      Medium: https://medium.com/@amgedwageh
+                                 Linked In: https://www.linkedin.com/in/amgedwageh
+        
 
 positional arguments:
   path                  A path to the DriveFS folder. By default on a live system, it should exist in %LocalAppData%\Google\DriveFS.
@@ -97,6 +99,8 @@ Searching Arguments:
   -q QUERY_BY_NAME [QUERY_BY_NAME ...], --query-by-name QUERY_BY_NAME [QUERY_BY_NAME ...]
                         Searches for files or folders by name. The search will be case insensitive. Multiple file names can be passed separated by spaces.
   --md5 MD5 [MD5 ...]   Searches for files by the MD5 hash. Multiple hashes can be passed separated by spaces.
+  --url-id URL_ID [URL_ID ...]
+                        Searches for files by the URL ID. Multiple hashes can be passed separated by spaces.
   --search-csv SEARCH_CSV
                         Searches for files or folders that satisfies the searching conditions in the provided CSV file.
   --exact               If selected, only files or folders with exact file names will be returned. The --query_by_name argument has to be passed. Defaults to False.
