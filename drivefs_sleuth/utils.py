@@ -36,7 +36,7 @@ def lookup_account_id(drivefs_path, account_id):
     for _, _, files in os.walk(logs_dir):
         for file in files:
             if file.startswith("drive_fs") and file.endswith(".txt"):
-                with open(os.path.join(logs_dir, file), 'r') as logs_file:
+                with open(os.path.join(logs_dir, file), 'r', encoding="utf8") as logs_file:
                     logs = logs_file.read()
                     match = re.search(r"([\w\.-]+@[\w\.-]+\.\w+) \(" + account_id + r"\)", logs)
                     if match:
