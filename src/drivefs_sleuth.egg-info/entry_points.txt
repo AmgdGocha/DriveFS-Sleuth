@@ -1,0 +1,2 @@
+[console_scripts]
+drivefs-sleuth = drivefs_sleuth.executor:execute
