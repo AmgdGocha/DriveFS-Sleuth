@@ -1,626 +1,1121 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400&display=swap">
-        <style>
 
-            body {
-                margin: 0;
-                padding: 0;
-                font-family: 'Arial', sans-serif;
-                background-color: #143B47;
-                color: #F2BC57;
-            }
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #0f172a;
+      --bg-card: #1e293b;
+      --bg-table-stripe: #172554;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-blue: #3b82f6;
+      --accent-red: #ef4444;
+      --border-color: #334155;
+      --row-hover: #334155;
+    }
 
-            a {
-                color: #F2BC57;
-                text-decoration: none;
-            }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      line-height: 1.5;
+    }
 
-            header {
-                display: flex;
-                height: 5px;
-            }
+    a {
+      color: var(--accent-blue);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
 
-            .top-strip {
-                display: flex;
-                width: 100%;
-            }
+    a:hover {
+      color: #60a5fa;
+      text-decoration: underline;
+    }
 
-            .blue { background-color: #435CE8; }
-            .red { background-color: #E83935; }
-            .yellow { background-color: #F59236; }
-            .green { background-color: #36B83E; }
+    /* Sleek Gradient Header */
+    .top-strip {
+      height: 4px;
+      background: linear-gradient(90deg, #435CE8, #E83935, #F59236, #36B83E);
+      width: 100%;
+    }
 
-            .center-container {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                min-height: 20vh;
-                margin: 20px;
-            }
+    .container {
+      max-width: 95%;
+      margin: 0 auto;
+      padding: 20px 0;
+    }
 
-            .card {
-                font-family: 'Roboto', sans-serif;
-                background-color: #A6294B;
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-                padding: 20px;
-                border-radius: 8px;
-                position: relative;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
+    /* Global Config Card */
+    .card-global {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-left: none;
+      border-radius: 8px;
+      padding: 20px 20px 20px 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      position: relative;
+      overflow: hidden;
+    }
 
-            .card:before {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 10px;
-                width: 20px;
-                height: 100%;
-                background-color: #3CA6A6;
-            }
+    .card-global::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: linear-gradient(to bottom, #435CE8, #E83935, #F59236, #36B83E);
+    }
 
-            .text-container {
-                margin-left: 20px;
-            }
+    .card-header {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: var(--text-main);
+    }
 
-            .email,
-            .card-info {
-                color: #F2E3D5;
-            }
+    .card-body div {
+      margin-bottom: 8px;
+      color: var(--text-muted);
+    }
 
-            .email {
-                font-size: 25px;
-                font-weight: bold;
-                margin: 10px 0;
-                text-align: left;
-            }
+    .card-body span.highlight {
+      color: var(--text-main);
+      font-weight: 500;
+    }
 
-            .card-info {
-                font-size: 16px;
-                text-align: left;
-            }
+    /* Typography */
+    h2 {
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+      margin-top: 32px;
+      color: var(--text-main);
+      font-weight: 500;
+    }
 
-            .icon-container {
-                position: absolute;
-                bottom: 0;
-                left: 50%;
-                transform: translateX(-50%);
-                text-align: center;
-                width: 100%;
-                font-size: 24px; /* Adjust size as needed */
-            }
+    .font-mono {
+      font-family: 'JetBrains Mono', 'Consolas', monospace;
+      font-size: 0.85rem;
+    }
 
-            .eye-icon {
-                display: inline-block;
-            }
+    /* Section Header Flex (Fix for Button Overlap) */
+    .section-header-flex {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
+      margin-top: 32px;
+      margin-bottom: 16px;
+    }
 
-            .page-content {
-                font-family: 'Open Sans', sans-serif;
-                margin: 20px;
-            }
+    .section-header-flex h2 {
+      border-bottom: none;
+      padding-bottom: 0;
+      margin-top: 0;
+    }
 
-            /* Remove default bullets */
-            ul, #myUL {
-                list-style-type: none;
-            }
+    /* Clear Filters Button */
+    .clear-filters-btn {
+      background-color: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
 
-            /* Remove margins and padding from the parent ul */
-            #myUL {
-                margin: 0;
-                padding: 0;
-            }
+    .clear-filters-btn:hover {
+      background-color: rgba(239, 68, 68, 0.1);
+      border-color: var(--accent-red);
+      color: var(--accent-red);
+    }
 
-            /* Style the caret/arrow */
-            .caret {
-                cursor: pointer;
-                user-select: none; /* Prevent text selection */
-            }
+    /* Premium Account Profile Card UI */
+    .account-details {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-top: 3px solid var(--accent-blue);
+      border-radius: 12px;
+      margin-bottom: 28px;
+      box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+    }
 
-            /* Create the caret/arrow with a unicode, and style it */
-            .caret::before {
-                content: "\25B6";
-                color: #A6294B;
-                display: inline-block;
-                margin-right: 6px;
-            }
+    .account-summary {
+      padding: 24px;
+      cursor: pointer;
+      background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      list-style: none;
+      transition: background 0.3s ease;
+      border-bottom: 1px solid transparent;
+    }
 
-            /* Rotate the caret/arrow icon when clicked on (using JavaScript) */
-            .caret-down::before {
-                transform: rotate(90deg);
-            }
+    .account-summary:hover {
+      background: linear-gradient(145deg, #1e293b 0%, #172554 100%);
+    }
 
-            /* Hide the nested list */
-            .nested {
-                display: none;
-            }
+    .account-details[open]>.account-summary {
+      border-bottom: 1px solid var(--border-color);
+    }
 
-            /* Show the nested list when the user clicks on the caret/arrow (with JavaScript) */
-            .active {
-                display: block;
-            }
+    summary::-webkit-details-marker {
+      display: none;
+    }
 
-            .info-box {
-                position: fixed;
-                top: 50%;
-                right: 0;
-                transform: translateY(-50%);
-                background-color: #E8E8DE;
-                box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
-                padding: 20px;
-                display: none;
-                color: #80022A;
-                font-size: 18px;
-                border-radius: 8px;
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-            }
+    summary::after {
+      content: '▼';
+      font-size: 0.9rem;
+      color: var(--accent-blue);
+      background: rgba(59, 130, 246, 0.1);
+      padding: 8px;
+      border-radius: 50%;
+      transition: transform 0.2s ease-in-out;
+    }
 
-            .close-button {
-              position: absolute;
-              top: 5px;
-              right: 5px;
-              cursor: pointer;
-              color: #143B47;
-              background-color: #E0C11A;
-              font-weight: bold;
-              font-size: 20px;
-            }
+    details[open]>summary::after {
+      transform: rotate(180deg);
+    }
 
-            .close-button:hover {
-              cursor: pointer;
-              color: #80022A;
-            }
+    .account-summary-content {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
 
-            th {
-                background-color: #A6294B;
-                color: #F2E3D5;
-                padding-right: 10px;
-                padding-left: 10px;
-                padding-top: 2px;
-                padding-bottom: 2px;
-            }
+    .account-avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 12px;
+      object-fit: cover;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+      background-color: #0f172a;
+    }
 
-            tr:nth-child(even) {
-                background-color: #164754; /* or any color you prefer */
-            }
+    .account-email-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 10px;
+    }
 
-            tr:nth-child(odd) {
-                background-color: #0b242b; /* or any color you prefer */
-            }
+    /* Animated Pulse Indicator */
+    .pulse-dot {
+      height: 12px;
+      width: 12px;
+      border-radius: 50%;
+      display: inline-block;
+    }
 
-            #scrollToTopBtn {
-              position: fixed;
-              bottom: 20px;
-              right: 20px;
-              display: none;
-              background-color: #007BFF;
-              color: #fff;
-              border: none;
-              border-radius: 5px;
-              padding: 10px 15px;
-              cursor: pointer;
-            }
+    .pulse-online {
+      background-color: #4ade80;
+      box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+      animation: pulse-green 2s infinite;
+    }
 
-            /* Style for the hover effect */
-            #scrollToTopBtn:hover {
-              background-color: #0056b3;
-            }
+    .pulse-offline {
+      background-color: #94a3b8;
+    }
 
-            /* Show the button when the page is scrolled */
-            body::-webkit-scrollbar-thumb:vertical {
-              background-color: #007BFF;
-            }
+    @keyframes pulse-green {
+      0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+      }
 
-            body::-webkit-scrollbar-thumb:vertical:hover {
-              background-color: #0056b3;
-            }
+      70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 6px rgba(74, 222, 128, 0);
+      }
 
-            body::-webkit-scrollbar {
-              width: 10px;
-            }
+      100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+      }
+    }
 
-            body::-webkit-scrollbar-thumb {
-              background-color: #888;
-            }
+    .meta-chip-container {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
 
-            .match {
-                color: #A6294B;
-                font-weight: bold;
-            }
+    .meta-chip {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
 
-            td {
-                text-align: center;
-                padding-left: 10px;
-                padding-right: 10px;
-                padding-top: 2px;
-                padding-bottom: 2px;
-            }
+    .meta-chip .highlight {
+      color: var(--text-main);
+      font-weight: 500;
+    }
 
-            .max-roots {
-                background-color: #A6294B;
-                color: #F2E3D5;
-                font-weight: bold;
-                display: inline-block;
-                padding-left: 10px;
-                padding-top: 2px;
-                padding-bottom: 2px;
-                margin-bottom: 2px;
-            }
+    .details-content {
+      padding: 24px;
+    }
 
-            .max-roots-number {
-                min-width: 70px;
-                background-color: #0b242b;
-                color: #F2BC57;
-                font-weight: normal;
-                display: inline-block;
-                padding-left: 10px;
-                padding-right: 10px;
-                text-align: center;
-                padding-top: 2px;
-                padding-bottom: 2px;
-            }
+    /* Inner Collapsible Sections */
+    .collapsible-section {
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      margin-bottom: 16px;
+    }
 
-            .image-container {
-                margin-left: 20px; /* Adjust the margin as needed for spacing */
-            }
+    .collapsible-section>summary {
+      background: transparent;
+      padding: 0;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+      margin-top: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
 
-        </style>
+    .collapsible-section>summary:hover {
+      background: transparent;
+    }
 
-        <title>DriveFS-Sleuth - Synced Files Report</title>
-    </head>
+    .collapsible-section>summary h2 {
+      border-bottom: none;
+      margin: 0;
+      padding: 0;
+    }
 
-    <body>
+    /* Tables & Virtual Scrolling Elements */
+    .table-responsive {
+      overflow-x: auto;
+      overflow-y: auto;
+      max-height: 65vh;
+      margin-bottom: 24px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      position: relative;
+      background-color: var(--bg-card);
+      scroll-behavior: smooth;
+    }
 
-        <header id="top">
-            <div class="top-strip">
-                <div class="blue" style="width: 25%;"></div>
-                <div class="red" style="width: 25%;"></div>
-                <div class="yellow" style="width: 25%;"></div>
-                <div class="green" style="width: 25%;"></div>
-                <div class="blue" style="width: 25%;"></div>
-                <div class="red" style="width: 25%;"></div>
-                <div class="yellow" style="width: 25%;"></div>
-                <div class="green" style="width: 25%;"></div>
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      white-space: nowrap;
+      position: relative;
+    }
+
+    th,
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: top;
+    }
+
+    th {
+      background-color: #0f172a;
+      position: sticky;
+      top: 0;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+      z-index: 10;
+      box-shadow: 0 1px 0 var(--border-color);
+    }
+
+    /* Column Filter Styling */
+    .header-content {
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .column-filter {
+      width: 100%;
+      min-width: 80px;
+      box-sizing: border-box;
+      background-color: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 6px 8px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      transition: all 0.2s;
+    }
+
+    .column-filter:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .column-filter::placeholder {
+      color: rgba(148, 163, 184, 0.4);
+      text-transform: none;
+    }
+
+    tr:nth-child(even) {
+      background-color: rgba(255, 255, 255, 0.02);
+    }
+
+    tr:hover {
+      background-color: var(--row-hover);
+    }
+
+    /* Highlighted Row Effect */
+    @keyframes highlight-fade {
+      0% {
+        background-color: rgba(59, 130, 246, 0.6) !important;
+      }
+
+      100% {
+        background-color: rgba(59, 130, 246, 0.2) !important;
+      }
+    }
+
+    .highlighted-row td {
+      background-color: rgba(59, 130, 246, 0.2) !important;
+      animation: highlight-fade 1.5s ease-out forwards;
+    }
+
+    .highlighted-row td:first-child {
+      box-shadow: inset 4px 0 0 var(--accent-blue);
+    }
+
+    /* Tree View */
+    .tree-view {
+      list-style-type: none;
+      padding-left: 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+    }
+
+    .tree-view ul {
+      list-style-type: none;
+      padding-left: 24px;
+      border-left: 1px dashed var(--border-color);
+      margin-left: 8px;
+    }
+
+    .tree-view li {
+      margin: 6px 0;
+    }
+
+    .caret {
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+    }
+
+    .caret::before {
+      content: "▶";
+      color: var(--text-muted);
+      display: inline-block;
+      margin-right: 8px;
+      font-size: 0.7rem;
+      transition: transform 0.2s;
+    }
+
+    .caret-down::before {
+      transform: rotate(90deg);
+      color: var(--accent-blue);
+    }
+
+    .nested {
+      display: none;
+    }
+
+    .active {
+      display: block;
+    }
+
+    .match {
+      color: var(--accent-red);
+      font-weight: bold;
+      background: rgba(239, 68, 68, 0.1);
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+
+    /* Utilities */
+    #scrollToTopBtn {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      display: none;
+      background-color: var(--accent-blue);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      font-size: 20px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transition: background-color 0.2s;
+      z-index: 100;
+    }
+
+    #scrollToTopBtn:hover {
+      background-color: #2563eb;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg-main);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+  </style>
+  <title>DriveFS-Sleuth - Synced Files Report</title>
+</head>
+
+<body>
+
+  <header class="top-strip"></header>
+
+  <div class="container">
+    <!-- Global Setup Card -->
+    <div class="card-global">
+      <div class="card-header">DriveFS Global Configuration</div>
+      <div class="card-body">
+        <div>Path: <span class="highlight font-mono">{{ setup.get_drivefs_path() }}</span></div>
+        <div>Last Sync Date: <span class="highlight">{{ setup.get_last_sync_date() }}</span></div>
+        <div>Max Root IDs: <span class="highlight">{{ setup.get_max_root_ids() }}</span>
+          <span style="color: {{ '#4ade80' if setup.is_mirroring_roots_modified() else 'inherit' }}">
+            - {% if setup.is_mirroring_roots_modified() %}Modified{% else %}Not Modified{% endif %}
+          </span>
+        </div>
+        <div>Last PID: <span class="highlight font-mono">{{ setup.get_last_pid() }}</span></div>
+      </div>
+    </div>
+
+    <!-- Connected Devices -->
+    {% if setup.get_connected_devices() %}
+    <h2>Connected Devices</h2>
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th>Media ID</th>
+            <th>Name</th>
+            <th>Last Mount Point</th>
+            <th>Capacity (GB)</th>
+            <th>Ignore</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for device in setup.get_connected_devices() %}
+          <tr>
+            <td class="font-mono">{{ device.get('media_id', None) }}</td>
+            <td>{{ device.get('name', None) }}</td>
+            <td class="font-mono">{{ device.get('last_mount_point', None) }}</td>
+            <td>{{ device.get('capacity', None) }}</td>
+            <td>{{ device.get('ignore', None) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <!-- Accounts -->
+    {% for account in setup.get_accounts() %}
+    {% set acc_idx = loop.index %}
+    <details class="account-details">
+      <summary class="account-summary">
+        <div class="account-summary-content">
+          <!-- Avatar -->
+          {% if account.get_photo_url() %}
+          <img src="{{ account.get_photo_url() }}" alt="Account Photo" class="account-avatar">
+          {% endif %}
+
+          <!-- Account Identity Data -->
+          <div>
+            <div class="account-email-row">
+              <span class="pulse-dot {{ 'pulse-online' if account.is_logged_in() else 'pulse-offline' }}"
+                title="{{ 'Logged In' if account.is_logged_in() else 'Logged Out' }}"></span>
+              {{ account.get_account_email() }}
             </div>
-        </header>
-
-        <div class="center-container">
-            <div class="card">
-                <div class="text-container">
-                    <div>{{ setup.get_drivefs_path() }}</div>
-                    <div>Last Sync Date: {{ setup.get_last_sync_date() }}</div>
-                    <div>Max Root IDs: {{ setup.get_max_root_ids() }} - {% if setup.is_mirroring_roots_modified() %}Modified{% else %}Not Modified{% endif %}</div>
-                    <div>Last PID: {{ setup.get_last_pid() }}</div>
-                </div>
+            <!-- Meta Data Chips -->
+            <div class="meta-chip-container">
+              {% if account.get_name() %}
+              <div class="meta-chip">👤 Name: <span class="highlight">{{ account.get_name() }}</span></div>
+              {% endif %}
+              <div class="meta-chip">🔑 ID: <span class="highlight font-mono">{{ account.get_account_id() }}</span>
+              </div>
+              <div class="meta-chip">{{ '🟢' if account.is_logged_in() else '⚪' }} Status: <span class="highlight">{{
+                  'Currently Logged-In' if
+                  account.is_logged_in() else 'Logged Out' }}</span></div>
             </div>
+          </div>
+        </div>
+      </summary>
+
+      <div class="details-content">
+        {% if account.get_mirroring_roots() %}
+        <h2>Mirroring Roots</h2>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Root ID</th>
+                <th>Media ID</th>
+                <th>Title</th>
+                <th>Root Path</th>
+                <th>Mirroring Destination</th>
+                <th>Last Seen Absolute Path</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% set mirrors=account.get_mirroring_roots() %}
+              {% for mirror in mirrors %}
+              <tr>
+                <td class="font-mono">{{ mirror.get('root_id', None) }}</td>
+                <td class="font-mono">{{ mirror.get('media_id', None) }}</td>
+                <td>{{ mirror.get('title', None) }}</td>
+                <td class="font-mono">{{ mirror.get('root_path', None) }}</td>
+                <td class="font-mono">{{ mirror.get('destination', None) }}</td>
+                <td class="font-mono">{{ mirror.get('last_seen_absolute_path', None) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
 
-        <div class="page-content">
+        {% if account.get_synced_files_tree() %}
+        <h2>Mirrored Items</h2>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Local Stable ID</th>
+                <th>Stable ID</th>
+                <th>Volume</th>
+                <th>Parent Local Stable ID</th>
+                <th>Local Filename</th>
+                <th>Cloud Filename</th>
+                <th>Local Modified Timestamp</th>
+                <th>Cloud Modified Timestamp</th>
+                <th>Local MD5 Checksum</th>
+                <th>Cloud MD5 Checksum</th>
+                <th>Local Size</th>
+                <th>Cloud Size</th>
+                <th>Local Version</th>
+                <th>Cloud Version</th>
+                <th>Shared</th>
+                <th>Read Only</th>
+                <th>Is Root</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% set mirrored_items=account.get_synced_files_tree().get_mirrored_items() %}
+              {% for item in mirrored_items %}
+              <tr>
+                <td class="font-mono">{{ item.local_stable_id }}</td>
+                <td class="font-mono">{{ item.stable_id }}</td>
+                <td>{{ item.volume }}</td>
+                <td class="font-mono">{{ item.parent }}</td>
+                <td>{{ item.local_filename }}</td>
+                <td>{{ item.cloud_filename }}</td>
+                <td>{{ item.get_local_mtime_utc() }}</td>
+                <td>{{ item.get_cloud_mtime_utc() }}</td>
+                <td class="font-mono">{{ item.local_md5 }}</td>
+                <td class="font-mono">{{ item.cloud_md5 }}</td>
+                <td>{{ item.local_size }}</td>
+                <td>{{ item.cloud_size }}</td>
+                <td>{{ item.local_version }}</td>
+                <td>{{ item.cloud_version }}</td>
+                <td>{{ item.shared }}</td>
+                <td>{{ item.read_only }}</td>
+                <td>{{ item.is_root }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+        {% endif %}
 
-            {% if setup.get_connected_devices() %}
-                <h2>Connected Devices</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Media ID</th>
-                            <th>Name</th>
-                            <th>Last Mount Point</th>
-                            <th>Capacity (GB)</th>
-                            <th>Ignore</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for device in setup.get_connected_devices() %}
-                            <tr>
-                                <td>{{ device.get('media_id', None) }}</td>
-                                <td>{{ device.get('name', None) }}</td>
-                                <td>{{ device.get('last_mount_point', None) }}</td>
-                                <td>{{ device.get('capacity', None) }}</td>
-                                <td>{{ device.get('ignore', None) }}</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% endif %}
+        {% if account.is_logged_in() %}
 
-            {% for account in setup.get_accounts() %}
-                <div class="center-container" onclick="toggleVisibility('account-details-{{ account.get_account_email() }}', 'eye-icon-{{ account.get_account_email() }}')">
-                    <div class="card">
-                        <div class="text-container">
-                            <div class="email">{{ account.get_account_email() }}</div>
-                            {% if account.get_name() %}
-                                <div class="card-info">Display Name: {{ account.get_name() }}</div>
-                            {% endif %}
-                            <div class="card-info">Account ID: {{ account.get_account_id() }}</div>
-                            <div class="card-info">Currently Logged-In: {{ account.is_logged_in() }}</div>
-                        </div>
-                        {% if account.get_photo_url() %}
-                            <div class="image-container">
-                                <img src={{ account.get_photo_url() }} alt="Account Photo" style="width: 100px; height: 100px;">
-                            </div>
-                        {% endif %}
-                    <div class="icon-container">
-                        <span id="eye-icon-{{ account.get_account_email() }}" class="eye-icon">👁️</span>
-                    </div>
-                    </div>
-                </div>
+        <!-- Search Results -->
+        {% set searches = [] %}
+        {% if search_results.get((account.get_account_id(), account.get_account_email()), None) %}
+        <h2>Search Results</h2>
+        <ul class="tree-view">
+          {% for result in search_results[(account.get_account_id(), account.get_account_email())] %}
+          <li><a href="#{{ result.get_stable_id() }}" class="font-mono">{{ result.tree_path }}</a></li>
+          {{ searches.append(result.get_stable_id()) or '' }}
+          {% endfor %}
+        </ul>
+        {% endif %}
 
-                <div id="account-details-{{ account.get_account_email() }}">
-                    {% if account.get_mirroring_roots() %}
+        <!-- Tree Rendering Macro -->
+        {% set tree=account.get_synced_files_tree() %}
+        {% set details=[] %}
 
-                        <h2>Mirroring Roots</h2>
+        {% macro render_items(items) %}
+        {% for item in items %}
+        {{ details.append(item) or '' }}
+        {% if item.is_dir() %}
+        <li>
+          <span class="caret"><a {% if item.get_stable_id() in searches %}class="match" {% endif %}
+              href="#{{ item.get_stable_id() }}">📁 {{ item.local_title }}</a></span>
+          <ul class="nested">{{ render_items(item.get_sub_items()) }}</ul>
+        </li>
+        {% elif item.is_link() %}
+        {% if item.get_target_item().is_file() %}
+        <li>
+          <span class="caret"><a {% if item.get_stable_id() in searches %}class="match" {% endif %}
+              href="#{{ item.get_stable_id() }}">🔗 {{ item.local_title }}</a></span>
+          <ul class="nested">{{ render_items([item.get_target_item()]) }}</ul>
+        </li>
+        {% else %}
+        <li>
+          <span class="caret"><a {% if item.get_stable_id() in searches %}class="match" {% endif %}
+              href="#{{ item.get_stable_id() }}">🔗 {{ item.local_title }}</a></span>
+          <ul class="nested">{{ render_items(item.get_target_item().get_sub_items()) }}</ul>
+        </li>
+        {% endif %}
+        {% else %}
+        <li>
+          <span style="margin-left: 20px;"><a {% if item.get_stable_id() in searches %}class="match" {% endif %}
+              href="#{{ item.get_stable_id() }}">📄 {{ item.local_title }}</a></span>
+        </li>
+        {% endif %}
+        {% endfor %}
+        {% endmacro %}
 
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Root ID</th>
-                                    <th>Media ID</th>
-                                    <th>Title</th>
-                                    <th>Root Path</th>
-                                    <th>Mirroring Destination</th>
-                                    <th>Last Seen Absolute Path</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% set mirrors=account.get_mirroring_roots() %}
-                                {% for mirror in mirrors %}
-                                    <tr>
-                                        <td>{{ mirror.get('root_id', None) }}</td>
-                                        <td>{{ mirror.get('media_id', None) }}</td>
-                                        <td>{{ mirror.get('title', None) }}</td>
-                                        <td>{{ mirror.get('root_path', None) }}</td>
-                                        <td>{{ mirror.get('destination', None) }}</td>
-                                        <td>{{ mirror.get('last_seen_absolute_path', None) }}</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+        <h2>Synced Files Tree</h2>
+        <ul class="tree-view" id="myUL">
+          {{ render_items([tree.get_root()] + tree.get_orphan_items()) }}
+        </ul>
 
-                        <h2>Mirrored Items</h2>
+        {% if tree.get_shared_with_me_items() %}
+        <h2>Shared with me files</h2>
+        <ul class="tree-view">{{ render_items(tree.get_shared_with_me_items()) }}</ul>
+        {% endif %}
 
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Local Stable ID</th>
-                                    <th>Stable ID</th>
-                                    <th>Volume</th>
-                                    <th>Parent Local Stable ID</th>
-                                    <th>Local Filename</th>
-                                    <th>Cloud Filename</th>
-                                    <th>Local Modified Timestamp</th>
-                                    <th>Cloud Modified Timestamp</th>
-                                    <th>Local MD5 Checksum</th>
-                                    <th>Cloud MD5 Checksum</th>
-                                    <th>Local Size</th>
-                                    <th>Cloud Size</th>
-                                    <th>Local Version</th>
-                                    <th>Cloud Version</th>
-                                    <th>Shared</th>
-                                    <th>Read Only</th>
-                                    <th>Is Root</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% set mirrored_items=account.get_synced_files_tree().get_mirrored_items() %}
-                                {% for item in mirrored_items %}
-                                    <tr>
-                                        <td>{{ item.local_stable_id }}</td>
-                                        <td>{{ item.stable_id }}</td>
-                                        <td>{{ item.volume }}</td>
-                                        <td>{{ item.parent }}</td>
-                                        <td>{{ item.local_filename }}</td>
-                                        <td>{{ item.cloud_filename }}</td>
-                                        <td>{{ item.get_local_mtime_utc() }}</td>
-                                        <td>{{ item.get_cloud_mtime_utc() }}</td>
-                                        <td>{{ item.local_md5 }}</td>
-                                        <td>{{ item.cloud_md5 }}</td>
-                                        <td>{{ item.local_size }}</td>
-                                        <td>{{ item.cloud_size }}</td>
-                                        <td>{{ item.local_version }}</td>
-                                        <td>{{ item.cloud_version }}</td>
-                                        <td>{{ item.shared }}</td>
-                                        <td>{{ item.read_only }}</td>
-                                        <td>{{ item.is_root }}</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    {% endif %}
+        <!-- Deleted Items (Collapsible) -->
+        {% if tree.get_recovered_deleted_items() or tree.get_deleted_items() %}
+        <details class="collapsible-section">
+          <summary>
+            <h2>Deleted Items</h2>
+          </summary>
+          <div style="padding: 16px 0;">
+            <ul class="tree-view">
+              {% for recovered_deleted_item in tree.get_recovered_deleted_items() %}
+              {{ details.append(recovered_deleted_item) or '' }}
+              <li><a {% if recovered_deleted_item.get_stable_id() in searches %}class="match" {% endif %}
+                  href="#{{ recovered_deleted_item.get_stable_id() }}">{{ recovered_deleted_item.tree_path }}</a></li>
+              {% endfor %}
+              {% for deleted_item in tree.get_deleted_items() %}
+              <li>{{ deleted_item.get_stable_id() }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        </details>
+        {% endif %}
 
-                    {% if account.is_logged_in() %}
+        <!-- Virtualized Item Details Table -->
+        {% macro generate_items_details_table(headers, unique_id) %}
+        {% set properties = headers[11:] %}
 
-                        {% if search_results.get((account.get_account_id(), account.get_account_email()), None) %}
-                            {% set searches=[] %}
-
-                            <h2>Search Results</h2>
-                            {% for result in search_results[(account.get_account_id(), account.get_account_email())] %}
-                                <li>
-                                    <a href="#{{ result.get_stable_id() }}">{{ result.tree_path }}</a>
-                                </li>
-                                {{ searches.append(result.get_stable_id()) or '' }}
-                            {% endfor %}
-                        {% endif %}
-
-                        {% set tree=account.get_synced_files_tree() %}
-                        {% set details=[] %}
-
-                        {% macro render_items(items) %}
-                            {% for item in items %}
-                                {{ details.append(item) or '' }}
-                                {% if item.is_dir() %}
-                                    <li>
-                                        <span class="caret">
-                                            <a
-                                                {% if item.get_stable_id() in searches %}
-                                                    class="match"
-                                                {% endif %}
-                                                href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
-                                        </span>
-                                        <ul class="nested">
-                                            {{ render_items(item.get_sub_items()) }}
-                                        </ul>
-                                    </li>
-                                {% elif item.is_link() %}
-                                    {% if item.get_target_item().is_file() %}
-                                        <li>
-                                            <span class="caret">
-                                                <a
-                                                    {% if item.get_stable_id() in searches %}
-                                                        class="match"
-                                                    {% endif %}
-                                                    href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
-                                            </span>
-                                            <ul class="nested">
-                                                {{ render_items(item.get_target_item()) }}
-                                            </ul>
-                                        </li>
-                                    {% else %}
-                                        <li>
-                                            <span class="caret">
-                                                <a
-                                                    {% if item.get_stable_id() in searches %}
-                                                        class="match"
-                                                    {% endif %}
-                                                    href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
-                                            </span>
-                                            <ul class="nested">
-                                                {{ render_items(item.get_target_item().get_sub_items()) }}
-                                            </ul>
-                                        </li>
-                                    {% endif %}
-                                {% else %}
-                                    <li>
-                                        <a
-                                            {% if item.get_stable_id() in searches %}
-                                                class="match"
-                                            {% endif %}
-                                            href="#{{ item.get_stable_id() }}">{{ item.local_title }}</a>
-                                    </li>
-                                {% endif %}
-                            {% endfor %}
-                        {% endmacro %}
-
-                        <h2>Synced Files Tree</h2>
-
-                            <ul id="myUL">
-                                {{ render_items([tree.get_root()] + tree.get_orphan_items()) }}
-                            </ul>
-
-                        {% if tree.get_shared_with_me_items() %}
-                            <h2>Shared with me files</h2>
-
-                                <ul id="myUL">
-                                    {{ render_items(tree.get_shared_with_me_items()) }}
-                                </ul>
-                        {% endif %}
-
-                        {% if tree.get_recovered_deleted_items() or tree.get_deleted_items() %}
-                            <h2>Deleted Items</h2>
-                                {% for recovered_deleted_item in tree.get_recovered_deleted_items() %}
-                                        {{ details.append(recovered_deleted_item) or '' }}
-                                        <li>
-                                            <a
-                                                {% if recovered_deleted_item.get_stable_id() in searches %}
-                                                    class="match"
-                                                {% endif %}
-                                                href="#{{ recovered_deleted_item.get_stable_id() }}">{{ recovered_deleted_item.tree_path }}</a>
-                                        </li>
-                                {% endfor %}
-
-                                {% for deleted_item in tree.get_deleted_items() %}
-                                    <li>{{ deleted_item.get_stable_id() }}</li>
-                                {% endfor %}
-                        {% endif %}
-
-                        <h2>Items Details</h2>
-                        {% macro generate_items_details_table(headers) %}
-                            {% set properties = headers[11:] %}
-                            <table>
-                                <thead>
-                                    <tr>
-                                        {% for header in headers %}
-                                            <th>{{ header }}</th>
-                                        {% endfor %}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for detail in details %}
-                                        <tr>
-                                            <td id='{{ detail.get_stable_id() }}'>{{ detail.get_stable_id() }}</td>
-                                            {% if detail.is_file() %}
-                                                <td>File</td>
-                                            {% elif detail.is_link() %}
-                                                <td>Link</td>
-                                            {% else %}
-                                                <td>Directory</td>
-                                            {% endif %}
-                                            <td>{{ detail.url_id }}</td>
-                                            <td>{{ detail.local_title }}</td>
-                                            <td>{{ detail.mime_type }}</td>
-                                            {% if detail.is_file() %}
-                                                <td>{{ detail.get_content_cache_path() }}</td>
-                                            {% else %}
-                                                <td></td>
-                                            {% endif %}
-                                            {% if detail.is_file() %}
-                                                <td>{{ detail.get_thumbnail_path() }}</td>
-                                            {% else %}
-                                                <td></td>
-                                            {% endif %}
-                                            <td>{{ detail.is_owner }}</td>
-                                            <td>{{ detail.get_file_size_mb() }}</td>
-                                            <td>{{ detail.get_modified_date_utc() }}</td>
-                                            <td>{{ detail.get_viewed_by_me_date_utc() }}</td>
-                                            <td>{{ detail.trashed }}</td>
-                                            <td>{{ detail.tree_path }}</td>
-                                            <td>{{ detail.md5 }}</td>
-                                            {% for prop in properties %}
-                                                {% if prop not in ["trashed", "tree_path", "md5"] %}
-                                                    <td>{{ detail.properties[prop] }}</td>
-                                                {% endif %}
-                                            {% endfor %}
-                                        </tr>
+        <!-- Hidden Data Payload -->
+        <script id="data-source-{{ unique_id }}" type="application/json">
+                            [
+                                {% for detail in details %}
+                                [
+                                    {{ detail.get_stable_id() | string | tojson }},
+                                    {% if detail.is_file() %}"File"{% elif detail.is_link() %}"Link"{% else %}"Directory"{% endif %},
+                                    {{ detail.url_id | string | tojson }},
+                                    {{ detail.local_title | string | tojson }},
+                                    {{ detail.mime_type | string | tojson }},
+                                    {% if detail.is_file() %}{{ detail.get_content_cache_path() | string | tojson }}{% else %}""{% endif %},
+                                    {% if detail.is_file() %}{{ detail.get_thumbnail_path() | string | tojson }}{% else %}""{% endif %},
+                                    {{ detail.is_owner | string | tojson }},
+                                    {{ detail.get_file_size_mb() | string | tojson }},
+                                    {{ detail.get_modified_date_utc() | string | tojson }},
+                                    {{ detail.get_viewed_by_me_date_utc() | string | tojson }},
+                                    {{ detail.trashed | string | tojson }},
+                                    {{ detail.tree_path | string | tojson }},
+                                    {{ detail.md5 | string | tojson }}
+                                    {% for prop in properties %}
+                                        {% if prop not in ["trashed", "tree_path", "md5"] %}
+                                        ,{{ detail.properties[prop] | string | tojson }}
+                                        {% endif %}
                                     {% endfor %}
-                                </tbody>
-                            </table>
-                        {% endmacro %}
-                        {{ generate_items_details_table(headers) }}
+                                ]{% if not loop.last %},{% endif %}
+                                {% endfor %}
+                            ]
+                            </script>
 
-                    {% endif %}
-                </div>
-            {% endfor %}
-
+        <div class="section-header-flex">
+          <h2>Items Details</h2>
+          <button class="clear-filters-btn" id="clear-filters-{{ unique_id }}" title="Clear all column filters">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+            Clear Filters
+          </button>
         </div>
 
-        <a href="#" id="scrollToTopBtn" title="Go to top">&#9650; Top</a>
+        <div class="table-responsive virtual-scroll-container" id="vs-container-{{ unique_id }}">
+          <div class="virtual-scroll-spacer" id="vs-spacer-{{ unique_id }}"
+            style="position: absolute; width: 1px; top: 0; left: 0; z-index: -1;"></div>
+          <table id="vs-table-{{ unique_id }}">
+            <thead>
+              <tr>
+                {% for header in headers %}
+                <th>
+                  <span class="header-content">{{ header }}</span>
+                  <!-- Data-Grid Filter Input injected dynamically under each header -->
+                  <input type="text" class="column-filter" data-col="{{ loop.index0 }}" placeholder="Filter...">
+                </th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody id="vs-body-{{ unique_id }}">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+        {% endmacro %}
 
-        <script>
-            var toggler = document.getElementsByClassName("caret");
-            var i;
+        {{ generate_items_details_table(headers, acc_idx) }}
+        {% endif %}
+      </div>
+    </details>
+    {% endfor %}
+  </div>
 
-            for (i = 0; i < toggler.length; i++) {
-              toggler[i].addEventListener("click", function() {
-                this.parentElement.querySelector(".nested").classList.toggle("active");
-                this.classList.toggle("caret-down");
-              });
+  <button id="scrollToTopBtn" title="Go to top">↑</button>
+
+  <script>
+    // Tree View Toggle
+    document.querySelectorAll(".caret").forEach(caret => {
+      caret.addEventListener("click", function (e) {
+        if (e.target.tagName.toLowerCase() === 'a') return;
+        this.parentElement.querySelector(".nested").classList.toggle("active");
+        this.classList.toggle("caret-down");
+      });
+    });
+
+    // Scroll to Top Logic
+    const topBtn = document.getElementById("scrollToTopBtn");
+    window.onscroll = () => topBtn.style.display = (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) ? "block" : "none";
+    topBtn.onclick = () => window.scrollTo({top: 0, behavior: 'smooth'});
+
+    // Global Registry to handle anchor link interception and strictly scoped highlight states
+    window.vtScrollHandlers = {};
+    window.vtRenderers = {};
+    window.activeHighlightedIds = {}; // Dictionary mapping tableId -> Currently Highlighted ID
+
+    // Fully Dynamic Virtual Table Engine with Filter Support
+    function initVirtualTable(tableId) {
+      const container = document.getElementById('vs-container-' + tableId);
+      const tbody = document.getElementById('vs-body-' + tableId);
+      const rawDataEl = document.getElementById('data-source-' + tableId);
+      const filterInputs = container.querySelectorAll('.column-filter');
+      const clearBtn = document.getElementById('clear-filters-' + tableId);
+      const spacer = document.getElementById('vs-spacer-' + tableId);
+
+      if (!container || !rawDataEl || !rawDataEl.textContent.trim()) return;
+
+      let masterData = [];
+      let filteredData = [];
+
+      try {
+        masterData = JSON.parse(rawDataEl.textContent);
+        filteredData = masterData; // Initially, filtered data is just all data
+      } catch (e) {
+        console.error("Failed to parse JSON for table " + tableId, e);
+        tbody.innerHTML = `<tr><td colspan="15" style="color:#ef4444; font-weight:bold; text-align:center; padding: 20px;">Data parsing error.</td></tr>`;
+        return;
+      }
+
+      if (masterData.length === 0) return;
+
+      let rowHeight = 49;
+      let measured = false;
+      let ticking = false;
+
+      // Initialize the scoped highlighted state for this table
+      window.activeHighlightedIds[tableId] = null;
+
+      // Register global handler for this specific table (Anchor Jumping)
+      window.vtScrollHandlers[tableId] = function (targetId) {
+        // Determine if target exists in master list
+        let targetIndex = -1;
+        for (let i = 0; i < masterData.length; i++) {
+          if (masterData[i][0] === targetId) {
+            targetIndex = i;
+            break;
+          }
+        }
+
+        if (targetIndex !== -1) {
+          // 1. Ensure the master details accordion is fully open
+          const detailsEl = container.closest('details.account-details');
+          if (detailsEl) detailsEl.open = true;
+
+          // 2. Clear filters to ensure the target row is actually visible in the grid
+          filterInputs.forEach(input => input.value = '');
+          filteredData = masterData;
+
+          // 3. IMPORTANT: Update the invisible spacer height BEFORE attempting to scroll
+          // Otherwise, if the table was previously filtered to 1 row, scrolling to row 15,000 will fail
+          if (spacer) {
+            spacer.style.height = (filteredData.length * rowHeight) + 'px';
+          }
+
+          // 4. Set the scoped highlighted ID for this specific table
+          window.activeHighlightedIds[tableId] = targetId;
+
+          // 5. Scroll the main browser window so the table is in view
+          container.scrollIntoView({behavior: 'smooth', block: 'center'});
+
+          // 6. Scroll the inner virtual table exactly to the target row
+          container.scrollTop = targetIndex * rowHeight;
+
+          // 7. Force a localized re-render for THIS specific table only
+          if (window.vtRenderers[tableId]) {
+            window.vtRenderers[tableId]();
+          }
+
+          return true;
+        }
+        return false;
+      };
+
+      function renderRows() {
+        const scrollTop = container.scrollTop;
+
+        let startIdx = Math.floor(scrollTop / rowHeight);
+        startIdx = Math.max(0, startIdx - 5);
+        const visibleRowsCount = Math.ceil(container.clientHeight / rowHeight) + 12;
+        const endIdx = Math.min(filteredData.length, startIdx + visibleRowsCount);
+
+        let html = '';
+
+        if (filteredData.length === 0) {
+          html = `<tr><td colspan="100" style="text-align:center; padding: 30px; color: var(--text-muted);">No records match your filters.</td></tr>`;
+        } else {
+          // DUMMY TOP ROW (Dynamic Height)
+          const topSpacerHeight = startIdx * rowHeight;
+          if (topSpacerHeight > 0) {
+            html += `<tr style="height: ${topSpacerHeight}px; background: transparent;"><td colspan="100" style="padding: 0; border: none;"></td></tr>`;
+          }
+
+          // ACTUAL VISIBLE ROWS
+          for (let i = startIdx; i < endIdx; i++) {
+            const row = filteredData[i];
+
+            // Check localized highlight state
+            const isHighlighted = (row[0] === window.activeHighlightedIds[tableId]);
+            const rowClass = isHighlighted ? ' class="highlighted-row"' : '';
+
+            html += `<tr${rowClass}>`;
+            html += `<td id="${row[0]}" class="font-mono">${row[0]}</td>`;
+            html += `<td>${row[1]}</td>`;
+            html += `<td class="font-mono">${row[2]}</td>`;
+            html += `<td>${row[3]}</td>`;
+            html += `<td>${row[4]}</td>`;
+            html += `<td class="font-mono">${row[5]}</td>`;
+            html += `<td class="font-mono">${row[6]}</td>`;
+            html += `<td>${row[7]}</td>`;
+            html += `<td>${row[8]}</td>`;
+            html += `<td>${row[9]}</td>`;
+            html += `<td>${row[10]}</td>`;
+            html += `<td>${row[11]}</td>`;
+            html += `<td class="font-mono">${row[12]}</td>`;
+            html += `<td class="font-mono">${row[13]}</td>`;
+
+            for (let j = 14; j < row.length; j++) {
+              html += `<td>${row[j]}</td>`;
             }
+            html += `</tr>`;
+          }
 
-            function toggleVisibility(contentId, iconId) {
-                var element = document.getElementById(contentId);
-                var icon = document.getElementById(iconId);
-                if (element.style.display === "none") {
-                    element.style.display = "block";
-                    icon.innerHTML = "👁️";
-                } else {
-                    element.style.display = "none";
-                    icon.innerHTML = "👁️‍🗨️";
-                }
+          // UPDATE THE SPACER TO ENSURE SMOOTH BOTTOM SCROLLING
+          if (spacer) {
+            spacer.style.height = (filteredData.length * rowHeight) + 'px';
+          }
+        }
+
+        tbody.innerHTML = html;
+
+        // Dynamically measure true row height
+        if (!measured && filteredData.length > 0 && tbody.children.length > 1) {
+          const firstRealRow = tbody.children[startIdx > 0 ? 1 : 0];
+          if (firstRealRow && firstRealRow.offsetHeight > 0) {
+            rowHeight = firstRealRow.offsetHeight;
+            measured = true;
+            renderRows();
+          }
+        }
+        ticking = false;
+      }
+
+      // --- FAIL-FAST FILTERING LOGIC ---
+      function applyFilters() {
+        // 1. Gather all active filters
+        const activeFilters = [];
+        filterInputs.forEach(input => {
+          const val = input.value.trim().toLowerCase();
+          if (val) {
+            activeFilters.push({idx: parseInt(input.dataset.col), val: val});
+          }
+        });
+
+        // 2. If no filters, reset to master data
+        if (activeFilters.length === 0) {
+          filteredData = masterData;
+        } else {
+          // 3. Fast filter loop with AND logic
+          filteredData = masterData.filter(row => {
+            for (let i = 0; i < activeFilters.length; i++) {
+              const filter = activeFilters[i];
+              const cellData = (row[filter.idx] || "").toString().toLowerCase();
+              if (!cellData.includes(filter.val)) {
+                return false; // Fail fast: drop the row immediately if one condition fails
+              }
             }
-        </script>
+            return true;
+          });
+        }
 
-    </body>
+        // 4. Update spacer and snap scroll back to top
+        if (spacer) spacer.style.height = (filteredData.length * rowHeight) + 'px';
+        container.scrollTop = 0;
+        renderRows();
+      }
+
+      // Attach event listeners to all filter inputs with a slight debounce
+      let filterTimeout;
+      filterInputs.forEach(input => {
+        input.addEventListener('input', () => {
+          clearTimeout(filterTimeout);
+          filterTimeout = setTimeout(applyFilters, 250); // 250ms debounce prevents lagging while typing
+        });
+      });
+
+      // Attach Clear Button functionality
+      if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+          let hasFilters = false;
+          filterInputs.forEach(input => {
+            if (input.value) hasFilters = true;
+            input.value = '';
+          });
+          if (hasFilters) applyFilters();
+        });
+      }
+
+      // Expose rendering method safely keyed to this table
+      window.vtRenderers[tableId] = renderRows;
+
+      container.addEventListener('scroll', () => {
+        if (!ticking) {
+          window.requestAnimationFrame(renderRows);
+          ticking = true;
+        }
+      });
+
+      renderRows();
+    }
+
+    // Initialize Virtual Scrolling on load
+    document.addEventListener("DOMContentLoaded", function () {
+      document.querySelectorAll('[id^="vs-container-"]').forEach(container => {
+        const tableId = container.id.replace('vs-container-', '');
+        initVirtualTable(tableId);
+      });
+    });
+
+    // Context-Aware DOM Anchor Interceptor
+    document.addEventListener('click', function (e) {
+      const link = e.target.closest('a');
+      if (link) {
+        const href = link.getAttribute('href');
+        if (href && href.startsWith('#') && href.length > 1) {
+          const targetId = href.substring(1);
+          if (targetId === "top") return;
+
+          // 1. Find EXACTLY which account this link belongs to
+          const accountContainer = link.closest('.account-details');
+          if (accountContainer) {
+            const vsContainer = accountContainer.querySelector('.virtual-scroll-container');
+            if (vsContainer) {
+              const tableId = vsContainer.id.replace('vs-container-', '');
+
+              // 2. Only trigger the scroll handler for THIS specific account
+              if (window.vtScrollHandlers[tableId] && window.vtScrollHandlers[tableId](targetId)) {
+                e.preventDefault();
+                history.pushState(null, null, href);
+                return; // Stop executing so we don't accidentally highlight other tables
+              }
+            }
+          }
+
+          // Fallback (Only executes if the link is somehow floating outside an account container)
+          for (const tableId in window.vtScrollHandlers) {
+            if (window.vtScrollHandlers[tableId](targetId)) {
+              e.preventDefault();
+              history.pushState(null, null, href);
+              break;
+            }
+          }
+        }
+      }
+    });
+  </script>
+</body>
+
 </html>
