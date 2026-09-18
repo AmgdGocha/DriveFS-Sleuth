@@ -40,12 +40,18 @@ class Item:
         return isinstance(self, Link)
 
     def get_modified_date_utc(self):
+        if self.modified_date in (None, ''):
+            return None
         return datetime.datetime.fromtimestamp(int(self.modified_date)/1000.0, datetime.timezone.utc)
 
     def get_viewed_by_me_date_utc(self):
+        if self.viewed_by_me_date in (None, ''):
+            return None
         return datetime.datetime.fromtimestamp(int(self.viewed_by_me_date)/1000.0, datetime.timezone.utc)
 
     def get_file_size_mb(self):
+        if self.file_size in (None, ''):
+            return None
         return round(int(self.file_size) / 1e+6, 2)
 
     def to_dict(self):
@@ -149,9 +155,13 @@ class MirrorItem:
         self.is_root = is_root
 
     def get_local_mtime_utc(self):
+        if self.local_mtime in (None, ''):
+            return None
         return datetime.datetime.fromtimestamp(int(self.local_mtime)/1000.0, datetime.timezone.utc)
 
     def get_cloud_mtime_utc(self):
+        if self.cloud_mtime in (None, ''):
+            return None
         return datetime.datetime.fromtimestamp(int(self.cloud_mtime)/1000.0, datetime.timezone.utc)
 
 
@@ -212,7 +222,7 @@ class SyncedFilesTree:
                 queue += current_item.get_sub_items()
 
             elif current_item.is_link():
-                queue += current_item.get_target_item()
+                queue.append(current_item.get_target_item())
 
         return None
 
@@ -226,7 +236,7 @@ class SyncedFilesTree:
 
             elif isinstance(item, Link):
                 target = item.get_target_item()
-                if isinstance(item, File):
+                if isinstance(target, File):
                     append_item_childes(target)
                 else:
                     for sub_item in target.get_sub_items():

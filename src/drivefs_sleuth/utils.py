@@ -18,7 +18,15 @@ def get_experiment_account_ids(drivefs_path):
         with sqlite3.connect(os.path.join(drivefs_path, "experiments.db")) as experiments_db:
             cursor = experiments_db.cursor()
             cursor.execute("SELECT value FROM PhenotypeValues WHERE key='account_ids'")
-            return re.findall(r'\d+', cursor.fetchall()[0][0].decode('utf-8'))
+            rows = cursor.fetchall()
+            if not rows:
+                return []
+            value = rows[0][0]
+            if isinstance(value, bytes):
+                value = value.decode('utf-8')
+            else:
+                value = str(value)
+            return re.findall(r'\d+', value)
     except sqlite3.OperationalError as e:
         return []
 
@@ -83,7 +91,13 @@ def get_last_sync(drivefs_path):
         with sqlite3.connect(os.path.join(drivefs_path, "experiments.db")) as experiments_db:
             cursor = experiments_db.cursor()
             cursor.execute("SELECT value FROM PhenotypeValues WHERE key='last_sync'")
-            return int(cursor.fetchone()[0])
+            row = cursor.fetchone()
+            if row is None:
+                return -1
+            try:
+                return int(row[0])
+            except (TypeError, ValueError):
+                return -1
     except sqlite3.OperationalError:
         return -1
 
@@ -201,7 +215,10 @@ def parse_protobuf(protobuf):
     if not protobuf:
         return {}
 
-    return blackboxprotobuf.decode_message(protobuf)[0]
+    try:
+        return blackboxprotobuf.decode_message(protobuf)[0]
+    except Exception:
+        return {}
 
 
 def get_account_properties(profile_path):
@@ -295,4 +312,13 @@ def copy_file(file_path, dest_filename, recovery_path=''):
     if not os.path.exists(recovery_path):
         os.makedirs(recovery_path)
 
-    shutil.copy2(file_path, os.path.join(recovery_path, dest_filename))
+    dest_filename = re.sub(r'[<>:"/\\|?*]', '_', str(dest_filename or 'recovered_item'))
+    dest_path = os.path.join(recovery_path, dest_filename)
+
+    basename, extension = os.path.splitext(dest_filename)
+    counter = 1
+    while os.path.exists(dest_path):
+        dest_path = os.path.join(recovery_path, f'{basename} ({counter}){extension}')
+        counter += 1
+
+    shutil.copy2(file_path, dest_path)

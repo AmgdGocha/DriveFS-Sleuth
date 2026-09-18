@@ -680,7 +680,7 @@
         {% endif %}
         {% endif %}
 
-        {% if account.is_logged_in() %}
+        {% if account.is_logged_in() and account.get_synced_files_tree() %}
 
         <!-- Search Results -->
         {% set searches = [] %}

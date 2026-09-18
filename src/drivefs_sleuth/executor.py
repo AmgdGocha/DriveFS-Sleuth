@@ -6,6 +6,7 @@ Description: this module contains the main function.
 """
 
 import os
+import re
 import sys
 import csv
 import argparse
@@ -23,6 +24,10 @@ USE_EMOJI = True if 'utf-8' in sys.stdout.encoding.lower() else False
 
 def __get_status_emoji(emoji, fallback):
     return emoji if USE_EMOJI else fallback
+
+
+def __safe_dirname(value, fallback):
+    return re.sub(r'[<>:"/\\|?*]', '_', str(value or fallback).strip())
 
 
 def execute():
@@ -113,7 +118,7 @@ def execute():
 
     searching_group.add_argument(
         '--exact',
-        action='store_false',
+        action='store_true',
         dest='exact',
         help='If selected, only files or folders with exact file names will be returned. '
              'The --query_by_name argument has to be passed. Defaults to False.'
@@ -163,7 +168,7 @@ def execute():
     args = arg_parser.parse_args()
 
     drivefs_path = os.path.abspath(args.path)
-    if not args.exact and not args.query_by_name:
+    if args.exact and not args.query_by_name:
         arg_parser.print_usage()
         print('DriveFS Sleuth: error: [--exact] can only be specified  with [-q QUERY_BY_NAME [QUERY_BY_NAME ...]]')
         arg_parser.exit()
@@ -173,11 +178,12 @@ def execute():
         print('DriveFS Sleuth: error: Either --csv or --html should be specified.')
         arg_parser.exit()
 
-    if args.recover_search_results and not (args.query_by_name or args.regex or args.search_csv or args.md5):
+    if args.recover_search_results and not (args.query_by_name or args.regex or args.search_csv or args.md5
+                                            or args.url_id):
         arg_parser.print_usage()
         print('DriveFS Sleuth: error: --recover-search-results option can\'t be specified without specifying searching '
-              'criteria via [--regex REGEX [REGEX ...]] or [-q QUERY_BY_NAME [QUERY_BY_NAME ...]] or '
-              '[--search-csv SEARCH_CSV]')
+              'criteria via [--regex REGEX [REGEX ...]], [-q QUERY_BY_NAME [QUERY_BY_NAME ...]], '
+              '[--search-csv SEARCH_CSV], [--md5 MD5 [MD5 ...]], or [--url-id URL_ID [URL_ID ...]]')
         arg_parser.exit()
 
     if os.path.isfile(args.output):
@@ -187,9 +193,10 @@ def execute():
     else:
         if not os.path.exists(args.output):
             try:
-                os.mkdir(args.output)
+                os.makedirs(args.output, exist_ok=True)
             except OSError as e:
                 print(f'DriveFS Sleuth: error: couldn\'t create output directory {args.output}\n Error Message: {e}')
+                arg_parser.exit()
 
     print(f'{__get_status_emoji("🚀", "[START]")} Starting DriveFS Sleuth...')
     print(f'\n{__get_status_emoji("🔄", "[...]")} Processing Path: {drivefs_path}... [IN PROGRESS]')
@@ -205,6 +212,8 @@ def execute():
         try:
             with open(args.search_csv, 'r', encoding='utf-8') as search_csv_file:
                 for criteria in csv.DictReader(search_csv_file):
+                    if not criteria.get('TYPE') or not criteria.get('TARGET'):
+                        raise AttributeError
                     if criteria['TYPE'].lower() == 'md5':
                         searching_criteria.append({
                             "TYPE": "md5",
@@ -267,7 +276,7 @@ def execute():
                                     "CONTAINS": True,
                                     "LIST_SUB_ITEMS": True
                                 })
-        except AttributeError:
+        except (AttributeError, KeyError):
             print(
                 'Searching CSV file should be formated as follows:\n'
                 '\t- The Head should be TYPE,TARGET,CONTAINS,LIST_SUB_ITEMS (case sensitive), '
@@ -348,12 +357,16 @@ def execute():
 
     if searching_criteria:
         for account in setup.get_accounts():
-            if account.is_logged_in():
-                result = account.get_synced_files_tree().search(searching_criteria)
-                if result:
-                    if not search_results.get((account.get_account_id(), account.get_account_email()), None):
-                        search_results[(account.get_account_id(), account.get_account_email())] = []
-                    search_results[(account.get_account_id(), account.get_account_email())] += result
+            if not account.is_logged_in():
+                continue
+            synced_files_tree = account.get_synced_files_tree()
+            if not synced_files_tree:
+                continue
+            result = synced_files_tree.search(searching_criteria)
+            if result:
+                if not search_results.get((account.get_account_id(), account.get_account_email()), None):
+                    search_results[(account.get_account_id(), account.get_account_email())] = []
+                search_results[(account.get_account_id(), account.get_account_email())] += result
 
     print(f"\n{__get_status_emoji('🛠️', '[GENERATING]')} Generating reports:")
     if args.html:
@@ -376,13 +389,16 @@ def execute():
             f'\n{__get_status_emoji("♻️", "[RECOVERY]")} Recovering from cache into: {recovery_from_cache_path}... [IN PROGRESS]')
         for account in setup.get_accounts():
             if account.is_logged_in():
-                acc_recovery_from_cache_path = os.path.join(recovery_from_cache_path, account.get_name())
+                acc_recovery_from_cache_path = os.path.join(
+                    recovery_from_cache_path, __safe_dirname(account.get_name(), account.get_account_id()))
                 acc_thumbnails_path = os.path.join(acc_recovery_from_cache_path, 'thumbnails')
                 if not os.path.exists(acc_recovery_from_cache_path):
                     os.mkdir(acc_recovery_from_cache_path)
                 if not os.path.exists(acc_thumbnails_path):
                     os.mkdir(acc_thumbnails_path)
                 synced_files_tree = account.get_synced_files_tree()
+                if not synced_files_tree:
+                    continue
                 recover_from_content_cache(
                     synced_files_tree.get_recoverable_items_from_cache(), acc_recovery_from_cache_path)
                 recover_thumbnail(
@@ -398,7 +414,8 @@ def execute():
             print(
                 f'\n{__get_status_emoji("♻️", "[RECOVERY]")} Recovering search results from cache into: {search_recovery_results_path}... [IN PROGRESS]')
             for account in search_results:
-                acc_search_recovery_results_path = os.path.join(search_recovery_results_path, account[1])
+                acc_search_recovery_results_path = os.path.join(
+                    search_recovery_results_path, __safe_dirname(account[1], account[0]))
                 acc_thumbnails_path = os.path.join(acc_search_recovery_results_path, 'thumbnails')
                 if not os.path.exists(acc_search_recovery_results_path):
                     os.mkdir(acc_search_recovery_results_path)

@@ -98,7 +98,11 @@ class Account:
 
     def _construct_synced_files_trees(self):
         parent_relationships = get_parent_relationships(self.__profile_path)
+        if not parent_relationships:
+            return
         root_info = get_item_info(self.__profile_path, parent_relationships[0][0])
+        if not root_info:
+            return
         root = Directory(root_info[1], root_info[2], root_info[3], root_info[4], root_info[5], root_info[6],
                          root_info[7], root_info[8], root_info[9],
                          get_item_properties(self.__profile_path, root_info[1]), root_info[3], root_info[10])
@@ -297,7 +301,9 @@ class Account:
                 target_item = None
                 target_info = parsed_buf.get('132', None)
                 if target_info:
-                    target_item = self.__synced_files_tree.get_item_by_id(target_info['2'])
+                    target_item = self.__synced_files_tree.get_item_by_id(target_info.get('2'))
+                if target_item is None:
+                    target_item = DummyItem('-1')
                 self.__synced_files_tree.add_recovered_deleted_item(
                     Link(deleted_item[0], parsed_buf.get('1', ''), parsed_buf.get('3', ''), parsed_buf.get('4', ''),
                          parsed_buf.get('63', 0), parsed_buf.get('14', 0), parsed_buf.get('11', 0),
@@ -335,7 +341,9 @@ class Setup:
                 "last_mount_point": connected_device[2],
                 "ignore": connected_device[4],
             }
-            if int(connected_device[3]) == -1:
+            if connected_device[3] is None:
+                device["capacity"] = None
+            elif int(connected_device[3]) == -1:
                 device["capacity"] = connected_device[3]
             else:
                 device["capacity"] = round(int(connected_device[3]) / 1e+9, 2)

@@ -61,7 +61,7 @@ def __generate_csv_search_results_report(setup, output_file, search_results):
                     row['type'] = 'File'
                     if result.get_content_cache_path():
                         row['path_in_content_cache'] = result.get_content_cache_path()
-                    if result.get_content_cache_path():
+                    if result.get_thumbnail_path():
                         row['thumbnail_path'] = result.get_thumbnail_path()
                 elif result.is_link():
                     row['type'] = 'Link'
@@ -79,6 +79,8 @@ def __generate_csv_report_gen(setup, output_file):
         for account in setup.get_accounts():
             if account.is_logged_in():
                 files_tree = account.get_synced_files_tree()
+                if not files_tree:
+                    continue
                 for row in files_tree.generate_synced_files_tree_dicts():
                     row['account_id'] = account.get_account_id()
                     row['email'] = account.get_account_email()
