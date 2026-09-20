@@ -523,7 +523,7 @@
       <div class="card-header">DriveFS Global Configuration</div>
       <div class="card-body">
         <div>Path: <span class="highlight font-mono">{{ setup.get_drivefs_path() }}</span></div>
-        <div>Last Sync Date: <span class="highlight">{{ setup.get_last_sync_date() }}</span></div>
+        <div>Last Sync Date: <span class="highlight">{{ setup.get_last_sync_date() or 'Unknown' }}</span></div>
         <div>Max Root IDs: <span class="highlight">{{ setup.get_max_root_ids() }}</span>
           <span style="color: {{ '#4ade80' if setup.is_mirroring_roots_modified() else 'inherit' }}">
             - {% if setup.is_mirroring_roots_modified() %}Modified{% else %}Not Modified{% endif %}
@@ -684,10 +684,10 @@
 
         <!-- Search Results -->
         {% set searches = [] %}
-        {% if search_results.get((account.get_account_id(), account.get_account_email()), None) %}
+        {% if search_results.get(account.get_account_id(), None) %}
         <h2>Search Results</h2>
         <ul class="tree-view">
-          {% for result in search_results[(account.get_account_id(), account.get_account_email())] %}
+          {% for result in search_results[account.get_account_id()] %}
           <li><a href="#{{ result.get_stable_id() }}" class="font-mono">{{ result.tree_path }}</a></li>
           {{ searches.append(result.get_stable_id()) or '' }}
           {% endfor %}
@@ -700,7 +700,7 @@
 
         {% macro render_items(items) %}
         {% for item in items %}
-        {{ details.append(item) or '' }}
+        {% if item not in details %}{{ details.append(item) or '' }}{% endif %}
         {% if item.is_dir() %}
         <li>
           <span class="caret"><a {% if item.get_stable_id() in searches %}class="match" {% endif %}
@@ -749,7 +749,7 @@
           <div style="padding: 16px 0;">
             <ul class="tree-view">
               {% for recovered_deleted_item in tree.get_recovered_deleted_items() %}
-              {{ details.append(recovered_deleted_item) or '' }}
+              {% if recovered_deleted_item not in details %}{{ details.append(recovered_deleted_item) or '' }}{% endif %}
               <li><a {% if recovered_deleted_item.get_stable_id() in searches %}class="match" {% endif %}
                   href="#{{ recovered_deleted_item.get_stable_id() }}">{{ recovered_deleted_item.tree_path }}</a></li>
               {% endfor %}
