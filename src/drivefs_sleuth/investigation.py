@@ -329,7 +329,7 @@ class Account:
                     self.__synced_files_tree.add_thumbnail_item(recovered_file)
 
 
-class Setup:
+class Investigation:
     def __init__(self, drivefs_path, accounts=None):
         self.__drivefs_path = drivefs_path
         last_sync = get_last_sync(drivefs_path)
