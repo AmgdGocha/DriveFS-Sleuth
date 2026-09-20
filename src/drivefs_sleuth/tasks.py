@@ -52,11 +52,13 @@ def __generate_csv_search_results_report(setup, output_file, search_results):
     with open(output_file, 'w', encoding='utf-8', newline='') as search_results_csv_file:
         csv_writer = csv.DictWriter(search_results_csv_file, fieldnames=search_results_headers)
         csv_writer.writeheader()
-        for account, results in search_results.items():
+        for account_id, results in search_results.items():
+            account_email = next(
+                (acc.get_account_email() for acc in setup.get_accounts() if acc.get_account_id() == account_id), '')
             for result in results:
                 row = result.to_dict()
-                row['account_id'] = account[0]
-                row['email'] = account[1]
+                row['account_id'] = account_id
+                row['email'] = account_email
                 if result.is_file():
                     row['type'] = 'File'
                     if result.get_content_cache_path():
@@ -102,7 +104,6 @@ def generate_csv_report(setup, output_file, search_results=None):
 def generate_html_report(setup, output_file, search_results=None):
     if search_results is None:
         search_results = {}
-    print(f"{os.path.join(os.path.dirname(__file__), 'html_resources')}")
     env = Environment(loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), 'html_resources')))
     template = env.get_template("report_template.html")
     headers = __build_headers(setup)
