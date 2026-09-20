@@ -12,7 +12,7 @@ import csv
 import argparse
 from argparse import RawTextHelpFormatter
 
-from drivefs_sleuth.setup import Setup
+from drivefs_sleuth.investigation import Investigation
 
 from drivefs_sleuth.tasks import recover_thumbnail
 from drivefs_sleuth.tasks import generate_csv_report
@@ -217,7 +217,7 @@ def execute():
         f"\n{__get_status_emoji('🔄', '[...]')} Processing Path: {drivefs_path}... [IN PROGRESS]"
     )
 
-    setup = Setup(drivefs_path, args.accounts)
+    investigation = Investigation(drivefs_path, args.accounts)
 
     search_results = {}
     searching_criteria = []
@@ -390,7 +390,7 @@ def execute():
     print(f"{__get_status_emoji('🔍', '[SEARCHING]')} Searching... [IN PROGRESS]")
 
     if searching_criteria:
-        for account in setup.get_accounts():
+        for account in investigation.get_accounts():
             if not account.is_logged_in():
                 continue
             synced_files_tree = account.get_synced_files_tree()
@@ -408,14 +408,14 @@ def execute():
         print(
             f"    {__get_status_emoji('📝', '[HTML]')} Generating HTML report: {html_output_path}... [DONE {__get_status_emoji('✅', '✔')}]"
         )
-        generate_html_report(setup, html_output_path, search_results)
+        generate_html_report(investigation, html_output_path, search_results)
 
     if args.csv:
         csv_output_path = os.path.join(args.output, "csv_report.csv")
         print(
             f"    {__get_status_emoji('📊', '[CSV]')} Generating a CSV report: {csv_output_path}... [DONE {__get_status_emoji('✅', '✔')}]"
         )
-        generate_csv_report(setup, csv_output_path, search_results)
+        generate_csv_report(investigation, csv_output_path, search_results)
 
     if args.recover_from_cache:
         recovery_from_cache_path = os.path.join(args.output, "recovery")
@@ -424,7 +424,7 @@ def execute():
         print(
             f"\n{__get_status_emoji('♻️', '[RECOVERY]')} Recovering from cache into: {recovery_from_cache_path}... [IN PROGRESS]"
         )
-        for account in setup.get_accounts():
+        for account in investigation.get_accounts():
             if account.is_logged_in():
                 acc_recovery_from_cache_path = os.path.join(
                     recovery_from_cache_path,
@@ -466,7 +466,7 @@ def execute():
                 account_email = next(
                     (
                         acc.get_account_email()
-                        for acc in setup.get_accounts()
+                        for acc in investigation.get_accounts()
                         if acc.get_account_id() == account_id
                     ),
                     account_id,

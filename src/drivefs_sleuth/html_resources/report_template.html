@@ -518,23 +518,23 @@
   <header class="top-strip"></header>
 
   <div class="container">
-    <!-- Global Setup Card -->
+    <!-- Global Investigation Card -->
     <div class="card-global">
       <div class="card-header">DriveFS Global Configuration</div>
       <div class="card-body">
-        <div>Path: <span class="highlight font-mono">{{ setup.get_drivefs_path() }}</span></div>
-        <div>Last Sync Date: <span class="highlight">{{ setup.get_last_sync_date() or 'Unknown' }}</span></div>
-        <div>Max Root IDs: <span class="highlight">{{ setup.get_max_root_ids() }}</span>
-          <span style="color: {{ '#4ade80' if setup.is_mirroring_roots_modified() else 'inherit' }}">
-            - {% if setup.is_mirroring_roots_modified() %}Modified{% else %}Not Modified{% endif %}
+        <div>Path: <span class="highlight font-mono">{{ investigation.get_drivefs_path() }}</span></div>
+        <div>Last Sync Date: <span class="highlight">{{ investigation.get_last_sync_date() or 'Unknown' }}</span></div>
+        <div>Max Root IDs: <span class="highlight">{{ investigation.get_max_root_ids() }}</span>
+          <span style="color: {{ '#4ade80' if investigation.is_mirroring_roots_modified() else 'inherit' }}">
+            - {% if investigation.is_mirroring_roots_modified() %}Modified{% else %}Not Modified{% endif %}
           </span>
         </div>
-        <div>Last PID: <span class="highlight font-mono">{{ setup.get_last_pid() }}</span></div>
+        <div>Last PID: <span class="highlight font-mono">{{ investigation.get_last_pid() }}</span></div>
       </div>
     </div>
 
     <!-- Connected Devices -->
-    {% if setup.get_connected_devices() %}
+    {% if investigation.get_connected_devices() %}
     <h2>Connected Devices</h2>
     <div class="table-responsive">
       <table>
@@ -548,7 +548,7 @@
           </tr>
         </thead>
         <tbody>
-          {% for device in setup.get_connected_devices() %}
+          {% for device in investigation.get_connected_devices() %}
           <tr>
             <td class="font-mono">{{ device.get('media_id', None) }}</td>
             <td>{{ device.get('name', None) }}</td>
@@ -563,7 +563,7 @@
     {% endif %}
 
     <!-- Accounts -->
-    {% for account in setup.get_accounts() %}
+    {% for account in investigation.get_accounts() %}
     {% set acc_idx = loop.index %}
     <details class="account-details">
       <summary class="account-summary">
