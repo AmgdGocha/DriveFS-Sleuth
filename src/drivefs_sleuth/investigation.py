@@ -228,7 +228,8 @@ class Account:
                                                   child_info[9], child_properties,
                                                   f'{current_parent_dir.tree_path}\\{child_info[3]}', child_info[10])
 
-                    added_dirs[child_id] = child
+                    if isinstance(child, Directory):
+                        added_dirs[child_id] = child
                     current_parent_dir.add_item(child)
                     if child_info[9] == 1:
                         self.__synced_files_tree.add_recovered_deleted_item(child)
@@ -286,7 +287,7 @@ class Account:
             parsed_buf = parse_protobuf(deleted_item[1])
             properties = {}
             for index, props in parsed_buf.items():
-                if index == '55' or index.startswith('55-'):
+                if index == '55' or str(index).startswith('55-'):
                     for prop in props:
                         if isinstance(prop, dict):
                             properties[prop['1']] = prop[[key for key in prop.keys() if key != '1'][0]]
