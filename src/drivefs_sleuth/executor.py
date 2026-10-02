@@ -12,6 +12,8 @@ import csv
 import argparse
 from argparse import RawTextHelpFormatter
 
+from . import __version__
+
 from drivefs_sleuth.investigation import Investigation
 
 from drivefs_sleuth.tasks import recover_thumbnail
@@ -74,6 +76,12 @@ def execute():
         nargs="+",
         type=str,
         help="Specifies account id/s or emails separated by space to be processed, defaults to all the accounts.",
+    )
+
+    arg_parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
 
     searching_group = arg_parser.add_argument_group("Searching Arguments")

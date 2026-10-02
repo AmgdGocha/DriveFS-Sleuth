@@ -4,11 +4,24 @@ Email: amged_wageh@outlook.com
 LinkedIn: https://www.linkedin.com/in/amgedwageh/
 """
 
+import re
+import os
+
 from setuptools import setup, find_packages
+
+with open(
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "src", "drivefs_sleuth", "__init__.py"
+    ),
+    encoding="utf-8",
+) as version_file:
+    __version__ = re.search(
+        r'__version__\s*=\s*["\']([^"\']+)["\']', version_file.read()
+    ).group(1)
 
 setup(
     name="drivefs_sleuth",
-    version="1.3.0",
+    version=__version__,
     description="The ultimate Google Drive File Stream Investigator!",
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",

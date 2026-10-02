@@ -60,7 +60,7 @@ pip install -r requirements.txt
 ## 🧑‍💻 DriveFS Sleuth Usage
 ```commandline
 usage: DriveFS Sleuth [-h] -o OUTPUT [--accounts ACCOUNTS [ACCOUNTS ...]]
-                      [--regex REGEX [REGEX ...]]
+                      [--version] [--regex REGEX [REGEX ...]]
                       [-q QUERY_BY_NAME [QUERY_BY_NAME ...]]
                       [--md5 MD5 [MD5 ...]] [--url-id URL_ID [URL_ID ...]]
                       [--search-csv SEARCH_CSV] [--exact]
@@ -92,6 +92,7 @@ options:
                         A path to a directory to save the output.
   --accounts ACCOUNTS [ACCOUNTS ...]
                         Specifies account id/s or emails separated by space to be processed, defaults to all the accounts.
+  --version             show program's version number and exit
 
 Searching Arguments:
   --regex REGEX [REGEX ...]
