@@ -1,0 +1,17 @@
+# Local-only artifacts with real/personal data - NEVER commit
+_tests/
+
+# Virtual environments
+.dfs_venv/
+.dfs_instlled_venv/
+
+# Python
+__pycache__/
+*.py[cod]
+build/
+dist/
+*.egg-info/
+.python-version
+
+# Tooling caches
+.pyright/
