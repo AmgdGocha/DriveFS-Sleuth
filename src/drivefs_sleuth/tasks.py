@@ -36,32 +36,34 @@ def get_accounts(drivefs_path):
     return accounts
 
 
-def __build_headers(setup):
+def __build_headers(investigation):
     headers = ['stable_id', 'type', 'url_id', 'local_title', 'mime_type', 'path_in_content_cache', 'thumbnail_path',
                'is_owner', 'file_size', 'modified_date', 'viewed_by_me_date', 'trashed', 'tree_path', 'md5']
-    for account in setup.get_accounts():
+    for account in investigation.get_accounts():
         if account.is_logged_in():
-            for prop in get_properties_list(os.path.join(setup.get_drivefs_path(), account.get_account_id())):
+            for prop in get_properties_list(os.path.join(investigation.get_drivefs_path(), account.get_account_id())):
                 if prop not in headers:
                     headers.append(prop)
     return headers
 
 
-def __generate_csv_search_results_report(setup, output_file, search_results):
-    search_results_headers = ['account_id', 'email'] + __build_headers(setup)
+def __generate_csv_search_results_report(investigation, output_file, search_results):
+    search_results_headers = ['account_id', 'email'] + __build_headers(investigation)
     with open(output_file, 'w', encoding='utf-8', newline='') as search_results_csv_file:
         csv_writer = csv.DictWriter(search_results_csv_file, fieldnames=search_results_headers)
         csv_writer.writeheader()
-        for account, results in search_results.items():
+        for account_id, results in search_results.items():
+            account_email = next(
+                (acc.get_account_email() for acc in investigation.get_accounts() if acc.get_account_id() == account_id), '')
             for result in results:
                 row = result.to_dict()
-                row['account_id'] = account[0]
-                row['email'] = account[1]
+                row['account_id'] = account_id
+                row['email'] = account_email
                 if result.is_file():
                     row['type'] = 'File'
                     if result.get_content_cache_path():
                         row['path_in_content_cache'] = result.get_content_cache_path()
-                    if result.get_content_cache_path():
+                    if result.get_thumbnail_path():
                         row['thumbnail_path'] = result.get_thumbnail_path()
                 elif result.is_link():
                     row['type'] = 'Link'
@@ -70,43 +72,44 @@ def __generate_csv_search_results_report(setup, output_file, search_results):
                 csv_writer.writerow(row)
 
 
-def __generate_csv_report_gen(setup, output_file):
-    headers = ['account_id', 'email'] + __build_headers(setup)
+def __generate_csv_report_gen(investigation, output_file):
+    headers = ['account_id', 'email'] + __build_headers(investigation)
     with open(output_file, 'w', encoding='utf-8', newline='') as csv_report_file:
         csv_writer = csv.DictWriter(csv_report_file, fieldnames=headers)
         csv_writer.writeheader()
 
-        for account in setup.get_accounts():
+        for account in investigation.get_accounts():
             if account.is_logged_in():
                 files_tree = account.get_synced_files_tree()
+                if not files_tree:
+                    continue
                 for row in files_tree.generate_synced_files_tree_dicts():
                     row['account_id'] = account.get_account_id()
                     row['email'] = account.get_account_email()
                     csv_writer.writerow(row)
 
 
-def generate_csv_report(setup, output_file, search_results=None):
+def generate_csv_report(investigation, output_file, search_results=None):
     if search_results is None:
         search_results = {}
 
     if search_results:
         parent_dir = os.path.abspath(os.path.join(output_file, os.pardir))
         search_results_csv_path = os.path.join(parent_dir, 'search_results.csv')
-        __generate_csv_search_results_report(setup, search_results_csv_path, search_results)
+        __generate_csv_search_results_report(investigation, search_results_csv_path, search_results)
 
-    __generate_csv_report_gen(setup, output_file)
+    __generate_csv_report_gen(investigation, output_file)
 
 
-def generate_html_report(setup, output_file, search_results=None):
+def generate_html_report(investigation, output_file, search_results=None):
     if search_results is None:
         search_results = {}
-    print(f"{os.path.join(os.path.dirname(__file__), 'html_resources')}")
     env = Environment(loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), 'html_resources')))
     template = env.get_template("report_template.html")
-    headers = __build_headers(setup)
+    headers = __build_headers(investigation)
 
     stream_template = template.stream(
-        setup=setup,
+        investigation=investigation,
         search_results=search_results,
         headers=headers
     )

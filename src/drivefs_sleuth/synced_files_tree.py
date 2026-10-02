@@ -40,12 +40,18 @@ class Item:
         return isinstance(self, Link)
 
     def get_modified_date_utc(self):
+        if self.modified_date in (None, ''):
+            return None
         return datetime.datetime.fromtimestamp(int(self.modified_date)/1000.0, datetime.timezone.utc)
 
     def get_viewed_by_me_date_utc(self):
+        if self.viewed_by_me_date in (None, ''):
+            return None
         return datetime.datetime.fromtimestamp(int(self.viewed_by_me_date)/1000.0, datetime.timezone.utc)
 
     def get_file_size_mb(self):
+        if self.file_size in (None, ''):
+            return None
         return round(int(self.file_size) / 1e+6, 2)
 
     def to_dict(self):
@@ -149,9 +155,13 @@ class MirrorItem:
         self.is_root = is_root
 
     def get_local_mtime_utc(self):
+        if self.local_mtime in (None, ''):
+            return None
         return datetime.datetime.fromtimestamp(int(self.local_mtime)/1000.0, datetime.timezone.utc)
 
     def get_cloud_mtime_utc(self):
+        if self.cloud_mtime in (None, ''):
+            return None
         return datetime.datetime.fromtimestamp(int(self.cloud_mtime)/1000.0, datetime.timezone.utc)
 
 
@@ -212,7 +222,7 @@ class SyncedFilesTree:
                 queue += current_item.get_sub_items()
 
             elif current_item.is_link():
-                queue += current_item.get_target_item()
+                queue.append(current_item.get_target_item())
 
         return None
 
@@ -226,7 +236,7 @@ class SyncedFilesTree:
 
             elif isinstance(item, Link):
                 target = item.get_target_item()
-                if isinstance(item, File):
+                if isinstance(target, File):
                     append_item_childes(target)
                 else:
                     for sub_item in target.get_sub_items():
@@ -255,45 +265,42 @@ class SyncedFilesTree:
 
         def __search(current_item):
             for condition in [(target, c['LIST_SUB_ITEMS']) for c in conditions if c['TYPE'] == 'regex' for target in c['TARGET']]:
-                match = re.search(condition[0], current_item.local_title)
-                if match:
-                    items.append(current_item)
-                    if condition[1]:
-                        add_sub_items(current_item)
+                if current_item.local_title:
+                    match = re.search(condition[0], current_item.local_title)
+                    if match:
+                        items.append(current_item)
+                        if condition[1]:
+                            add_sub_items(current_item)
 
             for condition in [(target.lower(), c['LIST_SUB_ITEMS']) for c in conditions if c['TYPE'] == 'urlid' for target in c['TARGET']]:
-                if condition[0] == current_item.url_id.lower():
+                if current_item.url_id and condition[0] == current_item.url_id.lower():
                     items.append(current_item)
                     if condition[1]:
                         add_sub_items(current_item)
 
             for condition in [(target.lower(), c['LIST_SUB_ITEMS'], c['CONTAINS']) for c in conditions if c['TYPE'] == 'filename' for target in c['TARGET']]:
-                if condition[2]:
-                    if condition[0] in current_item.local_title.lower():
-                        items.append(current_item)
-                        if condition[1]:
-                            add_sub_items(current_item)
-                else:
-                    if condition[0] == current_item.local_title.lower():
-                        items.append(current_item)
-                        if condition[1]:
-                            add_sub_items(current_item)
+                if current_item.local_title:
+                    if condition[2]:
+                        if condition[0] in current_item.local_title.lower():
+                            items.append(current_item)
+                            if condition[1]:
+                                add_sub_items(current_item)
+                    else:
+                        if condition[0] == current_item.local_title.lower():
+                            items.append(current_item)
+                            if condition[1]:
+                                add_sub_items(current_item)
 
             for condition in [target.lower() for c in conditions if c['TYPE'] == 'md5' for target in c['TARGET']]:
                 if isinstance(current_item, File):
-                    if condition == current_item.md5:
+                    if condition == (current_item.md5 or ''):
                         items.append(current_item)
 
             if isinstance(current_item, File):
                 return
 
             if isinstance(current_item, Link):
-                target = current_item.get_target_item()
-                if isinstance(target, File):
-                    __search(target)
-                else:
-                    for sub_item in target.get_sub_items():
-                        __search(sub_item)
+                __search(current_item.get_target_item())
             else:
                 for sub_item in current_item.get_sub_items():
                     __search(sub_item)
@@ -308,7 +315,14 @@ class SyncedFilesTree:
         for recovered_deleted_item in self.get_recovered_deleted_items():
             __search(recovered_deleted_item)
 
-        return items
+        unique_items = []
+        seen_ids = set()
+        for item in items:
+            if id(item) not in seen_ids:
+                seen_ids.add(id(item))
+                unique_items.append(item)
+
+        return unique_items
 
     def add_mirrored_item(self, mirrored_item):
         self.__mirror_items.append(mirrored_item)

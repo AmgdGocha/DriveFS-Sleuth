@@ -98,7 +98,11 @@ class Account:
 
     def _construct_synced_files_trees(self):
         parent_relationships = get_parent_relationships(self.__profile_path)
+        if not parent_relationships:
+            return
         root_info = get_item_info(self.__profile_path, parent_relationships[0][0])
+        if not root_info:
+            return
         root = Directory(root_info[1], root_info[2], root_info[3], root_info[4], root_info[5], root_info[6],
                          root_info[7], root_info[8], root_info[9],
                          get_item_properties(self.__profile_path, root_info[1]), root_info[3], root_info[10])
@@ -175,13 +179,14 @@ class Account:
                                 target_info = get_item_info(self.__profile_path, target_stable_id)
                                 if target_info:
                                     if target_info[0] == 0:
+                                        target_properties = get_item_properties(self.__profile_path, target_info[1])
                                         content_cache_path = get_file_content_cache_path(
-                                            child_properties.get('content-entry', None), content_caches_paths)
+                                            target_properties.get('content-entry', None), content_caches_paths)
                                         thumbnail_path = thumbnails_paths.get(str(target_info[1]), '')
                                         target = File(target_info[1], target_info[2], target_info[3], target_info[4],
                                                       target_info[5], target_info[6], target_info[7], target_info[8],
                                                       target_info[9],
-                                                      get_item_properties(self.__profile_path, target_info[1]),
+                                                      target_properties,
                                                       f'{current_parent_dir.tree_path}\\{target_info[3]}',
                                                       content_cache_path, thumbnail_path, target_info[10])
                                         if content_cache_path:
@@ -212,16 +217,19 @@ class Account:
                                          f'{current_parent_dir.tree_path}\\{child_info[3]}', target, child_info[10])
                     else:
                         child = orphan_dirs.get(child_id, None)
-                        if child:
+                        if child is not None:
                             child.tree_path = f'{current_parent_dir.tree_path}\\{child.local_title}'
                             del orphan_dirs[child_id]
                         else:
-                            child = Directory(child_info[1], child_info[2], child_info[3], child_info[4], child_info[5],
-                                              child_info[6], child_info[7], child_info[8], child_info[9],
-                                              child_properties,
-                                              f'{current_parent_dir.tree_path}\\{child_info[3]}', child_info[10])
+                            child = added_dirs.get(child_id, None)
+                            if child is None:
+                                child = Directory(child_info[1], child_info[2], child_info[3], child_info[4],
+                                                  child_info[5], child_info[6], child_info[7], child_info[8],
+                                                  child_info[9], child_properties,
+                                                  f'{current_parent_dir.tree_path}\\{child_info[3]}', child_info[10])
 
-                    added_dirs[child_id] = child
+                    if isinstance(child, Directory):
+                        added_dirs[child_id] = child
                     current_parent_dir.add_item(child)
                     if child_info[9] == 1:
                         self.__synced_files_tree.add_recovered_deleted_item(child)
@@ -279,7 +287,7 @@ class Account:
             parsed_buf = parse_protobuf(deleted_item[1])
             properties = {}
             for index, props in parsed_buf.items():
-                if index == '55' or index.startswith('55-'):
+                if index == '55' or str(index).startswith('55-'):
                     for prop in props:
                         if isinstance(prop, dict):
                             properties[prop['1']] = prop[[key for key in prop.keys() if key != '1'][0]]
@@ -297,7 +305,9 @@ class Account:
                 target_item = None
                 target_info = parsed_buf.get('132', None)
                 if target_info:
-                    target_item = self.__synced_files_tree.get_item_by_id(target_info['2'])
+                    target_item = self.__synced_files_tree.get_item_by_id(target_info.get('2'))
+                if target_item is None:
+                    target_item = DummyItem('-1')
                 self.__synced_files_tree.add_recovered_deleted_item(
                     Link(deleted_item[0], parsed_buf.get('1', ''), parsed_buf.get('3', ''), parsed_buf.get('4', ''),
                          parsed_buf.get('63', 0), parsed_buf.get('14', 0), parsed_buf.get('11', 0),
@@ -320,10 +330,14 @@ class Account:
                     self.__synced_files_tree.add_thumbnail_item(recovered_file)
 
 
-class Setup:
+class Investigation:
     def __init__(self, drivefs_path, accounts=None):
         self.__drivefs_path = drivefs_path
-        self.__last_sync_date = datetime.datetime.fromtimestamp(get_last_sync(drivefs_path), datetime.timezone.utc)
+        last_sync = get_last_sync(drivefs_path)
+        if last_sync == -1:
+            self.__last_sync_date = None
+        else:
+            self.__last_sync_date = datetime.datetime.fromtimestamp(last_sync, datetime.timezone.utc)
         self.__max_root_ids = get_max_root_ids(drivefs_path)
         self.__last_pid = get_last_pid(drivefs_path)
         self.__connected_devices = []
@@ -335,7 +349,9 @@ class Setup:
                 "last_mount_point": connected_device[2],
                 "ignore": connected_device[4],
             }
-            if int(connected_device[3]) == -1:
+            if connected_device[3] is None:
+                device["capacity"] = None
+            elif int(connected_device[3]) == -1:
                 device["capacity"] = connected_device[3]
             else:
                 device["capacity"] = round(int(connected_device[3]) / 1e+9, 2)
@@ -365,6 +381,8 @@ class Setup:
 
         while not account_queue.empty():
             self.__accounts.append(account_queue.get())
+
+        self.__accounts.sort(key=lambda account: account.get_account_id())
 
     def __account_worker(self, queue, account_id, account_info):
         account = Account(self.__drivefs_path, account_id, account_info['email'], account_info['logged_in'],

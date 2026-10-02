@@ -18,7 +18,15 @@ def get_experiment_account_ids(drivefs_path):
         with sqlite3.connect(os.path.join(drivefs_path, "experiments.db")) as experiments_db:
             cursor = experiments_db.cursor()
             cursor.execute("SELECT value FROM PhenotypeValues WHERE key='account_ids'")
-            return re.findall(r'\d+', cursor.fetchall()[0][0].decode('utf-8'))
+            rows = cursor.fetchall()
+            if not rows:
+                return []
+            value = rows[0][0]
+            if isinstance(value, bytes):
+                value = value.decode('utf-8')
+            else:
+                value = str(value)
+            return re.findall(r'\d+', value)
     except sqlite3.OperationalError as e:
         return []
 
@@ -71,8 +79,9 @@ def get_item_info(profile_path, stable_id):
     try:
         with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
             cursor = metadata_sqlite_db.cursor()
-            cursor.execute(f"SELECT is_folder, stable_id, id, local_title, mime_type, is_owner, file_size, "
-                           f"modified_date, viewed_by_me_date, trashed, proto FROM items WHERE stable_id={stable_id}")
+            cursor.execute("SELECT is_folder, stable_id, id, local_title, mime_type, is_owner, file_size, "
+                           "modified_date, viewed_by_me_date, trashed, proto FROM items WHERE stable_id=?",
+                           (stable_id,))
             return cursor.fetchone()
     except sqlite3.OperationalError:
         return ()
@@ -83,7 +92,13 @@ def get_last_sync(drivefs_path):
         with sqlite3.connect(os.path.join(drivefs_path, "experiments.db")) as experiments_db:
             cursor = experiments_db.cursor()
             cursor.execute("SELECT value FROM PhenotypeValues WHERE key='last_sync'")
-            return int(cursor.fetchone()[0])
+            row = cursor.fetchone()
+            if row is None:
+                return -1
+            try:
+                return int(row[0])
+            except (TypeError, ValueError):
+                return -1
     except sqlite3.OperationalError:
         return -1
 
@@ -91,7 +106,7 @@ def get_last_sync(drivefs_path):
 def get_last_pid(drivefs_path):
     try:
         with open(os.path.join(drivefs_path, 'pid.txt')) as pid_file:
-            return pid_file.read()
+            return pid_file.read().strip()
     except OSError:
         return -1
 
@@ -124,7 +139,7 @@ def get_mirroring_roots_for_account(drivefs_path, account_id):
         with sqlite3.connect(os.path.join(drivefs_path, "root_preference_sqlite.db")) as root_preference_db:
             cursor = root_preference_db.cursor()
             cursor.execute("SELECT account_token, root_id, media_id, title, root_path, sync_type, destination, "
-                           f"last_seen_absolute_path FROM roots WHERE account_token=\"{account_id}\"")
+                           "last_seen_absolute_path FROM roots WHERE account_token=?", (account_id,))
             return cursor.fetchall()
     except sqlite3.OperationalError:
         return []
@@ -134,7 +149,7 @@ def get_item_properties(profile_path, item_id):
     try:
         with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
             cursor = metadata_sqlite_db.cursor()
-            cursor.execute(f"SELECT key, value FROM item_properties WHERE item_stable_id={item_id}")
+            cursor.execute("SELECT key, value FROM item_properties WHERE item_stable_id=?", (item_id,))
             item_properties = {}
             for item_property in cursor.fetchall():
                 item_properties[item_property[0]] = item_property[1]
@@ -147,8 +162,8 @@ def get_target_stable_id(profile_path, shortcut_stable_id):
     try:
         with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
             cursor = metadata_sqlite_db.cursor()
-            cursor.execute(f"SELECT target_stable_id FROM shortcut_details "
-                           f"WHERE shortcut_stable_id={shortcut_stable_id}")
+            cursor.execute("SELECT target_stable_id FROM shortcut_details "
+                           "WHERE shortcut_stable_id=?", (shortcut_stable_id,))
             shortcut_stable_id = cursor.fetchone()
             if shortcut_stable_id:
                 return int(shortcut_stable_id[0])
@@ -201,7 +216,10 @@ def parse_protobuf(protobuf):
     if not protobuf:
         return {}
 
-    return blackboxprotobuf.decode_message(protobuf)[0]
+    try:
+        return blackboxprotobuf.decode_message(protobuf)[0]
+    except Exception:
+        return {}
 
 
 def get_account_properties(profile_path):
@@ -239,6 +257,9 @@ def get_account_properties(profile_path):
     except TypeError:
         return properties
 
+    except (KeyError, AttributeError):
+        return properties
+
     return properties
 
 
@@ -257,7 +278,7 @@ def get_content_caches_paths(content_cache_dir):
 
     for root, _, content_caches in os.walk(content_cache_dir):
         for content_cache in content_caches:
-            content_caches_paths[content_cache] = os.path.abspath(os.path.join(root, content_cache))
+            content_caches_paths.setdefault(content_cache, os.path.abspath(os.path.join(root, content_cache)))
 
     content_caches_paths.pop('chunks.db', None)
     content_caches_paths.pop('chunks.db-shm', None)
@@ -271,7 +292,7 @@ def get_thumbnails_paths(thumbnails_dir):
 
     for root, _, thumbnails in os.walk(thumbnails_dir):
         for thumbnail in thumbnails:
-            thumbnails_paths[thumbnail] = os.path.abspath(os.path.join(root, thumbnail))
+            thumbnails_paths.setdefault(thumbnail, os.path.abspath(os.path.join(root, thumbnail)))
 
     thumbnails_paths.pop('chunks.db', None)
     thumbnails_paths.pop('chunks.db-shm', None)
@@ -283,7 +304,11 @@ def get_thumbnails_paths(thumbnails_dir):
 def get_file_content_cache_path(content_entry, content_caches_paths):
     if content_entry:
         parsed_content_entry = parse_protobuf(content_entry)
-        content_entry_filename = str(parsed_content_entry['1'])
+        content_entry_filename = parsed_content_entry.get('1', '')
+        if isinstance(content_entry_filename, bytes):
+            content_entry_filename = content_entry_filename.decode('utf-8', errors='replace')
+        else:
+            content_entry_filename = str(content_entry_filename)
         return content_caches_paths.get(content_entry_filename, '')
     return ''
 
@@ -295,4 +320,13 @@ def copy_file(file_path, dest_filename, recovery_path=''):
     if not os.path.exists(recovery_path):
         os.makedirs(recovery_path)
 
-    shutil.copy2(file_path, os.path.join(recovery_path, dest_filename))
+    dest_filename = re.sub(r'[<>:"/\\|?*]', '_', str(dest_filename or 'recovered_item'))
+    dest_path = os.path.join(recovery_path, dest_filename)
+
+    basename, extension = os.path.splitext(dest_filename)
+    counter = 1
+    while os.path.exists(dest_path):
+        dest_path = os.path.join(recovery_path, f'{basename} ({counter}){extension}')
+        counter += 1
+
+    shutil.copy2(file_path, dest_path)
