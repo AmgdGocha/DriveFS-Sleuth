@@ -187,6 +187,13 @@ python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.
 python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.csv --recover-search-results --csv -o C:\analysis_results
 ```
 
+# 🧪 Testing
+DriveFS Sleuth ships with a unit test suite built entirely on synthetic, privacy-safe fixtures — no real data is required or used. The fixtures are generated in code by `tests/builders.py` using placeholder values (example.com emails, fake account ids, "Test User" names), and `tests/test_no_pii.py` guards against accidental personal data.
+
+```commandline
+python3 -m unittest discover -s tests -v
+```
+
 # 📰 Featured At:
 * [SANS FOR500: Windows Forensic Analysis Course - Feb 21, 2024 Update](https://www.sans.org/blog/whats-new-in-for500-windows-forensic-analysis/)
 * [This Week In 4N6 - Week 52 - 2023](https://thisweekin4n6.com/2023/12/24/week-52-2023/)
