@@ -84,6 +84,12 @@ def execute():
         version=f"%(prog)s {__version__}",
     )
 
+    arg_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Print the full traceback when an unexpected error occurs.",
+    )
+
     searching_group = arg_parser.add_argument_group("Searching Arguments")
 
     searching_group.add_argument(
@@ -181,6 +187,21 @@ def execute():
     args = arg_parser.parse_args()
 
     drivefs_path = os.path.abspath(args.path)
+
+    if not os.path.exists(drivefs_path):
+        arg_parser.print_usage()
+        print(
+            f"DriveFS Sleuth: error: The provided path doesn't exist: {drivefs_path}"
+        )
+        arg_parser.exit(2)
+
+    if not os.path.isdir(drivefs_path):
+        arg_parser.print_usage()
+        print(
+            f"DriveFS Sleuth: error: The provided path is not a directory: {drivefs_path}"
+        )
+        arg_parser.exit(2)
+
     if args.exact and not args.query_by_name:
         arg_parser.print_usage()
         print(
@@ -225,276 +246,317 @@ def execute():
         f"\n{__get_status_emoji('🔄', '[...]')} Processing Path: {drivefs_path}... [IN PROGRESS]"
     )
 
-    investigation = Investigation(drivefs_path, args.accounts)
+    try:
+        investigation = Investigation(drivefs_path, args.accounts)
 
-    search_results = {}
-    searching_criteria = []
-    if args.search_csv:
-        print(
-            f"\n{__get_status_emoji('📂', '[LOADING]')} Loading searching criteria from CSV: {args.search_csv}... [LOADED {__get_status_emoji('✅', '✔')}]"
-        )
-
-        try:
-            with open(args.search_csv, "r", encoding="utf-8") as search_csv_file:
-                for criteria in csv.DictReader(search_csv_file):
-                    if not criteria.get("TYPE") or not criteria.get("TARGET"):
-                        raise AttributeError
-                    if criteria["TYPE"].lower() == "md5":
-                        searching_criteria.append(
-                            {"TYPE": "md5", "TARGET": [criteria["TARGET"]]}
-                        )
-                    elif criteria["TYPE"].lower() == "urlid":
-                        if (criteria["LIST_SUB_ITEMS"] or "true").lower() == "false":
-                            searching_criteria.append(
-                                {
-                                    "TYPE": "urlid",
-                                    "TARGET": [criteria["TARGET"]],
-                                    "LIST_SUB_ITEMS": False,
-                                }
-                            )
-                        else:
-                            searching_criteria.append(
-                                {
-                                    "TYPE": "urlid",
-                                    "TARGET": [criteria["TARGET"]],
-                                    "LIST_SUB_ITEMS": True,
-                                }
-                            )
-                    elif criteria["TYPE"].lower() == "regex":
-                        if (criteria["LIST_SUB_ITEMS"] or "true").lower() == "false":
-                            searching_criteria.append(
-                                {
-                                    "TYPE": "regex",
-                                    "TARGET": [criteria["TARGET"]],
-                                    "LIST_SUB_ITEMS": False,
-                                }
-                            )
-                        else:
-                            searching_criteria.append(
-                                {
-                                    "TYPE": "regex",
-                                    "TARGET": [criteria["TARGET"]],
-                                    "LIST_SUB_ITEMS": True,
-                                }
-                            )
-                    else:
-                        if (criteria["CONTAINS"] or "true").lower() == "false":
-                            if (
-                                criteria["LIST_SUB_ITEMS"] or "true"
-                            ).lower() == "false":
-                                searching_criteria.append(
-                                    {
-                                        "TYPE": "filename",
-                                        "TARGET": [criteria["TARGET"]],
-                                        "CONTAINS": False,
-                                        "LIST_SUB_ITEMS": False,
-                                    }
-                                )
-                            else:
-                                searching_criteria.append(
-                                    {
-                                        "TYPE": "filename",
-                                        "TARGET": [criteria["TARGET"]],
-                                        "CONTAINS": False,
-                                        "LIST_SUB_ITEMS": True,
-                                    }
-                                )
-                        else:
-                            if (
-                                criteria["LIST_SUB_ITEMS"] or "true"
-                            ).lower() == "false":
-                                searching_criteria.append(
-                                    {
-                                        "TYPE": "filename",
-                                        "TARGET": [criteria["TARGET"]],
-                                        "CONTAINS": True,
-                                        "LIST_SUB_ITEMS": False,
-                                    }
-                                )
-                            else:
-                                searching_criteria.append(
-                                    {
-                                        "TYPE": "filename",
-                                        "TARGET": [criteria["TARGET"]],
-                                        "CONTAINS": True,
-                                        "LIST_SUB_ITEMS": True,
-                                    }
-                                )
-        except (AttributeError, KeyError):
+        search_results = {}
+        searching_criteria = []
+        if args.search_csv:
             print(
-                "Searching CSV file should be formated as follows:\n"
-                "\t- The Head should be TYPE,TARGET,CONTAINS,LIST_SUB_ITEMS (case sensitive), "
-                "where the values should be as follows:\n"
-                "\t- TYPE: [md5|filename|regex|urlid] (case insensitive)\n"
-                "\t- TARGET: the value to be searched. (case sensitive for regex only)\n"
-                "\t- CONTAINS: [True|False] (case insensitive)\n"
-                "\t- LIST_SUB_ITEMS: [True|False] (case insensitive)"
+                f"\n{__get_status_emoji('📂', '[LOADING]')} Loading searching criteria from CSV: {args.search_csv}... [LOADED {__get_status_emoji('✅', '✔')}]"
             )
-            arg_parser.exit(2)
 
-    if args.query_by_name:
-        if args.exact:
+            try:
+                with open(args.search_csv, "r", encoding="utf-8") as search_csv_file:
+                    for criteria in csv.DictReader(search_csv_file):
+                        if not criteria.get("TYPE") or not criteria.get("TARGET"):
+                            raise AttributeError
+                        if criteria["TYPE"].lower() == "md5":
+                            searching_criteria.append(
+                                {"TYPE": "md5", "TARGET": [criteria["TARGET"]]}
+                            )
+                        elif criteria["TYPE"].lower() == "urlid":
+                            if (criteria["LIST_SUB_ITEMS"] or "true").lower() == "false":
+                                searching_criteria.append(
+                                    {
+                                        "TYPE": "urlid",
+                                        "TARGET": [criteria["TARGET"]],
+                                        "LIST_SUB_ITEMS": False,
+                                    }
+                                )
+                            else:
+                                searching_criteria.append(
+                                    {
+                                        "TYPE": "urlid",
+                                        "TARGET": [criteria["TARGET"]],
+                                        "LIST_SUB_ITEMS": True,
+                                    }
+                                )
+                        elif criteria["TYPE"].lower() == "regex":
+                            if (criteria["LIST_SUB_ITEMS"] or "true").lower() == "false":
+                                searching_criteria.append(
+                                    {
+                                        "TYPE": "regex",
+                                        "TARGET": [criteria["TARGET"]],
+                                        "LIST_SUB_ITEMS": False,
+                                    }
+                                )
+                            else:
+                                searching_criteria.append(
+                                    {
+                                        "TYPE": "regex",
+                                        "TARGET": [criteria["TARGET"]],
+                                        "LIST_SUB_ITEMS": True,
+                                    }
+                                )
+                        else:
+                            if (criteria["CONTAINS"] or "true").lower() == "false":
+                                if (
+                                    criteria["LIST_SUB_ITEMS"] or "true"
+                                ).lower() == "false":
+                                    searching_criteria.append(
+                                        {
+                                            "TYPE": "filename",
+                                            "TARGET": [criteria["TARGET"]],
+                                            "CONTAINS": False,
+                                            "LIST_SUB_ITEMS": False,
+                                        }
+                                    )
+                                else:
+                                    searching_criteria.append(
+                                        {
+                                            "TYPE": "filename",
+                                            "TARGET": [criteria["TARGET"]],
+                                            "CONTAINS": False,
+                                            "LIST_SUB_ITEMS": True,
+                                        }
+                                    )
+                            else:
+                                if (
+                                    criteria["LIST_SUB_ITEMS"] or "true"
+                                ).lower() == "false":
+                                    searching_criteria.append(
+                                        {
+                                            "TYPE": "filename",
+                                            "TARGET": [criteria["TARGET"]],
+                                            "CONTAINS": True,
+                                            "LIST_SUB_ITEMS": False,
+                                        }
+                                    )
+                                else:
+                                    searching_criteria.append(
+                                        {
+                                            "TYPE": "filename",
+                                            "TARGET": [criteria["TARGET"]],
+                                            "CONTAINS": True,
+                                            "LIST_SUB_ITEMS": True,
+                                        }
+                                    )
+            except (AttributeError, KeyError):
+                print(
+                    "Searching CSV file should be formated as follows:\n"
+                    "\t- The Head should be TYPE,TARGET,CONTAINS,LIST_SUB_ITEMS (case sensitive), "
+                    "where the values should be as follows:\n"
+                    "\t- TYPE: [md5|filename|regex|urlid] (case insensitive)\n"
+                    "\t- TARGET: the value to be searched. (case sensitive for regex only)\n"
+                    "\t- CONTAINS: [True|False] (case insensitive)\n"
+                    "\t- LIST_SUB_ITEMS: [True|False] (case insensitive)"
+                )
+                arg_parser.exit(2)
+            except (OSError, UnicodeDecodeError, csv.Error):
+                print(
+                    f"DriveFS Sleuth: error: couldn't read the searching criteria CSV file: {args.search_csv}"
+                )
+                arg_parser.exit(2)
+
+        if args.query_by_name:
+            if args.exact:
+                if args.list_sub_items:
+                    searching_criteria.append(
+                        {
+                            "TYPE": "filename",
+                            "TARGET": args.query_by_name,
+                            "CONTAINS": False,
+                            "LIST_SUB_ITEMS": True,
+                        }
+                    )
+                else:
+                    searching_criteria.append(
+                        {
+                            "TYPE": "filename",
+                            "TARGET": args.query_by_name,
+                            "CONTAINS": False,
+                            "LIST_SUB_ITEMS": False,
+                        }
+                    )
+            else:
+                if args.list_sub_items:
+                    searching_criteria.append(
+                        {
+                            "TYPE": "filename",
+                            "TARGET": args.query_by_name,
+                            "CONTAINS": True,
+                            "LIST_SUB_ITEMS": True,
+                        }
+                    )
+                else:
+                    searching_criteria.append(
+                        {
+                            "TYPE": "filename",
+                            "TARGET": args.query_by_name,
+                            "CONTAINS": True,
+                            "LIST_SUB_ITEMS": False,
+                        }
+                    )
+
+        if args.regex:
             if args.list_sub_items:
                 searching_criteria.append(
-                    {
-                        "TYPE": "filename",
-                        "TARGET": args.query_by_name,
-                        "CONTAINS": False,
-                        "LIST_SUB_ITEMS": True,
-                    }
+                    {"TYPE": "regex", "TARGET": args.regex, "LIST_SUB_ITEMS": True}
                 )
             else:
                 searching_criteria.append(
-                    {
-                        "TYPE": "filename",
-                        "TARGET": args.query_by_name,
-                        "CONTAINS": False,
-                        "LIST_SUB_ITEMS": False,
-                    }
+                    {"TYPE": "regex", "TARGET": args.regex, "LIST_SUB_ITEMS": False}
                 )
-        else:
+
+        if args.md5:
+            searching_criteria.append({"TYPE": "md5", "TARGET": args.md5})
+
+        if args.url_id:
             if args.list_sub_items:
                 searching_criteria.append(
-                    {
-                        "TYPE": "filename",
-                        "TARGET": args.query_by_name,
-                        "CONTAINS": True,
-                        "LIST_SUB_ITEMS": True,
-                    }
+                    {"TYPE": "urlid", "TARGET": args.url_id, "LIST_SUB_ITEMS": True}
                 )
             else:
                 searching_criteria.append(
-                    {
-                        "TYPE": "filename",
-                        "TARGET": args.query_by_name,
-                        "CONTAINS": True,
-                        "LIST_SUB_ITEMS": False,
-                    }
+                    {"TYPE": "urlid", "TARGET": args.url_id, "LIST_SUB_ITEMS": False}
                 )
 
-    if args.regex:
-        if args.list_sub_items:
-            searching_criteria.append(
-                {"TYPE": "regex", "TARGET": args.regex, "LIST_SUB_ITEMS": True}
-            )
-        else:
-            searching_criteria.append(
-                {"TYPE": "regex", "TARGET": args.regex, "LIST_SUB_ITEMS": False}
-            )
-
-    if args.md5:
-        searching_criteria.append({"TYPE": "md5", "TARGET": args.md5})
-
-    if args.url_id:
-        if args.list_sub_items:
-            searching_criteria.append(
-                {"TYPE": "urlid", "TARGET": args.url_id, "LIST_SUB_ITEMS": True}
-            )
-        else:
-            searching_criteria.append(
-                {"TYPE": "urlid", "TARGET": args.url_id, "LIST_SUB_ITEMS": False}
-            )
-
-    print(f"{__get_status_emoji('🔍', '[SEARCHING]')} Searching... [IN PROGRESS]")
-
-    if searching_criteria:
-        for account in investigation.get_accounts():
-            if not account.is_logged_in():
+        for criteria in searching_criteria:
+            if criteria["TYPE"] != "regex":
                 continue
-            synced_files_tree = account.get_synced_files_tree()
-            if not synced_files_tree:
-                continue
-            result = synced_files_tree.search(searching_criteria)
-            if result:
-                if account.get_account_id() not in search_results:
-                    search_results[account.get_account_id()] = []
-                search_results[account.get_account_id()] += result
+            for target in criteria["TARGET"]:
+                try:
+                    re.compile(target)
+                except re.error:
+                    arg_parser.print_usage()
+                    print(f"DriveFS Sleuth: error: Invalid regular expression: {target}")
+                    arg_parser.exit(2)
 
-    print(f"\n{__get_status_emoji('🛠️', '[GENERATING]')} Generating reports:")
-    if args.html:
-        html_output_path = os.path.join(args.output, "html_report.html")
-        print(
-            f"    {__get_status_emoji('📝', '[HTML]')} Generating HTML report: {html_output_path}... [DONE {__get_status_emoji('✅', '✔')}]"
-        )
-        generate_html_report(investigation, html_output_path, search_results)
+        print(f"{__get_status_emoji('🔍', '[SEARCHING]')} Searching... [IN PROGRESS]")
 
-    if args.csv:
-        csv_output_path = os.path.join(args.output, "csv_report.csv")
-        print(
-            f"    {__get_status_emoji('📊', '[CSV]')} Generating a CSV report: {csv_output_path}... [DONE {__get_status_emoji('✅', '✔')}]"
-        )
-        generate_csv_report(investigation, csv_output_path, search_results)
-
-    if args.recover_from_cache:
-        recovery_from_cache_path = os.path.join(args.output, "recovery")
-        if not os.path.exists(recovery_from_cache_path):
-            os.mkdir(recovery_from_cache_path)
-        print(
-            f"\n{__get_status_emoji('♻️', '[RECOVERY]')} Recovering from cache into: {recovery_from_cache_path}... [IN PROGRESS]"
-        )
-        for account in investigation.get_accounts():
-            if account.is_logged_in():
-                acc_recovery_from_cache_path = os.path.join(
-                    recovery_from_cache_path,
-                    __safe_dirname(account.get_name(), account.get_account_id()),
-                )
-                acc_thumbnails_path = os.path.join(
-                    acc_recovery_from_cache_path, "thumbnails"
-                )
-                if not os.path.exists(acc_recovery_from_cache_path):
-                    os.mkdir(acc_recovery_from_cache_path)
-                if not os.path.exists(acc_thumbnails_path):
-                    os.mkdir(acc_thumbnails_path)
+        if searching_criteria:
+            for account in investigation.get_accounts():
+                if not account.is_logged_in():
+                    continue
                 synced_files_tree = account.get_synced_files_tree()
                 if not synced_files_tree:
                     continue
-                recover_from_content_cache(
-                    synced_files_tree.get_recoverable_items_from_cache(),
-                    acc_recovery_from_cache_path,
-                )
-                recover_thumbnail(
-                    synced_files_tree.get_thumbnail_items(), acc_thumbnails_path
-                )
-    elif args.recover_search_results:
-        if not search_results.values():
-            print(
-                "[+] Can't recover any items as there is no results available, you may need to consider modifying"
-                " the searching criteria or using the --recover-from-cache option to recover all the cached items."
-            )
-        else:
-            search_recovery_results_path = os.path.join(
-                args.output, "search_results_recovery"
-            )
-            if not os.path.exists(search_recovery_results_path):
-                os.mkdir(search_recovery_results_path)
-            print(
-                f"\n{__get_status_emoji('♻️', '[RECOVERY]')} Recovering search results from cache into: {search_recovery_results_path}... [IN PROGRESS]"
-            )
-            for account_id in search_results:
-                account_email = next(
-                    (
-                        acc.get_account_email()
-                        for acc in investigation.get_accounts()
-                        if acc.get_account_id() == account_id
-                    ),
-                    account_id,
-                )
-                acc_search_recovery_results_path = os.path.join(
-                    search_recovery_results_path,
-                    __safe_dirname(account_email, account_id),
-                )
-                acc_thumbnails_path = os.path.join(
-                    acc_search_recovery_results_path, "thumbnails"
-                )
-                if not os.path.exists(acc_search_recovery_results_path):
-                    os.mkdir(acc_search_recovery_results_path)
-                if not os.path.exists(acc_thumbnails_path):
-                    os.mkdir(acc_thumbnails_path)
-                recover_from_content_cache(
-                    search_results[account_id], acc_search_recovery_results_path
-                )
-                recover_thumbnail(search_results[account_id], acc_thumbnails_path)
+                result = synced_files_tree.search(searching_criteria)
+                if result:
+                    if account.get_account_id() not in search_results:
+                        search_results[account.get_account_id()] = []
+                    search_results[account.get_account_id()] += result
 
-    print(
-        f"\n{__get_status_emoji('🎉', '[FINISH]')} DriveFS Sleuth completed the process."
-    )
+        print(f"\n{__get_status_emoji('🛠️', '[GENERATING]')} Generating reports:")
+        if args.html:
+            html_output_path = os.path.join(args.output, "html_report.html")
+            print(
+                f"    {__get_status_emoji('📝', '[HTML]')} Generating HTML report: {html_output_path}... [DONE {__get_status_emoji('✅', '✔')}]"
+            )
+            generate_html_report(investigation, html_output_path, search_results)
+
+        if args.csv:
+            csv_output_path = os.path.join(args.output, "csv_report.csv")
+            print(
+                f"    {__get_status_emoji('📊', '[CSV]')} Generating a CSV report: {csv_output_path}... [DONE {__get_status_emoji('✅', '✔')}]"
+            )
+            generate_csv_report(investigation, csv_output_path, search_results)
+
+        if args.recover_from_cache:
+            recovery_from_cache_path = os.path.join(args.output, "recovery")
+            try:
+                os.makedirs(recovery_from_cache_path, exist_ok=True)
+            except OSError as e:
+                print(
+                    f"[WARNING] Couldn't create the recovery directory {recovery_from_cache_path}: {e}"
+                )
+            else:
+                print(
+                    f"\n{__get_status_emoji('♻️', '[RECOVERY]')} Recovering from cache into: {recovery_from_cache_path}... [IN PROGRESS]"
+                )
+            for account in investigation.get_accounts():
+                if not account.is_logged_in():
+                    continue
+                synced_files_tree = account.get_synced_files_tree()
+                if not synced_files_tree:
+                    continue
+                try:
+                    acc_recovery_from_cache_path = os.path.join(
+                        recovery_from_cache_path,
+                        __safe_dirname(account.get_name(), account.get_account_id()),
+                    )
+                    acc_thumbnails_path = os.path.join(
+                        acc_recovery_from_cache_path, "thumbnails"
+                    )
+                    os.makedirs(acc_recovery_from_cache_path, exist_ok=True)
+                    os.makedirs(acc_thumbnails_path, exist_ok=True)
+                    recover_from_content_cache(
+                        synced_files_tree.get_recoverable_items_from_cache(),
+                        acc_recovery_from_cache_path,
+                    )
+                    recover_thumbnail(
+                        synced_files_tree.get_thumbnail_items(), acc_thumbnails_path
+                    )
+                except OSError as e:
+                    print(
+                        f"[WARNING] Couldn't recover cached items for account {account.get_account_id()}: {e}"
+                    )
+        elif args.recover_search_results:
+            if not search_results.values():
+                print(
+                    "[+] Can't recover any items as there is no results available, you may need to consider modifying"
+                    " the searching criteria or using the --recover-from-cache option to recover all the cached items."
+                )
+            else:
+                search_recovery_results_path = os.path.join(
+                    args.output, "search_results_recovery"
+                )
+                try:
+                    os.makedirs(search_recovery_results_path, exist_ok=True)
+                except OSError as e:
+                    print(
+                        f"[WARNING] Couldn't create the recovery directory {search_recovery_results_path}: {e}"
+                    )
+                else:
+                    print(
+                        f"\n{__get_status_emoji('♻️', '[RECOVERY]')} Recovering search results from cache into: {search_recovery_results_path}... [IN PROGRESS]"
+                    )
+                for account_id in search_results:
+                    try:
+                        account_email = next(
+                            (
+                                acc.get_account_email()
+                                for acc in investigation.get_accounts()
+                                if acc.get_account_id() == account_id
+                            ),
+                            account_id,
+                        )
+                        acc_search_recovery_results_path = os.path.join(
+                            search_recovery_results_path,
+                            __safe_dirname(account_email, account_id),
+                        )
+                        acc_thumbnails_path = os.path.join(
+                            acc_search_recovery_results_path, "thumbnails"
+                        )
+                        os.makedirs(acc_search_recovery_results_path, exist_ok=True)
+                        os.makedirs(acc_thumbnails_path, exist_ok=True)
+                        recover_from_content_cache(
+                            search_results[account_id], acc_search_recovery_results_path
+                        )
+                        recover_thumbnail(search_results[account_id], acc_thumbnails_path)
+                    except OSError as e:
+                        print(
+                            f"[WARNING] Couldn't recover search results for account {account_id}: {e}"
+                        )
+
+        print(
+            f"\n{__get_status_emoji('🎉', '[FINISH]')} DriveFS Sleuth completed the process."
+        )
+    except SystemExit:
+        raise
+    except Exception as e:
+        if args.debug:
+            raise
+        print(f"DriveFS Sleuth: error: {e}")
+        arg_parser.exit(1)

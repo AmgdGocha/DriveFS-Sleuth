@@ -60,7 +60,7 @@ pip install -r requirements.txt
 ## 🧑‍💻 DriveFS Sleuth Usage
 ```commandline
 usage: DriveFS Sleuth [-h] -o OUTPUT [--accounts ACCOUNTS [ACCOUNTS ...]]
-                      [--version] [--regex REGEX [REGEX ...]]
+                      [--version] [--debug] [--regex REGEX [REGEX ...]]
                       [-q QUERY_BY_NAME [QUERY_BY_NAME ...]]
                       [--md5 MD5 [MD5 ...]] [--url-id URL_ID [URL_ID ...]]
                       [--search-csv SEARCH_CSV] [--exact]
@@ -93,6 +93,7 @@ options:
   --accounts ACCOUNTS [ACCOUNTS ...]
                         Specifies account id/s or emails separated by space to be processed, defaults to all the accounts.
   --version             show program's version number and exit
+  --debug               Print the full traceback when an unexpected error occurs.
 
 Searching Arguments:
   --regex REGEX [REGEX ...]
@@ -185,13 +186,6 @@ python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.
 * Processing a triage passing a CSV file that contains the searching criteria, outputting a CSV report, and recover the search results from the content cache.
 ```commandline
 python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.csv --recover-search-results --csv -o C:\analysis_results
-```
-
-# 🧪 Testing
-DriveFS Sleuth ships with a unit test suite built entirely on synthetic, privacy-safe fixtures — no real data is required or used. The fixtures are generated in code by `tests/builders.py` using placeholder values (example.com emails, fake account ids, "Test User" names), and `tests/test_no_pii.py` guards against accidental personal data.
-
-```commandline
-python3 -m unittest discover -s tests -v
 ```
 
 # 📰 Featured At:

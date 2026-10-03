@@ -50,7 +50,8 @@ def __build_headers(investigation):
 def __generate_csv_search_results_report(investigation, output_file, search_results):
     search_results_headers = ['account_id', 'email'] + __build_headers(investigation)
     with open(output_file, 'w', encoding='utf-8', newline='') as search_results_csv_file:
-        csv_writer = csv.DictWriter(search_results_csv_file, fieldnames=search_results_headers)
+        csv_writer = csv.DictWriter(search_results_csv_file, fieldnames=search_results_headers,
+                                    extrasaction='ignore')
         csv_writer.writeheader()
         for account_id, results in search_results.items():
             account_email = next(
@@ -75,7 +76,7 @@ def __generate_csv_search_results_report(investigation, output_file, search_resu
 def __generate_csv_report_gen(investigation, output_file):
     headers = ['account_id', 'email'] + __build_headers(investigation)
     with open(output_file, 'w', encoding='utf-8', newline='') as csv_report_file:
-        csv_writer = csv.DictWriter(csv_report_file, fieldnames=headers)
+        csv_writer = csv.DictWriter(csv_report_file, fieldnames=headers, extrasaction='ignore')
         csv_writer.writeheader()
 
         for account in investigation.get_accounts():
@@ -120,19 +121,25 @@ def recover_from_content_cache(recoverable_items, recovery_path):
     for item in recoverable_items:
         if isinstance(item, File):
             if item.get_content_cache_path():
-                copy_file(
+                if not copy_file(
                     item.get_content_cache_path(),
                     item.local_title,
                     recovery_path
-                )
+                ):
+                    print(
+                        f"[WARNING] Couldn't recover {item.local_title} from cache: {item.get_content_cache_path()}"
+                    )
 
 
 def recover_thumbnail(recoverable_items, recovery_path):
     for item in recoverable_items:
         if isinstance(item, File):
             if item.get_thumbnail_path():
-                copy_file(
+                if not copy_file(
                     item.get_thumbnail_path(),
                     item.local_title,
                     recovery_path
-                )
+                ):
+                    print(
+                        f"[WARNING] Couldn't recover thumbnail {item.local_title}: {item.get_thumbnail_path()}"
+                    )
