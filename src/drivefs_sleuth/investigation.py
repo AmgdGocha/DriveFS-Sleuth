@@ -44,6 +44,12 @@ class StorageDestinations(Enum):
     PHOTOS = "PHOTOS"
 
 
+def _to_str(value):
+    if isinstance(value, bytes):
+        return value.decode('utf-8', errors='replace')
+    return str(value or '')
+
+
 class Account:
     def __init__(self, drivefs_path, account_id, email, is_logged_in, mirroring_roots, properties):
         self.__profile_path = os.path.join(drivefs_path, account_id)
@@ -121,6 +127,18 @@ class Account:
         added_dirs = {self.__synced_files_tree.get_root().get_stable_id(): self.__synced_files_tree.get_root()}
         orphan_dirs = {}
         current_parent_dir = self.__synced_files_tree.get_root()
+        root_stable_id = self.__synced_files_tree.get_root().get_stable_id()
+        ancestors_of = {root_stable_id: set()}
+
+        def __record_ancestors(child_id):
+            child_ancestors = set(ancestors_of.get(current_parent_dir.get_stable_id(), set()))
+            child_ancestors.add(current_parent_dir.get_stable_id())
+            ancestors_of[child_id] = child_ancestors
+
+        def __is_cycle(child_id):
+            if child_id == root_stable_id:
+                return True
+            return current_parent_dir.get_stable_id() in ancestors_of.get(child_id, set())
 
         for parent_id, childs_ids in parent_relationships_dict.items():
 
@@ -142,6 +160,7 @@ class Account:
                         if parent_info[9] == 1:
                             self.__synced_files_tree.add_recovered_deleted_item(current_parent_dir)
                         orphan_dirs[parent_id] = current_parent_dir
+                        ancestors_of[parent_id] = set()
 
             for child_id in childs_ids:
                 child_info = get_item_info(self.__profile_path, child_id)
@@ -172,8 +191,12 @@ class Account:
                         if target_stable_id:
                             target = orphan_dirs.get(target_stable_id, None)
                             if target:
-                                added_dirs[target_stable_id] = target
-                                del orphan_dirs[target_stable_id]
+                                if __is_cycle(target_stable_id):
+                                    target = DummyItem(target_stable_id)
+                                else:
+                                    added_dirs[target_stable_id] = target
+                                    del orphan_dirs[target_stable_id]
+                                    __record_ancestors(target_stable_id)
 
                             else:
                                 target_info = get_item_info(self.__profile_path, target_stable_id)
@@ -201,6 +224,7 @@ class Account:
                                                            f'{current_parent_dir.tree_path}\\{target_info[3]}',
                                                            target_info[10])
                                         added_dirs[target_stable_id] = target
+                                        __record_ancestors(target_stable_id)
                                         if target_info[9] == 1:
                                             self.__synced_files_tree.add_recovered_deleted_item(target)
                                 else:
@@ -218,15 +242,24 @@ class Account:
                     else:
                         child = orphan_dirs.get(child_id, None)
                         if child is not None:
+                            if __is_cycle(child_id):
+                                self.__synced_files_tree.add_deleted_item(DummyItem(child_id))
+                                continue
                             child.tree_path = f'{current_parent_dir.tree_path}\\{child.local_title}'
                             del orphan_dirs[child_id]
+                            __record_ancestors(child_id)
                         else:
                             child = added_dirs.get(child_id, None)
-                            if child is None:
+                            if child is not None:
+                                if __is_cycle(child_id):
+                                    self.__synced_files_tree.add_deleted_item(DummyItem(child_id))
+                                    continue
+                            else:
                                 child = Directory(child_info[1], child_info[2], child_info[3], child_info[4],
                                                   child_info[5], child_info[6], child_info[7], child_info[8],
                                                   child_info[9], child_properties,
                                                   f'{current_parent_dir.tree_path}\\{child_info[3]}', child_info[10])
+                                __record_ancestors(child_id)
 
                     if isinstance(child, Directory):
                         added_dirs[child_id] = child
@@ -288,40 +321,48 @@ class Account:
             properties = {}
             for index, props in parsed_buf.items():
                 if index == '55' or str(index).startswith('55-'):
+                    if not isinstance(props, list):
+                        continue
                     for prop in props:
-                        if isinstance(prop, dict):
-                            properties[prop['1']] = prop[[key for key in prop.keys() if key != '1'][0]]
-                        elif isinstance(prop, list):
+                        if isinstance(prop, list):
                             for p in prop:
-                                properties[p['1']] = p[[key for key in p.keys() if key != '1'][0]]
-            if parsed_buf['4'] == 'application/vnd.google-apps.folder':
+                                if isinstance(p, dict):
+                                    value_keys = [key for key in p.keys() if key != '1']
+                                    if '1' in p and value_keys:
+                                        properties[_to_str(p['1'])] = p[value_keys[0]]
+                        elif isinstance(prop, dict):
+                            value_keys = [key for key in prop.keys() if key != '1']
+                            if '1' in prop and value_keys:
+                                properties[_to_str(prop['1'])] = prop[value_keys[0]]
+            deleted_mime_type = _to_str(parsed_buf.get('4', ''))
+            if deleted_mime_type == 'application/vnd.google-apps.folder':
                 self.__synced_files_tree.add_recovered_deleted_item(
-                    Directory(deleted_item[0], parsed_buf.get('1', ''), parsed_buf.get('3', ''),
+                    Directory(deleted_item[0], parsed_buf.get('1', ''), _to_str(parsed_buf.get('3', '')),
                               parsed_buf.get('4', ''), parsed_buf.get('63', 0), parsed_buf.get('14', 0),
                               parsed_buf.get('11', 0), parsed_buf.get('13', 0), parsed_buf.get('7', 1),
-                              properties, parsed_buf.get('3', ''), deleted_item[1])
+                              properties, _to_str(parsed_buf.get('3', '')), deleted_item[1])
                 )
-            elif parsed_buf['4'] == 'application/vnd.google-apps.shortcut':
+            elif deleted_mime_type == 'application/vnd.google-apps.shortcut':
                 target_item = None
                 target_info = parsed_buf.get('132', None)
-                if target_info:
+                if isinstance(target_info, dict):
                     target_item = self.__synced_files_tree.get_item_by_id(target_info.get('2'))
                 if target_item is None:
                     target_item = DummyItem('-1')
                 self.__synced_files_tree.add_recovered_deleted_item(
-                    Link(deleted_item[0], parsed_buf.get('1', ''), parsed_buf.get('3', ''), parsed_buf.get('4', ''),
-                         parsed_buf.get('63', 0), parsed_buf.get('14', 0), parsed_buf.get('11', 0),
-                         parsed_buf.get('13', 0), parsed_buf.get('7', 1), properties, parsed_buf.get('3', ''),
-                         target_item, deleted_item[1])
+                    Link(deleted_item[0], parsed_buf.get('1', ''), _to_str(parsed_buf.get('3', '')),
+                         parsed_buf.get('4', ''), parsed_buf.get('63', 0), parsed_buf.get('14', 0),
+                         parsed_buf.get('11', 0), parsed_buf.get('13', 0), parsed_buf.get('7', 1), properties,
+                         _to_str(parsed_buf.get('3', '')), target_item, deleted_item[1])
                 )
             else:
                 content_cache_path = get_file_content_cache_path(
                     properties.get('content-entry', None), content_caches_paths)
                 thumbnail_path = thumbnails_paths.get(str(deleted_item[0]), '')
-                recovered_file = File(deleted_item[0], parsed_buf.get('1', ''), parsed_buf.get('3', ''),
+                recovered_file = File(deleted_item[0], parsed_buf.get('1', ''), _to_str(parsed_buf.get('3', '')),
                                       parsed_buf.get('4', ''), parsed_buf.get('63', 0), parsed_buf.get('14', 0),
                                       parsed_buf.get('11', 0), parsed_buf.get('13', 0), parsed_buf.get('7', 1),
-                                      properties, parsed_buf.get('3', ''), content_cache_path, thumbnail_path,
+                                      properties, _to_str(parsed_buf.get('3', '')), content_cache_path, thumbnail_path,
                                       deleted_item[1])
                 self.__synced_files_tree.add_recovered_deleted_item(recovered_file)
                 if content_cache_path:
@@ -337,7 +378,10 @@ class Investigation:
         if last_sync == -1:
             self.__last_sync_date = None
         else:
-            self.__last_sync_date = datetime.datetime.fromtimestamp(last_sync, datetime.timezone.utc)
+            try:
+                self.__last_sync_date = datetime.datetime.fromtimestamp(last_sync, datetime.timezone.utc)
+            except (OSError, OverflowError, ValueError):
+                self.__last_sync_date = None
         self.__max_root_ids = get_max_root_ids(drivefs_path)
         self.__last_pid = get_last_pid(drivefs_path)
         self.__connected_devices = []
@@ -351,10 +395,16 @@ class Investigation:
             }
             if connected_device[3] is None:
                 device["capacity"] = None
-            elif int(connected_device[3]) == -1:
-                device["capacity"] = connected_device[3]
             else:
-                device["capacity"] = round(int(connected_device[3]) / 1e+9, 2)
+                try:
+                    capacity = int(connected_device[3])
+                except (TypeError, ValueError):
+                    device["capacity"] = connected_device[3]
+                else:
+                    if capacity == -1:
+                        device["capacity"] = connected_device[3]
+                    else:
+                        device["capacity"] = round(capacity / 1e+9, 2)
 
             self.__connected_devices.append(device)
 
@@ -380,14 +430,22 @@ class Investigation:
             thread.join()
 
         while not account_queue.empty():
-            self.__accounts.append(account_queue.get())
+            account_id, account, error = account_queue.get()
+            if error is None:
+                self.__accounts.append(account)
+            else:
+                print(f"[WARNING] Failed to process account {account_id}: {error}")
 
         self.__accounts.sort(key=lambda account: account.get_account_id())
 
     def __account_worker(self, queue, account_id, account_info):
-        account = Account(self.__drivefs_path, account_id, account_info['email'], account_info['logged_in'],
-                          get_mirroring_roots_for_account(self.__drivefs_path, account_id), account_info['properties'])
-        queue.put(account)
+        try:
+            account = Account(self.__drivefs_path, account_id, account_info['email'], account_info['logged_in'],
+                              get_mirroring_roots_for_account(self.__drivefs_path, account_id),
+                              account_info['properties'])
+            queue.put((account_id, account, None))
+        except Exception as e:
+            queue.put((account_id, None, e))
 
     def get_drivefs_path(self):
         return self.__drivefs_path

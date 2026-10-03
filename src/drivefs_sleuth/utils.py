@@ -9,13 +9,78 @@ import re
 import os
 import shutil
 import sqlite3
+import tempfile
+from pathlib import Path
 
 import blackboxprotobuf
 
 
+class _TempDatabaseConnection:
+    def __init__(self, connection, temp_dir):
+        self.__connection = connection
+        self.__temp_dir = temp_dir
+
+    def cursor(self):
+        return self.__connection.cursor()
+
+    def close(self):
+        self.__connection.close()
+        shutil.rmtree(self.__temp_dir, ignore_errors=True)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+
+def __is_wal_database(db_path):
+    try:
+        with open(db_path, "rb") as db_file:
+            header = db_file.read(20)
+            if len(header) < 20 or header[:16] != b"SQLite format 3\x00":
+                return False
+            return header[18] == 2
+    except OSError:
+        return False
+
+
+def __connect_read_only(db_path):
+    if not os.path.exists(db_path):
+        raise sqlite3.OperationalError(f"database file not found: {db_path}")
+    db_uri = Path(os.path.abspath(db_path)).as_uri()
+    wal_path = db_path + "-wal"
+    shm_path = db_path + "-shm"
+
+    if __is_wal_database(db_path):
+        if os.path.exists(shm_path):
+            return sqlite3.connect(db_uri + "?mode=ro", uri=True)
+        if os.path.exists(wal_path) and os.path.getsize(wal_path) > 0:
+            temp_dir = tempfile.mkdtemp()
+            temp_db = os.path.join(temp_dir, "db")
+            try:
+                shutil.copy2(db_path, temp_db)
+                shutil.copy2(wal_path, temp_db + "-wal")
+                connection = sqlite3.connect(
+                    Path(os.path.abspath(temp_db)).as_uri() + "?mode=ro", uri=True
+                )
+            except (sqlite3.Error, OSError):
+                shutil.rmtree(temp_dir, ignore_errors=True)
+                connection = sqlite3.connect(db_uri + "?mode=ro&immutable=1", uri=True)
+            else:
+                return _TempDatabaseConnection(connection, temp_dir)
+            return connection
+        return sqlite3.connect(db_uri + "?mode=ro&immutable=1", uri=True)
+
+    try:
+        return sqlite3.connect(db_uri + "?mode=ro", uri=True)
+    except sqlite3.Error:
+        return sqlite3.connect(db_uri + "?mode=ro&immutable=1", uri=True)
+
+
 def get_experiment_account_ids(drivefs_path):
     try:
-        with sqlite3.connect(os.path.join(drivefs_path, "experiments.db")) as experiments_db:
+        with __connect_read_only(os.path.join(drivefs_path, "experiments.db")) as experiments_db:
             cursor = experiments_db.cursor()
             cursor.execute("SELECT value FROM PhenotypeValues WHERE key='account_ids'")
             rows = cursor.fetchall()
@@ -23,11 +88,11 @@ def get_experiment_account_ids(drivefs_path):
                 return []
             value = rows[0][0]
             if isinstance(value, bytes):
-                value = value.decode('utf-8')
+                value = value.decode('utf-8', errors='replace')
             else:
                 value = str(value)
             return re.findall(r'\d+', value)
-    except sqlite3.OperationalError as e:
+    except sqlite3.Error as e:
         return []
 
 
@@ -44,52 +109,55 @@ def lookup_account_id(drivefs_path, account_id):
     for _, _, files in os.walk(logs_dir):
         for file in files:
             if file.startswith("drive_fs") and file.endswith(".txt"):
-                with open(os.path.join(logs_dir, file), 'r', encoding="utf8") as logs_file:
-                    logs = logs_file.read()
-                    match = re.search(r"([\w\.-]+@[\w\.-]+\.\w+) \(" + account_id + r"\)", logs)
-                    if match:
-                        return match.group(1)
+                try:
+                    with open(os.path.join(logs_dir, file), 'r', encoding="utf8", errors="replace") as logs_file:
+                        logs = logs_file.read()
+                        match = re.search(r"([\w\.-]+@[\w\.-]+\.\w+) \(" + account_id + r"\)", logs)
+                        if match:
+                            return match.group(1)
+                except OSError:
+                    continue
     return ''
 
 
 def get_synced_files(profile_path):
     try:
-        with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+        with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
             cursor = metadata_sqlite_db.cursor()
             cursor.execute("SELECT is_folder, stable_id, local_title, mime_type, is_owner, file_size, modified_date, "
                            "viewed_by_me_date, trashed, proto FROM items")
             return cursor.fetchall()
-    except sqlite3.OperationalError:
+    except sqlite3.Error:
         return []
 
 
 def get_parent_relationships(profile_path):
     try:
-        with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+        with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
             cursor = metadata_sqlite_db.cursor()
             cursor.execute(
                 "SELECT parent_stable_id, item_stable_id FROM stable_parents ORDER BY parent_stable_id, item_stable_id"
             )
             return cursor.fetchall()
-    except sqlite3.OperationalError:
+    except sqlite3.Error:
         return []
 
 
 def get_item_info(profile_path, stable_id):
     try:
-        with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+        with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
             cursor = metadata_sqlite_db.cursor()
             cursor.execute("SELECT is_folder, stable_id, id, local_title, mime_type, is_owner, file_size, "
                            "modified_date, viewed_by_me_date, trashed, proto FROM items WHERE stable_id=?",
                            (stable_id,))
             return cursor.fetchone()
-    except sqlite3.OperationalError:
+    except sqlite3.Error:
         return ()
 
 
 def get_last_sync(drivefs_path):
     try:
-        with sqlite3.connect(os.path.join(drivefs_path, "experiments.db")) as experiments_db:
+        with __connect_read_only(os.path.join(drivefs_path, "experiments.db")) as experiments_db:
             cursor = experiments_db.cursor()
             cursor.execute("SELECT value FROM PhenotypeValues WHERE key='last_sync'")
             row = cursor.fetchone()
@@ -99,7 +167,7 @@ def get_last_sync(drivefs_path):
                 return int(row[0])
             except (TypeError, ValueError):
                 return -1
-    except sqlite3.OperationalError:
+    except sqlite3.Error:
         return -1
 
 
@@ -113,68 +181,74 @@ def get_last_pid(drivefs_path):
 
 def get_connected_devices(drivefs_path):
     try:
-        with sqlite3.connect(os.path.join(drivefs_path, "root_preference_sqlite.db")) as root_preference_db:
+        with __connect_read_only(os.path.join(drivefs_path, "root_preference_sqlite.db")) as root_preference_db:
             cursor = root_preference_db.cursor()
             cursor.execute("SELECT media_id, name, last_mount_point, capacity, ignored FROM media")
             return cursor.fetchall()
-    except sqlite3.OperationalError:
+    except sqlite3.Error:
         return []
 
 
 def get_max_root_ids(drivefs_path):
     try:
-        with sqlite3.connect(os.path.join(drivefs_path, "root_preference_sqlite.db")) as root_preference_db:
+        with __connect_read_only(os.path.join(drivefs_path, "root_preference_sqlite.db")) as root_preference_db:
             cursor = root_preference_db.cursor()
             cursor.execute("SELECT value FROM max_ids WHERE id_type='max_root_id'")
             max_root_ids = cursor.fetchone()
             if max_root_ids:
-                return int(max_root_ids[0])
+                try:
+                    return int(max_root_ids[0])
+                except (TypeError, ValueError):
+                    return None
             return None
-    except sqlite3.OperationalError:
+    except sqlite3.Error:
         return None
 
 
 def get_mirroring_roots_for_account(drivefs_path, account_id):
     try:
-        with sqlite3.connect(os.path.join(drivefs_path, "root_preference_sqlite.db")) as root_preference_db:
+        with __connect_read_only(os.path.join(drivefs_path, "root_preference_sqlite.db")) as root_preference_db:
             cursor = root_preference_db.cursor()
             cursor.execute("SELECT account_token, root_id, media_id, title, root_path, sync_type, destination, "
                            "last_seen_absolute_path FROM roots WHERE account_token=?", (account_id,))
             return cursor.fetchall()
-    except sqlite3.OperationalError:
+    except sqlite3.Error:
         return []
 
 
 def get_item_properties(profile_path, item_id):
     try:
-        with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+        with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
             cursor = metadata_sqlite_db.cursor()
             cursor.execute("SELECT key, value FROM item_properties WHERE item_stable_id=?", (item_id,))
             item_properties = {}
             for item_property in cursor.fetchall():
                 item_properties[item_property[0]] = item_property[1]
             return item_properties
-    except sqlite3.OperationalError:
+    except sqlite3.Error:
         return {}
 
 
 def get_target_stable_id(profile_path, shortcut_stable_id):
     try:
-        with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+        with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
             cursor = metadata_sqlite_db.cursor()
             cursor.execute("SELECT target_stable_id FROM shortcut_details "
                            "WHERE shortcut_stable_id=?", (shortcut_stable_id,))
             shortcut_stable_id = cursor.fetchone()
             if shortcut_stable_id:
-                return int(shortcut_stable_id[0])
+                try:
+                    return int(shortcut_stable_id[0])
+                except (TypeError, ValueError):
+                    return 0
             return 0
-    except sqlite3.OperationalError:
+    except sqlite3.Error:
         return 0
 
 
 def get_shared_with_me_without_link(profile_path):
     try:
-        with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+        with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
             cursor = metadata_sqlite_db.cursor()
             cursor.execute("SELECT is_folder, stable_id, id, local_title, mime_type, is_owner, file_size, modified_date"
                            ", viewed_by_me_date, trashed, proto FROM items "
@@ -185,30 +259,30 @@ def get_shared_with_me_without_link(profile_path):
                            "AND shortcut_details.target_stable_id IS NULL "
                            "ORDER BY items.stable_id")
             return cursor.fetchall()
-    except sqlite3.OperationalError:
+    except sqlite3.Error:
         return []
 
 
 def get_properties_list(profile_path):
     try:
-        with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+        with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
             cursor = metadata_sqlite_db.cursor()
             cursor.execute("SELECT DISTINCT key FROM item_properties")
             return [prop[0] for prop in cursor.fetchall()]
-    except sqlite3.OperationalError:
+    except sqlite3.Error:
         return []
 
 
 def get_mirrored_items(profile_path):
     try:
-        with sqlite3.connect(os.path.join(profile_path, "mirror_sqlite.db")) as mirror_sqlite_db:
+        with __connect_read_only(os.path.join(profile_path, "mirror_sqlite.db")) as mirror_sqlite_db:
             cursor = mirror_sqlite_db.cursor()
             cursor.execute("SELECT local_stable_id, stable_id, volume, parent_local_stable_id, local_filename, "
                            "cloud_filename, local_mtime_ms, cloud_mtime_ms, local_md5_checksum, cloud_md5_checksum,"
                            "local_size, cloud_size, local_version, cloud_version, shared, read_only, is_root "
                            "FROM mirror_item")
             return cursor.fetchall()
-    except sqlite3.OperationalError:
+    except sqlite3.Error:
         return []
 
 
@@ -229,7 +303,7 @@ def get_account_properties(profile_path):
     }
     try:
         try:
-            with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+            with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
                 cursor = metadata_sqlite_db.cursor()
                 cursor.execute("SELECT value FROM properties WHERE property = 'driveway_account'")
 
@@ -239,9 +313,9 @@ def get_account_properties(profile_path):
                     properties['name'] = name
                 properties['photo_url'] = driveway_account['2']['1']['5']
 
-        except sqlite3.OperationalError:
+        except sqlite3.Error:
             try:
-                with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+                with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
                     cursor = metadata_sqlite_db.cursor()
                     cursor.execute("SELECT value FROM properties WHERE property = 'account'")
 
@@ -251,7 +325,7 @@ def get_account_properties(profile_path):
                         properties['name'] = name
                     properties['photo_url'] = account['1']['5']
 
-            except sqlite3.OperationalError:
+            except sqlite3.Error:
                 return properties
 
     except TypeError:
@@ -265,11 +339,11 @@ def get_account_properties(profile_path):
 
 def get_deleted_items(profile_path):
     try:
-        with sqlite3.connect(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+        with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
             cursor = metadata_sqlite_db.cursor()
             cursor.execute("SELECT stable_id, proto FROM deleted_items")
             return cursor.fetchall()
-    except sqlite3.OperationalError:
+    except sqlite3.Error:
         return []
 
 
@@ -307,8 +381,8 @@ def get_file_content_cache_path(content_entry, content_caches_paths):
         content_entry_filename = parsed_content_entry.get('1', '')
         if isinstance(content_entry_filename, bytes):
             content_entry_filename = content_entry_filename.decode('utf-8', errors='replace')
-        else:
-            content_entry_filename = str(content_entry_filename)
+        elif not isinstance(content_entry_filename, str):
+            return ''
         return content_caches_paths.get(content_entry_filename, '')
     return ''
 
@@ -317,16 +391,20 @@ def copy_file(file_path, dest_filename, recovery_path=''):
     if not recovery_path:
         recovery_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'recovered_items')
 
-    if not os.path.exists(recovery_path):
-        os.makedirs(recovery_path)
-
     dest_filename = re.sub(r'[<>:"/\\|?*]', '_', str(dest_filename or 'recovered_item'))
     dest_path = os.path.join(recovery_path, dest_filename)
 
-    basename, extension = os.path.splitext(dest_filename)
-    counter = 1
-    while os.path.exists(dest_path):
-        dest_path = os.path.join(recovery_path, f'{basename} ({counter}){extension}')
-        counter += 1
+    try:
+        if not os.path.exists(recovery_path):
+            os.makedirs(recovery_path)
 
-    shutil.copy2(file_path, dest_path)
+        basename, extension = os.path.splitext(dest_filename)
+        counter = 1
+        while os.path.exists(dest_path):
+            dest_path = os.path.join(recovery_path, f'{basename} ({counter}){extension}')
+            counter += 1
+
+        shutil.copy2(file_path, dest_path)
+    except OSError:
+        return False
+    return True

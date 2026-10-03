@@ -42,17 +42,26 @@ class Item:
     def get_modified_date_utc(self):
         if self.modified_date in (None, ''):
             return None
-        return datetime.datetime.fromtimestamp(int(self.modified_date)/1000.0, datetime.timezone.utc)
+        try:
+            return datetime.datetime.fromtimestamp(int(self.modified_date)/1000.0, datetime.timezone.utc)
+        except (OSError, OverflowError, ValueError, TypeError):
+            return None
 
     def get_viewed_by_me_date_utc(self):
         if self.viewed_by_me_date in (None, ''):
             return None
-        return datetime.datetime.fromtimestamp(int(self.viewed_by_me_date)/1000.0, datetime.timezone.utc)
+        try:
+            return datetime.datetime.fromtimestamp(int(self.viewed_by_me_date)/1000.0, datetime.timezone.utc)
+        except (OSError, OverflowError, ValueError, TypeError):
+            return None
 
     def get_file_size_mb(self):
         if self.file_size in (None, ''):
             return None
-        return round(int(self.file_size) / 1e+6, 2)
+        try:
+            return round(int(self.file_size) / 1e+6, 2)
+        except (TypeError, ValueError):
+            return None
 
     def to_dict(self):
         item_dict = {
@@ -129,6 +138,8 @@ class Link(Item):
         self.__target_item = target_item
 
     def get_target_item(self):
+        if self.__target_item is None:
+            return DummyItem('-1')
         return self.__target_item
 
 
@@ -157,12 +168,18 @@ class MirrorItem:
     def get_local_mtime_utc(self):
         if self.local_mtime in (None, ''):
             return None
-        return datetime.datetime.fromtimestamp(int(self.local_mtime)/1000.0, datetime.timezone.utc)
+        try:
+            return datetime.datetime.fromtimestamp(int(self.local_mtime)/1000.0, datetime.timezone.utc)
+        except (OSError, OverflowError, ValueError, TypeError):
+            return None
 
     def get_cloud_mtime_utc(self):
         if self.cloud_mtime in (None, ''):
             return None
-        return datetime.datetime.fromtimestamp(int(self.cloud_mtime)/1000.0, datetime.timezone.utc)
+        try:
+            return datetime.datetime.fromtimestamp(int(self.cloud_mtime)/1000.0, datetime.timezone.utc)
+        except (OSError, OverflowError, ValueError, TypeError):
+            return None
 
 
 class SyncedFilesTree:
@@ -273,7 +290,7 @@ class SyncedFilesTree:
                             add_sub_items(current_item)
 
             for condition in [(target.lower(), c['LIST_SUB_ITEMS']) for c in conditions if c['TYPE'] == 'urlid' for target in c['TARGET']]:
-                if current_item.url_id and condition[0] == current_item.url_id.lower():
+                if current_item.url_id and condition[0] == str(current_item.url_id).lower():
                     items.append(current_item)
                     if condition[1]:
                         add_sub_items(current_item)
