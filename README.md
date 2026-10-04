@@ -188,6 +188,11 @@ python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.
 python3 drivefs_sleuth.py C:\triage_path\DriveFS --search-csv search_conditions.csv --recover-search-results --csv -o C:\analysis_results
 ```
 
+## ⚡ Performance Notes
+* DriveFS Sleuth bulk-loads each account's metadata databases into memory with a single read-only pass, so processing time scales with the number of synced items rather than with the number of files on disk. A ~33K-item triage processes in roughly one minute on a local disk.
+* For the fastest results, run the analysis from a local disk (or copy the triage to one) instead of a network mount or a slow virtual-machine shared folder (e.g. WSL2's `/mnt/c`), which can add large per-syscall overheads.
+* Evidence is never modified during analysis: all database reads are read-only and no files are created inside the investigated folder.
+
 # 📰 Featured At:
 * [SANS FOR500: Windows Forensic Analysis Course - Feb 21, 2024 Update](https://www.sans.org/blog/whats-new-in-for500-windows-forensic-analysis/)
 * [This Week In 4N6 - Week 52 - 2023](https://thisweekin4n6.com/2023/12/24/week-52-2023/)

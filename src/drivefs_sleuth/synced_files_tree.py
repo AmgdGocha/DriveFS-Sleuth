@@ -25,7 +25,14 @@ class Item:
         self.trashed = trashed
         self.properties = properties
         self.tree_path = tree_path
-        self.md5 = parse_protobuf(proto).get('48', '')
+        self.__parsed_proto = parse_protobuf(proto)
+        self.md5 = self.__parsed_proto.get('48', '')
+
+    def _get_proto_field(self, field):
+        return self.__parsed_proto.get(field, '')
+
+    def _release_proto(self):
+        self.__parsed_proto = {}
 
     def get_stable_id(self):
         return self.__stable_id
@@ -91,7 +98,8 @@ class File(Item):
 
         self.__content_cache_path = content_cache_path
         self.__thumbnail_path = thumbnail_path
-        self.__file_type = parse_protobuf(proto).get('45', '')
+        self.__file_type = self._get_proto_field('45')
+        self._release_proto()
 
     def get_content_cache_path(self):
         return self.__content_cache_path
@@ -109,6 +117,7 @@ class Directory(Item):
         super().__init__(stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date,
                          viewed_by_me_date, trashed, properties, tree_path, proto)
         self.__sub_items = []
+        self._release_proto()
 
     def add_item(self, item):
         self.__sub_items.append(item)
@@ -125,6 +134,7 @@ class Directory(Item):
 class DummyItem(Item):
     def __init__(self, stable_id):
         super().__init__(stable_id, '', 'DELETED_ITEM', '', '', '', '', '', '', '', 'DELETED_ITEM', '')
+        self._release_proto()
 
     def get_sub_items(self):
         return []
@@ -136,6 +146,7 @@ class Link(Item):
         super().__init__(stable_id, url_id, local_title, mime_type, is_owner, file_size, modified_date,
                          viewed_by_me_date, trashed, properties, tree_path, proto)
         self.__target_item = target_item
+        self._release_proto()
 
     def get_target_item(self):
         if self.__target_item is None:
@@ -246,6 +257,20 @@ class SyncedFilesTree:
     def search(self, conditions):
         items = []
 
+        regex_conditions = [
+            (re.compile(target), c['LIST_SUB_ITEMS'])
+            for c in conditions if c['TYPE'] == 'regex' for target in c['TARGET']
+        ]
+        urlid_conditions = [
+            (target.lower(), c['LIST_SUB_ITEMS'])
+            for c in conditions if c['TYPE'] == 'urlid' for target in c['TARGET']
+        ]
+        filename_conditions = [
+            (target.lower(), c['LIST_SUB_ITEMS'], c['CONTAINS'])
+            for c in conditions if c['TYPE'] == 'filename' for target in c['TARGET']
+        ]
+        md5_conditions = [target.lower() for c in conditions if c['TYPE'] == 'md5' for target in c['TARGET']]
+
         def append_item_childes(item):
             items.append(item)
             if isinstance(item, File):
@@ -281,21 +306,21 @@ class SyncedFilesTree:
                     append_item_childes(sub_item)
 
         def __search(current_item):
-            for condition in [(target, c['LIST_SUB_ITEMS']) for c in conditions if c['TYPE'] == 'regex' for target in c['TARGET']]:
+            for condition in regex_conditions:
                 if current_item.local_title:
-                    match = re.search(condition[0], current_item.local_title)
+                    match = condition[0].search(current_item.local_title)
                     if match:
                         items.append(current_item)
                         if condition[1]:
                             add_sub_items(current_item)
 
-            for condition in [(target.lower(), c['LIST_SUB_ITEMS']) for c in conditions if c['TYPE'] == 'urlid' for target in c['TARGET']]:
+            for condition in urlid_conditions:
                 if current_item.url_id and condition[0] == str(current_item.url_id).lower():
                     items.append(current_item)
                     if condition[1]:
                         add_sub_items(current_item)
 
-            for condition in [(target.lower(), c['LIST_SUB_ITEMS'], c['CONTAINS']) for c in conditions if c['TYPE'] == 'filename' for target in c['TARGET']]:
+            for condition in filename_conditions:
                 if current_item.local_title:
                     if condition[2]:
                         if condition[0] in current_item.local_title.lower():
@@ -308,7 +333,7 @@ class SyncedFilesTree:
                             if condition[1]:
                                 add_sub_items(current_item)
 
-            for condition in [target.lower() for c in conditions if c['TYPE'] == 'md5' for target in c['TARGET']]:
+            for condition in md5_conditions:
                 if isinstance(current_item, File):
                     if condition == (current_item.md5 or ''):
                         items.append(current_item)

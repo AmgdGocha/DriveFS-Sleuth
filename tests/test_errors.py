@@ -254,9 +254,13 @@ class CorruptArtifactsToleranceTestCase(unittest.TestCase):
         self.assertEqual(get_item_info(self.fixture.profile_path(), 1), ())
         self.assertEqual(get_item_properties(self.fixture.profile_path(), 1), {})
         self.assertEqual(get_deleted_items(self.fixture.profile_path()), [])
-        investigation = Investigation(self.fixture.drivefs_path)
+        with contextlib.redirect_stdout(io.StringIO()):
+            investigation = Investigation(self.fixture.drivefs_path)
         self.assertEqual(len(investigation.get_accounts()), 1)
         self.assertIsNone(investigation.get_accounts()[0].get_synced_files_tree())
+        self.assertEqual(investigation.get_accounts()[0].get_metadata_load_errors(),
+                         ["items", "stable_parents", "item_properties", "shortcut_details",
+                          "deleted_items", "shared_with_me"])
 
     def test_deleted_item_with_missing_mime_field_does_not_crash(self):
         value = {

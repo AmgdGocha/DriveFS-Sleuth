@@ -34,6 +34,14 @@ class _TempDatabaseConnection:
         self.close()
 
 
+def decode_utf8(value):
+    return value.decode('utf-8', errors='replace')
+
+
+def __text_factory(value):
+    return decode_utf8(value)
+
+
 def __is_wal_database(db_path):
     try:
         with open(db_path, "rb") as db_file:
@@ -45,7 +53,13 @@ def __is_wal_database(db_path):
         return False
 
 
-def __connect_read_only(db_path):
+def __open_read_only(db_uri):
+    connection = sqlite3.connect(db_uri, uri=True)
+    connection.text_factory = __text_factory
+    return connection
+
+
+def _connect_read_only(db_path):
     if not os.path.exists(db_path):
         raise sqlite3.OperationalError(f"database file not found: {db_path}")
     db_uri = Path(os.path.abspath(db_path)).as_uri()
@@ -54,33 +68,128 @@ def __connect_read_only(db_path):
 
     if __is_wal_database(db_path):
         if os.path.exists(shm_path):
-            return sqlite3.connect(db_uri + "?mode=ro", uri=True)
+            return __open_read_only(db_uri + "?mode=ro")
         if os.path.exists(wal_path) and os.path.getsize(wal_path) > 0:
             temp_dir = tempfile.mkdtemp()
             temp_db = os.path.join(temp_dir, "db")
             try:
                 shutil.copy2(db_path, temp_db)
                 shutil.copy2(wal_path, temp_db + "-wal")
-                connection = sqlite3.connect(
-                    Path(os.path.abspath(temp_db)).as_uri() + "?mode=ro", uri=True
-                )
+                connection = __open_read_only(Path(os.path.abspath(temp_db)).as_uri() + "?mode=ro")
             except (sqlite3.Error, OSError):
                 shutil.rmtree(temp_dir, ignore_errors=True)
-                connection = sqlite3.connect(db_uri + "?mode=ro&immutable=1", uri=True)
+                connection = __open_read_only(db_uri + "?mode=ro&immutable=1")
             else:
                 return _TempDatabaseConnection(connection, temp_dir)
             return connection
-        return sqlite3.connect(db_uri + "?mode=ro&immutable=1", uri=True)
+        return __open_read_only(db_uri + "?mode=ro&immutable=1")
 
     try:
-        return sqlite3.connect(db_uri + "?mode=ro", uri=True)
+        return __open_read_only(db_uri + "?mode=ro")
     except sqlite3.Error:
-        return sqlite3.connect(db_uri + "?mode=ro&immutable=1", uri=True)
+        return __open_read_only(db_uri + "?mode=ro&immutable=1")
+
+
+_SHARED_WITH_ME_QUERY = (
+    "SELECT is_folder, stable_id, id, local_title, mime_type, is_owner, file_size, modified_date, "
+    "viewed_by_me_date, trashed, proto FROM items "
+    "WHERE items.is_owner=0 AND items.shared_with_me_date=1 "
+    "AND NOT EXISTS (SELECT 1 FROM stable_parents sp WHERE sp.item_stable_id = items.stable_id) "
+    "AND NOT EXISTS (SELECT 1 FROM shortcut_details sd WHERE sd.target_stable_id = items.stable_id) "
+    "ORDER BY items.stable_id"
+)
+
+
+class ProfileMetadata:
+    def __init__(self, profile_path):
+        self.__items = {}
+        self.__parent_relationships = []
+        self.__item_properties = {}
+        self.__shortcut_targets = {}
+        self.__deleted_items = []
+        self.__shared_with_me = []
+        self.__load_errors = []
+        try:
+            metadata_sqlite_db = _connect_read_only(os.path.join(profile_path, "metadata_sqlite_db"))
+        except sqlite3.Error:
+            self.__load_errors.append('metadata_sqlite_db')
+            return
+        with metadata_sqlite_db:
+            cursor = metadata_sqlite_db.cursor()
+            try:
+                cursor.execute("SELECT is_folder, stable_id, id, local_title, mime_type, is_owner, file_size, "
+                               "modified_date, viewed_by_me_date, trashed, proto FROM items")
+                for item_info in cursor.fetchall():
+                    self.__items[item_info[1]] = item_info
+            except sqlite3.Error:
+                self.__load_errors.append('items')
+            try:
+                cursor.execute("SELECT parent_stable_id, item_stable_id FROM stable_parents "
+                               "ORDER BY parent_stable_id, item_stable_id")
+                self.__parent_relationships = cursor.fetchall()
+            except sqlite3.Error:
+                self.__load_errors.append('stable_parents')
+            try:
+                cursor.execute("SELECT item_stable_id, key, value FROM item_properties")
+                for item_stable_id, key, value in cursor.fetchall():
+                    self.__item_properties.setdefault(item_stable_id, {})[key] = value
+            except sqlite3.Error:
+                self.__load_errors.append('item_properties')
+            try:
+                cursor.execute("SELECT shortcut_stable_id, target_stable_id FROM shortcut_details")
+                self.__shortcut_targets = dict(cursor.fetchall())
+            except sqlite3.Error:
+                self.__load_errors.append('shortcut_details')
+            try:
+                cursor.execute("SELECT stable_id, proto FROM deleted_items")
+                self.__deleted_items = cursor.fetchall()
+            except sqlite3.Error:
+                self.__load_errors.append('deleted_items')
+            try:
+                cursor.execute(_SHARED_WITH_ME_QUERY)
+                self.__shared_with_me = cursor.fetchall()
+            except sqlite3.Error:
+                self.__load_errors.append('shared_with_me')
+
+    def __normalize_id(self, stable_id):
+        if stable_id in self.__items:
+            return stable_id
+        try:
+            return int(stable_id)
+        except (TypeError, ValueError):
+            return stable_id
+
+    def get_load_errors(self):
+        return list(self.__load_errors)
+
+    def get_item_info(self, stable_id):
+        return self.__items.get(self.__normalize_id(stable_id), ())
+
+    def get_parent_relationships(self):
+        return self.__parent_relationships
+
+    def get_item_properties(self, item_id):
+        return self.__item_properties.get(self.__normalize_id(item_id), {})
+
+    def get_target_stable_id(self, shortcut_stable_id):
+        target_stable_id = self.__shortcut_targets.get(self.__normalize_id(shortcut_stable_id))
+        if target_stable_id is None:
+            return 0
+        try:
+            return int(target_stable_id)
+        except (TypeError, ValueError):
+            return 0
+
+    def get_deleted_items(self):
+        return self.__deleted_items
+
+    def get_shared_with_me_without_link(self):
+        return self.__shared_with_me
 
 
 def get_experiment_account_ids(drivefs_path):
     try:
-        with __connect_read_only(os.path.join(drivefs_path, "experiments.db")) as experiments_db:
+        with _connect_read_only(os.path.join(drivefs_path, "experiments.db")) as experiments_db:
             cursor = experiments_db.cursor()
             cursor.execute("SELECT value FROM PhenotypeValues WHERE key='account_ids'")
             rows = cursor.fetchall()
@@ -122,7 +231,7 @@ def lookup_account_id(drivefs_path, account_id):
 
 def get_synced_files(profile_path):
     try:
-        with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+        with _connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
             cursor = metadata_sqlite_db.cursor()
             cursor.execute("SELECT is_folder, stable_id, local_title, mime_type, is_owner, file_size, modified_date, "
                            "viewed_by_me_date, trashed, proto FROM items")
@@ -133,7 +242,7 @@ def get_synced_files(profile_path):
 
 def get_parent_relationships(profile_path):
     try:
-        with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+        with _connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
             cursor = metadata_sqlite_db.cursor()
             cursor.execute(
                 "SELECT parent_stable_id, item_stable_id FROM stable_parents ORDER BY parent_stable_id, item_stable_id"
@@ -145,7 +254,7 @@ def get_parent_relationships(profile_path):
 
 def get_item_info(profile_path, stable_id):
     try:
-        with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+        with _connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
             cursor = metadata_sqlite_db.cursor()
             cursor.execute("SELECT is_folder, stable_id, id, local_title, mime_type, is_owner, file_size, "
                            "modified_date, viewed_by_me_date, trashed, proto FROM items WHERE stable_id=?",
@@ -157,7 +266,7 @@ def get_item_info(profile_path, stable_id):
 
 def get_last_sync(drivefs_path):
     try:
-        with __connect_read_only(os.path.join(drivefs_path, "experiments.db")) as experiments_db:
+        with _connect_read_only(os.path.join(drivefs_path, "experiments.db")) as experiments_db:
             cursor = experiments_db.cursor()
             cursor.execute("SELECT value FROM PhenotypeValues WHERE key='last_sync'")
             row = cursor.fetchone()
@@ -181,7 +290,7 @@ def get_last_pid(drivefs_path):
 
 def get_connected_devices(drivefs_path):
     try:
-        with __connect_read_only(os.path.join(drivefs_path, "root_preference_sqlite.db")) as root_preference_db:
+        with _connect_read_only(os.path.join(drivefs_path, "root_preference_sqlite.db")) as root_preference_db:
             cursor = root_preference_db.cursor()
             cursor.execute("SELECT media_id, name, last_mount_point, capacity, ignored FROM media")
             return cursor.fetchall()
@@ -191,7 +300,7 @@ def get_connected_devices(drivefs_path):
 
 def get_max_root_ids(drivefs_path):
     try:
-        with __connect_read_only(os.path.join(drivefs_path, "root_preference_sqlite.db")) as root_preference_db:
+        with _connect_read_only(os.path.join(drivefs_path, "root_preference_sqlite.db")) as root_preference_db:
             cursor = root_preference_db.cursor()
             cursor.execute("SELECT value FROM max_ids WHERE id_type='max_root_id'")
             max_root_ids = cursor.fetchone()
@@ -207,7 +316,7 @@ def get_max_root_ids(drivefs_path):
 
 def get_mirroring_roots_for_account(drivefs_path, account_id):
     try:
-        with __connect_read_only(os.path.join(drivefs_path, "root_preference_sqlite.db")) as root_preference_db:
+        with _connect_read_only(os.path.join(drivefs_path, "root_preference_sqlite.db")) as root_preference_db:
             cursor = root_preference_db.cursor()
             cursor.execute("SELECT account_token, root_id, media_id, title, root_path, sync_type, destination, "
                            "last_seen_absolute_path FROM roots WHERE account_token=?", (account_id,))
@@ -218,7 +327,7 @@ def get_mirroring_roots_for_account(drivefs_path, account_id):
 
 def get_item_properties(profile_path, item_id):
     try:
-        with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+        with _connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
             cursor = metadata_sqlite_db.cursor()
             cursor.execute("SELECT key, value FROM item_properties WHERE item_stable_id=?", (item_id,))
             item_properties = {}
@@ -231,7 +340,7 @@ def get_item_properties(profile_path, item_id):
 
 def get_target_stable_id(profile_path, shortcut_stable_id):
     try:
-        with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+        with _connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
             cursor = metadata_sqlite_db.cursor()
             cursor.execute("SELECT target_stable_id FROM shortcut_details "
                            "WHERE shortcut_stable_id=?", (shortcut_stable_id,))
@@ -248,16 +357,9 @@ def get_target_stable_id(profile_path, shortcut_stable_id):
 
 def get_shared_with_me_without_link(profile_path):
     try:
-        with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+        with _connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
             cursor = metadata_sqlite_db.cursor()
-            cursor.execute("SELECT is_folder, stable_id, id, local_title, mime_type, is_owner, file_size, modified_date"
-                           ", viewed_by_me_date, trashed, proto FROM items "
-                           "LEFT JOIN stable_parents ON items.stable_id = stable_parents.item_stable_id "
-                           "LEFT JOIN shortcut_details ON items.stable_id = shortcut_details.target_stable_id "
-                           "WHERE items.is_owner=0 AND items.shared_with_me_date=1 "
-                           "AND stable_parents.item_stable_id IS NULL "
-                           "AND shortcut_details.target_stable_id IS NULL "
-                           "ORDER BY items.stable_id")
+            cursor.execute(_SHARED_WITH_ME_QUERY)
             return cursor.fetchall()
     except sqlite3.Error:
         return []
@@ -265,7 +367,7 @@ def get_shared_with_me_without_link(profile_path):
 
 def get_properties_list(profile_path):
     try:
-        with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+        with _connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
             cursor = metadata_sqlite_db.cursor()
             cursor.execute("SELECT DISTINCT key FROM item_properties")
             return [prop[0] for prop in cursor.fetchall()]
@@ -275,7 +377,7 @@ def get_properties_list(profile_path):
 
 def get_mirrored_items(profile_path):
     try:
-        with __connect_read_only(os.path.join(profile_path, "mirror_sqlite.db")) as mirror_sqlite_db:
+        with _connect_read_only(os.path.join(profile_path, "mirror_sqlite.db")) as mirror_sqlite_db:
             cursor = mirror_sqlite_db.cursor()
             cursor.execute("SELECT local_stable_id, stable_id, volume, parent_local_stable_id, local_filename, "
                            "cloud_filename, local_mtime_ms, cloud_mtime_ms, local_md5_checksum, cloud_md5_checksum,"
@@ -303,7 +405,7 @@ def get_account_properties(profile_path):
     }
     try:
         try:
-            with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+            with _connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
                 cursor = metadata_sqlite_db.cursor()
                 cursor.execute("SELECT value FROM properties WHERE property = 'driveway_account'")
 
@@ -315,7 +417,7 @@ def get_account_properties(profile_path):
 
         except sqlite3.Error:
             try:
-                with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+                with _connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
                     cursor = metadata_sqlite_db.cursor()
                     cursor.execute("SELECT value FROM properties WHERE property = 'account'")
 
@@ -339,7 +441,7 @@ def get_account_properties(profile_path):
 
 def get_deleted_items(profile_path):
     try:
-        with __connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+        with _connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
             cursor = metadata_sqlite_db.cursor()
             cursor.execute("SELECT stable_id, proto FROM deleted_items")
             return cursor.fetchall()
@@ -347,12 +449,29 @@ def get_deleted_items(profile_path):
         return []
 
 
+def __collect_cache_paths(cache_dir, paths):
+    try:
+        entries = os.scandir(cache_dir)
+    except OSError:
+        return
+    subdirs = []
+    for entry in entries:
+        try:
+            is_dir = entry.is_dir(follow_symlinks=False)
+        except OSError:
+            is_dir = False
+        if is_dir:
+            subdirs.append(entry.path)
+        else:
+            paths.setdefault(entry.name, os.path.abspath(entry.path))
+    entries.close()
+    for subdir in subdirs:
+        __collect_cache_paths(subdir, paths)
+
+
 def get_content_caches_paths(content_cache_dir):
     content_caches_paths = {}
-
-    for root, _, content_caches in os.walk(content_cache_dir):
-        for content_cache in content_caches:
-            content_caches_paths.setdefault(content_cache, os.path.abspath(os.path.join(root, content_cache)))
+    __collect_cache_paths(content_cache_dir, content_caches_paths)
 
     content_caches_paths.pop('chunks.db', None)
     content_caches_paths.pop('chunks.db-shm', None)
@@ -363,10 +482,7 @@ def get_content_caches_paths(content_cache_dir):
 
 def get_thumbnails_paths(thumbnails_dir):
     thumbnails_paths = {}
-
-    for root, _, thumbnails in os.walk(thumbnails_dir):
-        for thumbnail in thumbnails:
-            thumbnails_paths.setdefault(thumbnail, os.path.abspath(os.path.join(root, thumbnail)))
+    __collect_cache_paths(thumbnails_dir, thumbnails_paths)
 
     thumbnails_paths.pop('chunks.db', None)
     thumbnails_paths.pop('chunks.db-shm', None)

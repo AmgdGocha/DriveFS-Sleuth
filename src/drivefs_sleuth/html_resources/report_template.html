@@ -697,10 +697,11 @@
         <!-- Tree Rendering Macro -->
         {% set tree=account.get_synced_files_tree() %}
         {% set details=[] %}
+        {% set details_seen=namespace(items={}) %}
 
         {% macro render_items(items) %}
         {% for item in items %}
-        {% if item not in details %}{{ details.append(item) or '' }}{% endif %}
+        {% if item not in details_seen.items %}{{ details_seen.items.update({item: true}) or '' }}{{ details.append(item) or '' }}{% endif %}
         {% if item.is_dir() %}
         <li>
           <span class="caret"><a {% if item.get_stable_id() in searches %}class="match" {% endif %}
@@ -749,7 +750,7 @@
           <div style="padding: 16px 0;">
             <ul class="tree-view">
               {% for recovered_deleted_item in tree.get_recovered_deleted_items() %}
-              {% if recovered_deleted_item not in details %}{{ details.append(recovered_deleted_item) or '' }}{% endif %}
+              {% if recovered_deleted_item not in details_seen.items %}{{ details_seen.items.update({recovered_deleted_item: true}) or '' }}{{ details.append(recovered_deleted_item) or '' }}{% endif %}
               <li><a {% if recovered_deleted_item.get_stable_id() in searches %}class="match" {% endif %}
                   href="#{{ recovered_deleted_item.get_stable_id() }}">{{ recovered_deleted_item.tree_path }}</a></li>
               {% endfor %}
@@ -829,6 +830,21 @@
         {% endmacro %}
 
         {{ generate_items_details_table(headers, acc_idx) }}
+        {% endif %}{% if account.is_logged_in() and account.get_metadata_load_errors() %}
+        <details open class="collapsible-section" style="border-color: #E74C3C; background-color: rgba(231, 76, 60, 0.08);">
+          <summary style="cursor: pointer; padding: 12px; font-weight: bold; color: #E74C3C;">
+            ⚠ Synced files metadata could not be fully loaded for this account
+          </summary>
+          <div style="padding: 12px 16px;">
+            <p style="margin: 0 0 8px 0; color: #F2BC57;">
+              Some or all of the metadata database tables for this account could not be read. The synced files
+              tree and item details may be incomplete or missing.
+            </p>
+            <p style="margin: 0; color: #E74C3C;">
+              Affected tables: {{ account.get_metadata_load_errors() | join(', ') }}
+            </p>
+          </div>
+        </details>
         {% endif %}
       </div>
     </details>
