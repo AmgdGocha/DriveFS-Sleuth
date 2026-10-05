@@ -66,6 +66,7 @@ usage: DriveFS Sleuth [-h] -o OUTPUT [--accounts ACCOUNTS [ACCOUNTS ...]]
                       [--search-csv SEARCH_CSV] [--exact]
                       [--dont-list-sub-items] [--csv] [--html]
                       [--recover-from-cache | --recover-search-results]
+                      [--recovery-workers RECOVERY_WORKERS]
                       path
 
     ██████╗ ██████╗ ██╗██╗   ██╗███████╗███████╗███████╗    ███████╗██╗     ███████╗██╗   ██╗████████╗██╗  ██╗
@@ -117,6 +118,8 @@ Recovery Options:
   --recover-from-cache  Recover the cached items from the content cache.
   --recover-search-results
                         Recover the search results items that are cached.
+  --recovery-workers RECOVERY_WORKERS
+                        Number of worker threads used to copy recovered items (default: 8).
 ```
 ### Automated Investigation
 Easily automate the examination of Google Drive File Stream artifacts by providing the tool with the path to the DriveFS triaged folder.
@@ -141,7 +144,7 @@ Tailor the tool's behavior with additional parameters:
     * `LIST_SUB_ITEMS:` Enable or disable the listing of sub-items for matching folders, indicated by `TRUE` or `FALSE`, respectively.
 
 ### Recovery From Cache
-Drive Sleuth can parse and recover the cached synced items and their thumbnails if available, the recovery path will be under a subdirectory with the account name/email that will be created under the output path passed via the `[-o|--output]` argument. Only the search results will be recovered if the argument `--recover-search-results` is set.
+Drive Sleuth can parse and recover the cached synced items and their thumbnails if available, the recovery path will be under a subdirectory with the account name/email that will be created under the output path passed via the `[-o|--output]` argument. Only the search results will be recovered if the argument `--recover-search-results` is set. Recovered items are copied in parallel; the number of worker threads can be adjusted with `--recovery-workers` (defaults to 8).
 
 ### Output Options
 DriveFS Sleuth provides support for two types of outputs:

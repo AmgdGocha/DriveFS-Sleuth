@@ -503,24 +503,54 @@ def get_file_content_cache_path(content_entry, content_caches_paths):
     return ''
 
 
-def copy_file(file_path, dest_filename, recovery_path=''):
-    if not recovery_path:
-        recovery_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'recovered_items')
+def __sanitize_filename(dest_filename):
+    return re.sub(r'[<>:"/\\|?*]', '_', str(dest_filename or 'recovered_item'))
 
-    dest_filename = re.sub(r'[<>:"/\\|?*]', '_', str(dest_filename or 'recovered_item'))
+
+def __claim_dest_path(recovery_path, dest_filename, used_names):
     dest_path = os.path.join(recovery_path, dest_filename)
-
-    try:
-        if not os.path.exists(recovery_path):
-            os.makedirs(recovery_path)
-
+    if used_names is None:
         basename, extension = os.path.splitext(dest_filename)
         counter = 1
         while os.path.exists(dest_path):
             dest_path = os.path.join(recovery_path, f'{basename} ({counter}){extension}')
             counter += 1
+        return dest_path
 
-        shutil.copy2(file_path, dest_path)
+    if dest_filename not in used_names:
+        used_names.add(dest_filename)
+        return dest_path
+
+    basename, extension = os.path.splitext(dest_filename)
+    counter = 1
+    while True:
+        candidate = f'{basename} ({counter}){extension}'
+        if candidate not in used_names:
+            used_names.add(candidate)
+            return os.path.join(recovery_path, candidate)
+        counter += 1
+
+
+def get_dest_path(recovery_path, dest_filename, used_names):
+    return __claim_dest_path(recovery_path, __sanitize_filename(dest_filename), used_names)
+
+
+def copy_to_dest(source_path, dest_path):
+    try:
+        shutil.copy2(source_path, dest_path)
     except OSError:
         return False
     return True
+
+
+def copy_file(file_path, dest_filename, recovery_path='', used_names=None):
+    if not recovery_path:
+        recovery_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'recovered_items')
+
+    try:
+        if not os.path.exists(recovery_path):
+            os.makedirs(recovery_path)
+        dest_path = get_dest_path(recovery_path, dest_filename, used_names)
+    except OSError:
+        return False
+    return copy_to_dest(file_path, dest_path)

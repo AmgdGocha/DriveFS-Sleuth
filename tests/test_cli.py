@@ -119,6 +119,32 @@ class TestCliRecovery(BaseCliTestCase):
         with open(recovered_file, "rb") as recovered:
             self.assertEqual(recovered.read(), CACHE_CONTENT_400)
 
+    def test_recover_from_cache_workers_produce_identical_output(self):
+        default_out = os.path.join(self.output_dir, "default")
+        workers_out = os.path.join(self.output_dir, "workers")
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", default_out, "--csv", "--recover-from-cache",
+             "--recovery-workers", "8"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", workers_out, "--csv", "--recover-from-cache",
+             "--recovery-workers", "1"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        expected_file = os.path.join(workers_out, "recovery", "Test User", "notes.txt")
+        self.assertTrue(os.path.exists(expected_file))
+        default_files = []
+        for root, _, files in os.walk(os.path.join(default_out, "recovery")):
+            for name in files:
+                default_files.append(os.path.relpath(os.path.join(root, name), default_out))
+        self.assertTrue(default_files)
+        for rel in default_files:
+            with open(os.path.join(default_out, rel), "rb") as file_a, open(
+                os.path.join(workers_out, rel), "rb"
+            ) as file_b:
+                self.assertEqual(file_a.read(), file_b.read())
+
 
 class TestCliArgumentValidation(unittest.TestCase):
     def setUp(self):
@@ -147,6 +173,14 @@ class TestCliArgumentValidation(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 2)
         self.assertIn("--recover-search-results", result.stdout)
+
+    def test_invalid_recovery_workers_exits_2(self):
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", os.path.join(self.tmp.name, "out"), "--csv",
+             "--recover-from-cache", "--recovery-workers", "0"]
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--recovery-workers", result.stdout)
 
     def test_output_pointing_to_file_exits_2(self):
         existing_file = os.path.join(self.tmp.name, "afile.txt")

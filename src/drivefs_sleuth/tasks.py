@@ -8,10 +8,13 @@ Description: this module contains tasks related to the drivefs-sleuth execution.
 import os
 import csv
 
+from concurrent.futures import ThreadPoolExecutor
+
 from jinja2 import Environment
 from jinja2 import FileSystemLoader
 
-from drivefs_sleuth.utils import copy_file
+from drivefs_sleuth.utils import copy_to_dest
+from drivefs_sleuth.utils import get_dest_path
 from drivefs_sleuth.utils import lookup_account_id
 from drivefs_sleuth.utils import get_properties_list
 from drivefs_sleuth.utils import get_account_properties
@@ -117,29 +120,67 @@ def generate_html_report(investigation, output_file, search_results=None):
     stream_template.dump(output_file)
 
 
-def recover_from_content_cache(recoverable_items, recovery_path):
-    for item in recoverable_items:
-        if isinstance(item, File):
-            if item.get_content_cache_path():
-                if not copy_file(
-                    item.get_content_cache_path(),
-                    item.local_title,
-                    recovery_path
-                ):
-                    print(
-                        f"[WARNING] Couldn't recover {item.local_title} from cache: {item.get_content_cache_path()}"
-                    )
+DEFAULT_RECOVERY_WORKERS = 8
 
 
-def recover_thumbnail(recoverable_items, recovery_path):
+def __recovery_workers(workers):
+    if workers is None:
+        workers = DEFAULT_RECOVERY_WORKERS
+    return max(1, min(workers, os.cpu_count() or 1))
+
+
+def __prepare_recovery_dir(recovery_path):
+    try:
+        os.makedirs(recovery_path, exist_ok=True)
+    except OSError:
+        pass
+    try:
+        return {name for name in os.listdir(recovery_path)}
+    except OSError:
+        return set()
+
+
+def __copy_job(job):
+    return copy_to_dest(job[0], job[1])
+
+
+def __recover_items(pending, recovery_path, workers, warn_message):
+    used_names = __prepare_recovery_dir(recovery_path)
+    work = []
+    for source_path, title in pending:
+        work.append((source_path, get_dest_path(recovery_path, title, used_names), title))
+
+    with ThreadPoolExecutor(max_workers=__recovery_workers(workers)) as executor:
+        results = list(executor.map(__copy_job, work))
+
+    for job, copied in zip(work, results):
+        if not copied:
+            print(warn_message(job[0], job[2]))
+
+
+def recover_from_content_cache(recoverable_items, recovery_path, workers=None):
+    pending = []
     for item in recoverable_items:
         if isinstance(item, File):
-            if item.get_thumbnail_path():
-                if not copy_file(
-                    item.get_thumbnail_path(),
-                    item.local_title,
-                    recovery_path
-                ):
-                    print(
-                        f"[WARNING] Couldn't recover thumbnail {item.local_title}: {item.get_thumbnail_path()}"
-                    )
+            source_path = item.get_content_cache_path()
+            if source_path:
+                pending.append((source_path, item.local_title))
+
+    def warn_message(source_path, title):
+        return f"[WARNING] Couldn't recover {title} from cache: {source_path}"
+
+    __recover_items(pending, recovery_path, workers, warn_message)
+
+
+def recover_thumbnail(recoverable_items, recovery_path, workers=None):
+    pending = []
+    for item in recoverable_items:
+        if isinstance(item, File):
+            source_path = item.get_thumbnail_path()
+            if source_path:
+                pending.append((source_path, item.local_title))
+
+    def warn_message(source_path, title):
+        return f"[WARNING] Couldn't recover thumbnail {title}: {source_path}"
+
+    __recover_items(pending, recovery_path, workers, warn_message)

@@ -8,6 +8,8 @@ Description: this module contains classes used to represent parsed items and con
 import re
 import datetime
 
+from collections import deque
+
 from drivefs_sleuth.utils import parse_protobuf
 
 
@@ -233,12 +235,12 @@ class SyncedFilesTree:
 
     def get_item_by_id(self, target_id, is_owner=False):
         if not is_owner:
-            queue = [self.get_root()] + self.get_orphan_items() + self.get_shared_with_me_items()
+            queue = deque([self.get_root()] + self.get_orphan_items() + self.get_shared_with_me_items())
         else:
-            queue = [self.get_root()]
+            queue = deque([self.get_root()])
 
         while queue:
-            current_item = queue.pop(0)
+            current_item = queue.popleft()
 
             if current_item.get_stable_id() == target_id:
                 return current_item
@@ -247,7 +249,7 @@ class SyncedFilesTree:
                 continue
 
             elif current_item.is_dir():
-                queue += current_item.get_sub_items()
+                queue.extend(current_item.get_sub_items())
 
             elif current_item.is_link():
                 queue.append(current_item.get_target_item())
@@ -306,6 +308,9 @@ class SyncedFilesTree:
                     append_item_childes(sub_item)
 
         def __search(current_item):
+            title_lower = current_item.local_title.lower() if current_item.local_title else ''
+            url_id_lower = str(current_item.url_id).lower() if current_item.url_id else ''
+
             for condition in regex_conditions:
                 if current_item.local_title:
                     match = condition[0].search(current_item.local_title)
@@ -315,7 +320,7 @@ class SyncedFilesTree:
                             add_sub_items(current_item)
 
             for condition in urlid_conditions:
-                if current_item.url_id and condition[0] == str(current_item.url_id).lower():
+                if current_item.url_id and condition[0] == url_id_lower:
                     items.append(current_item)
                     if condition[1]:
                         add_sub_items(current_item)
@@ -323,12 +328,12 @@ class SyncedFilesTree:
             for condition in filename_conditions:
                 if current_item.local_title:
                     if condition[2]:
-                        if condition[0] in current_item.local_title.lower():
+                        if condition[0] in title_lower:
                             items.append(current_item)
                             if condition[1]:
                                 add_sub_items(current_item)
                     else:
-                        if condition[0] == current_item.local_title.lower():
+                        if condition[0] == title_lower:
                             items.append(current_item)
                             if condition[1]:
                                 add_sub_items(current_item)

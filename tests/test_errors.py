@@ -425,6 +425,34 @@ class RecoveryResilienceTestCase(unittest.TestCase):
         self.assertIn(f"Couldn't recover {TITLE_NOTES_FILE}", output.getvalue())
         self.assertFalse(os.path.exists(os.path.join(recovery_dir, TITLE_NOTES_FILE)))
 
+    def test_parallel_recovery_naming_matches_sequential(self):
+        items = []
+        for index in range(5):
+            source = os.path.join(self.tmp.name, f"source-{index}.txt")
+            with open(source, "wb") as source_file:
+                source_file.write(f"content-{index}".encode())
+            items.append(
+                File(
+                    900 + index, f"url-{900 + index}", TITLE_NOTES_FILE, TXT_MIME, 1, 100,
+                    LAST_SYNC_MS, LAST_SYNC_MS, 0, {}, "My Drive\\notes.txt", source, "", b""
+                )
+            )
+
+        sequential_dir = os.path.join(self.tmp.name, "sequential")
+        parallel_dir = os.path.join(self.tmp.name, "parallel")
+        recover_from_content_cache(list(items), sequential_dir, workers=1)
+        recover_from_content_cache(list(items), parallel_dir, workers=8)
+
+        sequential_names = sorted(os.listdir(sequential_dir))
+        parallel_names = sorted(os.listdir(parallel_dir))
+        self.assertEqual(parallel_names, sequential_names)
+        self.assertGreater(len(sequential_names), 1)
+        for name in sequential_names:
+            with open(os.path.join(sequential_dir, name), "rb") as file_a, open(
+                os.path.join(parallel_dir, name), "rb"
+            ) as file_b:
+                self.assertEqual(file_a.read(), file_b.read())
+
 
 if __name__ == "__main__":
     unittest.main()

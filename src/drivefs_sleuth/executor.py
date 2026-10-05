@@ -184,6 +184,14 @@ def execute():
         help="Recover the search results items that are cached.",
     )
 
+    recovery_group.add_argument(
+        "--recovery-workers",
+        dest="recovery_workers",
+        type=int,
+        default=None,
+        help="Number of worker threads used to copy recovered items (default: 8).",
+    )
+
     args = arg_parser.parse_args()
 
     drivefs_path = os.path.abspath(args.path)
@@ -222,6 +230,13 @@ def execute():
             "DriveFS Sleuth: error: --recover-search-results option can't be specified without specifying searching "
             "criteria via [--regex REGEX [REGEX ...]], [-q QUERY_BY_NAME [QUERY_BY_NAME ...]], "
             "[--search-csv SEARCH_CSV], [--md5 MD5 [MD5 ...]], or [--url-id URL_ID [URL_ID ...]]"
+        )
+        arg_parser.exit(2)
+
+    if args.recovery_workers is not None and args.recovery_workers < 1:
+        arg_parser.print_usage()
+        print(
+            "DriveFS Sleuth: error: --recovery-workers should be a positive integer."
         )
         arg_parser.exit(2)
 
@@ -494,9 +509,12 @@ def execute():
                     recover_from_content_cache(
                         synced_files_tree.get_recoverable_items_from_cache(),
                         acc_recovery_from_cache_path,
+                        args.recovery_workers,
                     )
                     recover_thumbnail(
-                        synced_files_tree.get_thumbnail_items(), acc_thumbnails_path
+                        synced_files_tree.get_thumbnail_items(),
+                        acc_thumbnails_path,
+                        args.recovery_workers,
                     )
                 except OSError as e:
                     print(
@@ -542,9 +560,15 @@ def execute():
                         os.makedirs(acc_search_recovery_results_path, exist_ok=True)
                         os.makedirs(acc_thumbnails_path, exist_ok=True)
                         recover_from_content_cache(
-                            search_results[account_id], acc_search_recovery_results_path
+                            search_results[account_id],
+                            acc_search_recovery_results_path,
+                            args.recovery_workers,
                         )
-                        recover_thumbnail(search_results[account_id], acc_thumbnails_path)
+                        recover_thumbnail(
+                            search_results[account_id],
+                            acc_thumbnails_path,
+                            args.recovery_workers,
+                        )
                     except OSError as e:
                         print(
                             f"[WARNING] Couldn't recover search results for account {account_id}: {e}"
