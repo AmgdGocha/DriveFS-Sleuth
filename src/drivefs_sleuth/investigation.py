@@ -24,6 +24,8 @@ from drivefs_sleuth.utils import get_connected_devices
 from drivefs_sleuth.utils import get_content_caches_paths
 from drivefs_sleuth.utils import get_file_content_cache_path
 from drivefs_sleuth.utils import get_mirroring_roots_for_account
+from drivefs_sleuth.utils import get_thumbnails_stem_paths
+from drivefs_sleuth.utils import get_content_cache_stem_paths
 
 from drivefs_sleuth.synced_files_tree import File
 from drivefs_sleuth.synced_files_tree import Link
@@ -132,9 +134,21 @@ class Account:
         content_caches_paths = get_content_caches_paths(
             os.path.join(self.__profile_path, "content_cache")
         )
+        content_cache_stems = get_content_cache_stem_paths(
+            os.path.join(self.__profile_path, "content_cache")
+        )
         thumbnails_paths = get_thumbnails_paths(
             os.path.join(self.__profile_path, "thumbnails_cache")
         )
+        thumbnails_stems = get_thumbnails_stem_paths(
+            os.path.join(self.__profile_path, "thumbnails_cache")
+        )
+
+        def __resolve_thumbnail_path(stable_id):
+            thumbnail_path = thumbnails_paths.get(str(stable_id), "")
+            if thumbnail_path:
+                return thumbnail_path
+            return thumbnails_stems.get(str(stable_id), "")
 
         parent_relationships_dict = OrderedDict()
         for parent, child in parent_relationships:
@@ -209,8 +223,9 @@ class Account:
                     content_cache_path = get_file_content_cache_path(
                         child_properties.get("content-entry", None),
                         content_caches_paths,
+                        content_cache_stems,
                     )
-                    thumbnail_path = thumbnails_paths.get(str(child_info[1]), "")
+                    thumbnail_path = __resolve_thumbnail_path(child_info[1])
                     child_file = File(
                         child_info[1],
                         child_info[2],
@@ -262,10 +277,11 @@ class Account:
                                                     "content-entry", None
                                                 ),
                                                 content_caches_paths,
+                                                content_cache_stems,
                                             )
                                         )
-                                        thumbnail_path = thumbnails_paths.get(
-                                            str(target_info[1]), ""
+                                        thumbnail_path = __resolve_thumbnail_path(
+                                            target_info[1]
                                         )
                                         target = File(
                                             target_info[1],
@@ -404,10 +420,9 @@ class Account:
                 content_cache_path = get_file_content_cache_path(
                     shared_with_me_item_properties.get("content-entry", None),
                     content_caches_paths,
+                    content_cache_stems,
                 )
-                thumbnail_path = thumbnails_paths.get(
-                    str(shared_with_me_item_info[1]), ""
-                )
+                thumbnail_path = __resolve_thumbnail_path(shared_with_me_item_info[1])
                 shared_with_me_file = File(
                     shared_with_me_item_info[1],
                     shared_with_me_item_info[2],
@@ -551,9 +566,11 @@ class Account:
                 )
             else:
                 content_cache_path = get_file_content_cache_path(
-                    properties.get("content-entry", None), content_caches_paths
+                    properties.get("content-entry", None),
+                    content_caches_paths,
+                    content_cache_stems,
                 )
-                thumbnail_path = thumbnails_paths.get(str(deleted_item[0]), "")
+                thumbnail_path = __resolve_thumbnail_path(deleted_item[0])
                 recovered_file = File(
                     deleted_item[0],
                     parsed_buf.get("1", ""),

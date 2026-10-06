@@ -491,15 +491,144 @@ def get_thumbnails_paths(thumbnails_dir):
     return thumbnails_paths
 
 
-def get_file_content_cache_path(content_entry, content_caches_paths):
+CACHE_INTERNAL_FILES = ('chunks.db', 'chunks.db-shm', 'chunks.db-wal', 'METADATA')
+
+
+def __collect_cache_stems(cache_dir, stems):
+    try:
+        entries = os.scandir(cache_dir)
+    except OSError:
+        return
+    subdirs = []
+    for entry in entries:
+        try:
+            is_dir = entry.is_dir(follow_symlinks=False)
+        except OSError:
+            is_dir = False
+        if is_dir:
+            subdirs.append(entry.path)
+            continue
+        if entry.name in CACHE_INTERNAL_FILES:
+            continue
+        stems.setdefault(os.path.splitext(entry.name)[0], os.path.abspath(entry.path))
+    entries.close()
+    for subdir in subdirs:
+        __collect_cache_stems(subdir, stems)
+
+
+def get_content_cache_stem_paths(content_cache_dir):
+    content_cache_stems = {}
+    __collect_cache_stems(content_cache_dir, content_cache_stems)
+    return content_cache_stems
+
+
+def get_thumbnails_stem_paths(thumbnails_dir):
+    thumbnails_stems = {}
+    __collect_cache_stems(thumbnails_dir, thumbnails_stems)
+    return thumbnails_stems
+
+
+def load_cache_ranges(chunks_db_path):
+    cache_ranges = {}
+    try:
+        temp_dir = tempfile.mkdtemp()
+        try:
+            temp_db = os.path.join(temp_dir, "chunks.db")
+            shutil.copy2(chunks_db_path, temp_db)
+            for suffix in ("-wal", "-shm"):
+                sidecar = chunks_db_path + suffix
+                if os.path.exists(sidecar):
+                    shutil.copy2(sidecar, temp_db + suffix)
+            connection = __open_read_only(
+                Path(os.path.abspath(temp_db)).as_uri() + "?mode=ro"
+            )
+            try:
+                cursor = connection.cursor()
+                cursor.execute("SELECT id, ranges_proto FROM ranges")
+                for range_id, ranges_proto in cursor.fetchall():
+                    parsed_ranges = parse_protobuf(ranges_proto)
+                    chunks = []
+                    chunk_descriptors = parsed_ranges.get('2', None)
+                    if chunk_descriptors:
+                        if isinstance(chunk_descriptors, dict):
+                            chunk_descriptors = [chunk_descriptors]
+                        for chunk in chunk_descriptors:
+                            if not isinstance(chunk, dict):
+                                continue
+                            start = chunk.get('1', 0)
+                            end = chunk.get('2', 0)
+                            if isinstance(start, int) and isinstance(end, int) and end > start:
+                                chunks.append((start, end))
+                    cache_ranges[str(range_id)] = (parsed_ranges.get('1', 0), chunks)
+            finally:
+                connection.close()
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+    except (sqlite3.Error, OSError):
+        return {}
+    return cache_ranges
+
+
+def get_ranges_for_cache_path(cache_path, cache_ranges):
+    if not cache_ranges:
+        return None
+    cache_key = os.path.splitext(os.path.basename(cache_path))[0]
+    return cache_ranges.get(cache_key)
+
+
+def get_content_entry_cache_keys(profile_path):
+    cache_keys = set()
+    try:
+        with _connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+            cursor = metadata_sqlite_db.cursor()
+            cursor.execute(
+                "SELECT p.value FROM item_properties p JOIN items i "
+                "ON p.item_stable_id = i.stable_id "
+                "WHERE p.key = 'content-entry' AND i.is_folder = 0"
+            )
+            for (value,) in cursor.fetchall():
+                cache_key = parse_protobuf(value).get('1', None)
+                if cache_key is not None:
+                    cache_keys.add(str(cache_key))
+    except sqlite3.Error:
+        return cache_keys
+    return cache_keys
+
+
+def get_items_stable_ids(profile_path):
+    stable_ids = set()
+    try:
+        with _connect_read_only(os.path.join(profile_path, "metadata_sqlite_db")) as metadata_sqlite_db:
+            cursor = metadata_sqlite_db.cursor()
+            cursor.execute("SELECT stable_id FROM items")
+            for (stable_id,) in cursor.fetchall():
+                stable_ids.add(str(stable_id))
+    except sqlite3.Error:
+        return stable_ids
+    return stable_ids
+
+
+def get_file_content_cache_path(content_entry, content_caches_paths, content_cache_stems=None):
     if content_entry:
         parsed_content_entry = parse_protobuf(content_entry)
         content_entry_filename = parsed_content_entry.get('1', '')
         if isinstance(content_entry_filename, bytes):
             content_entry_filename = content_entry_filename.decode('utf-8', errors='replace')
-        elif not isinstance(content_entry_filename, str):
+        if isinstance(content_entry_filename, int):
+            content_cache_key = str(content_entry_filename)
+            if content_cache_stems is not None:
+                cache_path = content_cache_stems.get(content_cache_key, '')
+                if cache_path:
+                    return cache_path
+            return content_caches_paths.get(content_cache_key, '')
+        if not isinstance(content_entry_filename, str):
             return ''
-        return content_caches_paths.get(content_entry_filename, '')
+        cache_path = content_caches_paths.get(content_entry_filename, '')
+        if cache_path:
+            return cache_path
+        if content_cache_stems is not None:
+            return content_cache_stems.get(content_entry_filename, '')
+        return ''
     return ''
 
 

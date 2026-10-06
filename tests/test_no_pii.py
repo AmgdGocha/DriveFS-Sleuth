@@ -15,12 +15,14 @@ from builders import ACCOUNT_ID_2
 from builders import EMAIL_1
 from builders import EMAIL_2
 from builders import UNKNOWN_ACCOUNT_ID
+from builders import MODERN_ACCOUNT_ID
+from builders import MODERN_EMAIL
 from builders import build_logged_in_fixture
 
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
 
-ALLOWED_ACCOUNT_IDS = {ACCOUNT_ID_1, ACCOUNT_ID_2, UNKNOWN_ACCOUNT_ID}
-ALLOWED_EMAILS = {EMAIL_1, EMAIL_2, "amged_wageh@outlook.com"}
+ALLOWED_ACCOUNT_IDS = {ACCOUNT_ID_1, ACCOUNT_ID_2, UNKNOWN_ACCOUNT_ID, MODERN_ACCOUNT_ID}
+ALLOWED_EMAILS = {EMAIL_1, EMAIL_2, MODERN_EMAIL, "amged_wageh@outlook.com"}
 ALLOWED_DOMAINS = {"example.com", "outlook.com"}
 
 LOCAL_DATA_DIR_NAME = "_" + "tests"
