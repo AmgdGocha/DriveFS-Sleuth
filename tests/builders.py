@@ -86,6 +86,40 @@ MEDIA_CAPACITY_GB = 500.0
 MIRROR_ROOT_TITLE = "My Drive Mirror"
 MIRROR_ROOT_PATH = "C:\\DriveMirror"
 
+MODERN_ACCOUNT_ID = "333333333333333333333"
+MODERN_EMAIL = "modernuser@example.com"
+MODERN_DISPLAY_NAME = "Modern User"
+
+STABLE_MODERN_ROOT = 9000
+STABLE_MODERN_FILE = 9100
+STABLE_MODERN_MULTI = 9200
+STABLE_MODERN_FOLDER = 9300
+TITLE_MODERN_FILE = "modern.docx"
+TITLE_MODERN_MULTI = "multi.jpg"
+TITLE_MODERN_FOLDER = "Modern Folder"
+
+MODERN_CACHE_KEY_SINGLE = 206
+MODERN_CACHE_KEY_MULTI = 19307
+MODERN_ORPHAN_KEY = 5555
+MODERN_EMPTY_ORPHAN_KEY = 6666
+
+MODERN_CACHE_CONTENT_SINGLE = b"MODERN LAYOUT SINGLE-CHUNK CONTENT"
+MODERN_CACHE_PART_1 = b"PART1-" * 200
+MODERN_CACHE_PART_2 = b"PART2-" * 160
+MODERN_CACHE_GAP_SIZE = 500
+MODERN_CACHE_MULTI_TOTAL = len(MODERN_CACHE_PART_1) + MODERN_CACHE_GAP_SIZE + len(MODERN_CACHE_PART_2)
+MODERN_CACHE_MULTI_CHUNKS = (
+    (0, len(MODERN_CACHE_PART_1)),
+    (len(MODERN_CACHE_PART_1) + MODERN_CACHE_GAP_SIZE, MODERN_CACHE_MULTI_TOTAL),
+)
+MODERN_CACHE_MULTI_EXPECTED = MODERN_CACHE_PART_1 + MODERN_CACHE_PART_2
+MODERN_THUMBNAIL_CONTENT = b"MODERN THUMBNAIL BYTES"
+MODERN_ORPHAN_CONTENT = b"ORPHANED CACHE DATA"
+MODERN_METADATA_CONTENT = b"INTERNAL CACHE METADATA"
+
+JPEG_MIME = "image/jpeg"
+PNG_MIME = "image/png"
+
 ITEMS_DDL = """
 CREATE TABLE items (
     stable_id INTEGER PRIMARY KEY NOT NULL,
@@ -230,6 +264,25 @@ CONTENT_ENTRY_TYPEDEF = {
     "4": {"type": "int"},
 }
 
+MODERN_CONTENT_ENTRY_TYPEDEF = {
+    "1": {"type": "int"},
+    "2": {"type": "string"},
+    "3": {"type": "string"},
+    "4": {"type": "int"},
+}
+
+RANGES_TYPEDEF = {
+    "1": {"type": "int"},
+    "2": {
+        "type": "message",
+        "field_order": ["1", "2"],
+        "message_typedef": {
+            "1": {"type": "int"},
+            "2": {"type": "int"},
+        },
+    },
+}
+
 ITEM_PROTO_TYPEDEF = {
     "1": {"type": "string"},
     "3": {"type": "string"},
@@ -279,6 +332,27 @@ def encode_content_entry(cache_filename):
     return _encode(
         {"1": cache_filename, "2": "", "3": "", "4": 1},
         CONTENT_ENTRY_TYPEDEF,
+    )
+
+
+def encode_modern_content_entry(cache_key):
+    return _encode(
+        {"1": cache_key, "2": "", "3": "", "4": 1},
+        MODERN_CONTENT_ENTRY_TYPEDEF,
+    )
+
+
+def encode_ranges_single(size):
+    return _encode(
+        {"1": size, "2": {"1": 0, "2": size}},
+        RANGES_TYPEDEF,
+    )
+
+
+def encode_ranges_multi(total_size, chunks):
+    return _encode(
+        {"1": total_size, "2": [{"1": start, "2": end} for start, end in chunks]},
+        RANGES_TYPEDEF,
     )
 
 
@@ -539,3 +613,115 @@ def build_not_logged_in_fixture(drivefs_path):
 def build_empty_fixture(drivefs_path):
     _write_root_files(drivefs_path, [], last_sync_seconds=None, with_preferences=False)
     return Fixture(drivefs_path)
+
+
+class ModernFixture:
+    def __init__(self, drivefs_path):
+        self.drivefs_path = drivefs_path
+        profile_path = os.path.join(drivefs_path, MODERN_ACCOUNT_ID)
+        self.single_cache_path = os.path.abspath(os.path.join(
+            profile_path, "content_cache", "d0", "d1", f"{MODERN_CACHE_KEY_SINGLE}.docx"
+        ))
+        self.multi_cache_path = os.path.abspath(os.path.join(
+            profile_path, "content_cache", "d11", "d130", str(MODERN_CACHE_KEY_MULTI)
+        ))
+        self.thumbnail_cache_path = os.path.abspath(os.path.join(
+            profile_path, "thumbnails_cache", "d0", "d14", f"{STABLE_MODERN_FILE}.png"
+        ))
+        self.orphan_cache_path = os.path.abspath(os.path.join(
+            profile_path, "content_cache", "d5", "d6", f"{MODERN_ORPHAN_KEY}.bin"
+        ))
+        self.empty_orphan_cache_path = os.path.abspath(os.path.join(
+            profile_path, "content_cache", "d5", "d6", f"{MODERN_EMPTY_ORPHAN_KEY}.dat"
+        ))
+        self.metadata_cache_path = os.path.abspath(os.path.join(
+            profile_path, "content_cache", "METADATA"
+        ))
+        self.content_chunks_db = os.path.join(
+            profile_path, "content_cache", "chunks.db"
+        )
+        self.thumbnails_chunks_db = os.path.join(
+            profile_path, "thumbnails_cache", "chunks.db"
+        )
+
+
+def _write_chunks_db(chunks_db_path, ranges_rows):
+    db = sqlite3.connect(chunks_db_path)
+    db.execute("CREATE TABLE ranges (id INTEGER PRIMARY KEY NOT NULL, ranges_proto BLOB)")
+    for range_id, ranges_proto in ranges_rows:
+        db.execute(
+            "INSERT INTO ranges (id, ranges_proto) VALUES (?, ?)",
+            (range_id, ranges_proto),
+        )
+    db.commit()
+    db.close()
+
+
+def build_modern_layout_fixture(drivefs_path):
+    profile_path = os.path.join(drivefs_path, MODERN_ACCOUNT_ID)
+    os.makedirs(profile_path, exist_ok=True)
+
+    items = [
+        (STABLE_MODERN_ROOT, TITLE_ROOT_1, FOLDER_MIME, 1, 1, 0, LAST_SYNC_MS, LAST_SYNC_MS, 0, 0, None),
+        (STABLE_MODERN_FILE, TITLE_MODERN_FILE, DOCX_MIME, 0, 1, len(MODERN_CACHE_CONTENT_SINGLE),
+         LAST_SYNC_MS, LAST_SYNC_MS, 0, 0,
+         encode_item_proto(url_id(STABLE_MODERN_FILE), TITLE_MODERN_FILE, DOCX_MIME, "docx", MD5_A)),
+        (STABLE_MODERN_MULTI, TITLE_MODERN_MULTI, JPEG_MIME, 0, 1, MODERN_CACHE_MULTI_TOTAL,
+         LAST_SYNC_MS, LAST_SYNC_MS, 0, 0,
+         encode_item_proto(url_id(STABLE_MODERN_MULTI), TITLE_MODERN_MULTI, JPEG_MIME, "jpg", MD5_B)),
+        (STABLE_MODERN_FOLDER, TITLE_MODERN_FOLDER, FOLDER_MIME, 1, 1, 0, LAST_SYNC_MS, LAST_SYNC_MS, 0, 0, None),
+    ]
+    parents = [
+        (STABLE_MODERN_ROOT, STABLE_MODERN_FILE),
+        (STABLE_MODERN_ROOT, STABLE_MODERN_MULTI),
+        (STABLE_MODERN_ROOT, STABLE_MODERN_FOLDER),
+    ]
+    item_properties = [
+        (STABLE_MODERN_FILE, "content-entry",
+         encode_modern_content_entry(MODERN_CACHE_KEY_SINGLE), 1),
+        (STABLE_MODERN_MULTI, "content-entry",
+         encode_modern_content_entry(MODERN_CACHE_KEY_MULTI), 1),
+    ]
+    _write_metadata_db(profile_path, items, parents, item_properties, [], [],
+                       encode_account_proto(MODERN_DISPLAY_NAME, PHOTO_URL_1))
+    _write_mirror_db(profile_path)
+    _write_root_files(drivefs_path, [(MODERN_ACCOUNT_ID, MODERN_EMAIL)])
+
+    content_cache_dir = os.path.join(profile_path, "content_cache")
+    single_dir = os.path.join(content_cache_dir, "d0", "d1")
+    multi_dir = os.path.join(content_cache_dir, "d11", "d130")
+    orphan_dir = os.path.join(content_cache_dir, "d5", "d6")
+    for directory in (single_dir, multi_dir, orphan_dir):
+        os.makedirs(directory, exist_ok=True)
+    with open(os.path.join(single_dir, f"{MODERN_CACHE_KEY_SINGLE}.docx"), "wb") as cache_file:
+        cache_file.write(MODERN_CACHE_CONTENT_SINGLE)
+    with open(os.path.join(multi_dir, str(MODERN_CACHE_KEY_MULTI)), "wb") as cache_file:
+        cache_file.write(MODERN_CACHE_PART_1)
+        cache_file.write(b"\x00" * MODERN_CACHE_GAP_SIZE)
+        cache_file.write(MODERN_CACHE_PART_2)
+    with open(os.path.join(orphan_dir, f"{MODERN_ORPHAN_KEY}.bin"), "wb") as cache_file:
+        cache_file.write(MODERN_ORPHAN_CONTENT)
+    with open(os.path.join(orphan_dir, f"{MODERN_EMPTY_ORPHAN_KEY}.dat"), "wb") as cache_file:
+        cache_file.write(b"")
+    with open(os.path.join(content_cache_dir, "METADATA"), "wb") as cache_file:
+        cache_file.write(MODERN_METADATA_CONTENT)
+    _write_chunks_db(
+        os.path.join(content_cache_dir, "chunks.db"),
+        [
+            (MODERN_CACHE_KEY_SINGLE, encode_ranges_single(len(MODERN_CACHE_CONTENT_SINGLE))),
+            (MODERN_CACHE_KEY_MULTI,
+             encode_ranges_multi(MODERN_CACHE_MULTI_TOTAL, MODERN_CACHE_MULTI_CHUNKS)),
+        ],
+    )
+
+    thumbnails_dir = os.path.join(profile_path, "thumbnails_cache")
+    thumbnail_dir = os.path.join(thumbnails_dir, "d0", "d14")
+    os.makedirs(thumbnail_dir, exist_ok=True)
+    with open(os.path.join(thumbnail_dir, f"{STABLE_MODERN_FILE}.png"), "wb") as thumbnail_file:
+        thumbnail_file.write(MODERN_THUMBNAIL_CONTENT)
+    _write_chunks_db(
+        os.path.join(thumbnails_dir, "chunks.db"),
+        [(STABLE_MODERN_FILE, encode_ranges_single(len(MODERN_THUMBNAIL_CONTENT)))],
+    )
+
+    return ModernFixture(drivefs_path)

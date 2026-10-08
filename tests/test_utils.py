@@ -148,6 +148,25 @@ class TestCopyFile(unittest.TestCase):
         copy_file(self.source, 'bad<>:"/\\|?*name.txt', self.recovery_path)
         self.assertTrue(os.path.exists(os.path.join(self.recovery_path, "bad_________name.txt")))
 
+    def test_used_names_claim_continues_numbering(self):
+        used_names = {"copied.txt"}
+        copy_file(self.source, "copied.txt", self.recovery_path, used_names=used_names)
+        copy_file(self.source, "copied.txt", self.recovery_path, used_names=used_names)
+        self.assertTrue(os.path.exists(os.path.join(self.recovery_path, "copied (1).txt")))
+        self.assertTrue(os.path.exists(os.path.join(self.recovery_path, "copied (2).txt")))
+        self.assertFalse(os.path.exists(os.path.join(self.recovery_path, "copied.txt")))
+        self.assertEqual(used_names, {"copied.txt", "copied (1).txt", "copied (2).txt"})
+
+    def test_used_names_seeded_with_existing_files(self):
+        os.makedirs(self.recovery_path)
+        with open(os.path.join(self.recovery_path, "copied.txt"), "wb") as existing:
+            existing.write(b"pre-existing")
+        used_names = {name for name in os.listdir(self.recovery_path)}
+        copy_file(self.source, "copied.txt", self.recovery_path, used_names=used_names)
+        self.assertTrue(os.path.exists(os.path.join(self.recovery_path, "copied (1).txt")))
+        with open(os.path.join(self.recovery_path, "copied.txt"), "rb") as existing:
+            self.assertEqual(existing.read(), b"pre-existing")
+
 
 if __name__ == "__main__":
     unittest.main()

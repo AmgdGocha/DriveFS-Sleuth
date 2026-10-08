@@ -254,9 +254,13 @@ class CorruptArtifactsToleranceTestCase(unittest.TestCase):
         self.assertEqual(get_item_info(self.fixture.profile_path(), 1), ())
         self.assertEqual(get_item_properties(self.fixture.profile_path(), 1), {})
         self.assertEqual(get_deleted_items(self.fixture.profile_path()), [])
-        investigation = Investigation(self.fixture.drivefs_path)
+        with contextlib.redirect_stdout(io.StringIO()):
+            investigation = Investigation(self.fixture.drivefs_path)
         self.assertEqual(len(investigation.get_accounts()), 1)
         self.assertIsNone(investigation.get_accounts()[0].get_synced_files_tree())
+        self.assertEqual(investigation.get_accounts()[0].get_metadata_load_errors(),
+                         ["items", "stable_parents", "item_properties", "shortcut_details",
+                          "deleted_items", "shared_with_me"])
 
     def test_deleted_item_with_missing_mime_field_does_not_crash(self):
         value = {
@@ -420,6 +424,34 @@ class RecoveryResilienceTestCase(unittest.TestCase):
             recover_from_content_cache([item], recovery_dir)
         self.assertIn(f"Couldn't recover {TITLE_NOTES_FILE}", output.getvalue())
         self.assertFalse(os.path.exists(os.path.join(recovery_dir, TITLE_NOTES_FILE)))
+
+    def test_parallel_recovery_naming_matches_sequential(self):
+        items = []
+        for index in range(5):
+            source = os.path.join(self.tmp.name, f"source-{index}.txt")
+            with open(source, "wb") as source_file:
+                source_file.write(f"content-{index}".encode())
+            items.append(
+                File(
+                    900 + index, f"url-{900 + index}", TITLE_NOTES_FILE, TXT_MIME, 1, 100,
+                    LAST_SYNC_MS, LAST_SYNC_MS, 0, {}, "My Drive\\notes.txt", source, "", b""
+                )
+            )
+
+        sequential_dir = os.path.join(self.tmp.name, "sequential")
+        parallel_dir = os.path.join(self.tmp.name, "parallel")
+        recover_from_content_cache(list(items), sequential_dir, workers=1)
+        recover_from_content_cache(list(items), parallel_dir, workers=8)
+
+        sequential_names = sorted(os.listdir(sequential_dir))
+        parallel_names = sorted(os.listdir(parallel_dir))
+        self.assertEqual(parallel_names, sequential_names)
+        self.assertGreater(len(sequential_names), 1)
+        for name in sequential_names:
+            with open(os.path.join(sequential_dir, name), "rb") as file_a, open(
+                os.path.join(parallel_dir, name), "rb"
+            ) as file_b:
+                self.assertEqual(file_a.read(), file_b.read())
 
 
 if __name__ == "__main__":

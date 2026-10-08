@@ -8,15 +8,19 @@ Description: this module contains tasks related to the drivefs-sleuth execution.
 import os
 import csv
 
+from concurrent.futures import ThreadPoolExecutor
+
 from jinja2 import Environment
 from jinja2 import FileSystemLoader
 
-from drivefs_sleuth.utils import copy_file
+from drivefs_sleuth.utils import copy_to_dest
+from drivefs_sleuth.utils import get_dest_path
 from drivefs_sleuth.utils import lookup_account_id
 from drivefs_sleuth.utils import get_properties_list
 from drivefs_sleuth.utils import get_account_properties
 from drivefs_sleuth.utils import get_available_profiles
 from drivefs_sleuth.utils import get_experiment_account_ids
+from drivefs_sleuth.utils import get_ranges_for_cache_path
 
 from drivefs_sleuth.synced_files_tree import File
 
@@ -117,29 +121,138 @@ def generate_html_report(investigation, output_file, search_results=None):
     stream_template.dump(output_file)
 
 
-def recover_from_content_cache(recoverable_items, recovery_path):
-    for item in recoverable_items:
-        if isinstance(item, File):
-            if item.get_content_cache_path():
-                if not copy_file(
-                    item.get_content_cache_path(),
-                    item.local_title,
-                    recovery_path
-                ):
-                    print(
-                        f"[WARNING] Couldn't recover {item.local_title} from cache: {item.get_content_cache_path()}"
-                    )
+DEFAULT_RECOVERY_WORKERS = 8
 
 
-def recover_thumbnail(recoverable_items, recovery_path):
+def __recovery_workers(workers):
+    if workers is None:
+        workers = DEFAULT_RECOVERY_WORKERS
+    return max(1, min(workers, os.cpu_count() or 1))
+
+
+def __prepare_recovery_dir(recovery_path):
+    try:
+        os.makedirs(recovery_path, exist_ok=True)
+    except OSError:
+        pass
+    try:
+        return {name for name in os.listdir(recovery_path)}
+    except OSError:
+        return set()
+
+
+def __copy_ranges(source_path, dest_path, chunks):
+    try:
+        with open(source_path, "rb") as source_file, open(dest_path, "wb") as dest_file:
+            for start, end in chunks:
+                source_file.seek(start)
+                remaining = end - start
+                while remaining > 0:
+                    data = source_file.read(min(remaining, 1024 * 1024))
+                    if not data:
+                        break
+                    dest_file.write(data)
+                    remaining -= len(data)
+        return True
+    except OSError:
+        return False
+
+
+def __copy_job(job):
+    source_path, dest_path = job[0], job[1]
+    if len(job) > 3 and job[3] is not None:
+        return __copy_ranges(source_path, dest_path, job[3][1])
+    return copy_to_dest(source_path, dest_path)
+
+
+def __recover_items(pending, recovery_path, workers, warn_message, cache_ranges=None):
+    used_names = __prepare_recovery_dir(recovery_path)
+    work = []
+    for source_path, title in pending:
+        dest_path = get_dest_path(recovery_path, title, used_names)
+        ranges_info = None
+        if cache_ranges is not None:
+            ranges_info = get_ranges_for_cache_path(source_path, cache_ranges)
+            if ranges_info is not None:
+                size, chunks = ranges_info
+                if not (chunks and (len(chunks) > 1 or chunks[0] != (0, size))):
+                    ranges_info = None
+        work.append((source_path, dest_path, title, ranges_info))
+
+    with ThreadPoolExecutor(max_workers=__recovery_workers(workers)) as executor:
+        results = list(executor.map(__copy_job, work))
+
+    for job, copied in zip(work, results):
+        if not copied:
+            print(warn_message(job[0], job[2]))
+        elif job[3] is not None:
+            size, chunks = job[3]
+            recovered_bytes = sum(end - start for start, end in chunks)
+            print(
+                f"[WARNING] Recovered partial content for {job[2]}: "
+                f"{recovered_bytes} of {size} bytes"
+            )
+
+    return sum(1 for copied in results if copied)
+
+
+def recover_from_content_cache(recoverable_items, recovery_path, workers=None, cache_ranges=None):
+    pending = []
     for item in recoverable_items:
         if isinstance(item, File):
-            if item.get_thumbnail_path():
-                if not copy_file(
-                    item.get_thumbnail_path(),
-                    item.local_title,
-                    recovery_path
-                ):
-                    print(
-                        f"[WARNING] Couldn't recover thumbnail {item.local_title}: {item.get_thumbnail_path()}"
-                    )
+            source_path = item.get_content_cache_path()
+            if source_path:
+                pending.append((source_path, item.local_title))
+
+    def warn_message(source_path, title):
+        return f"[WARNING] Couldn't recover {title} from cache: {source_path}"
+
+    return __recover_items(pending, recovery_path, workers, warn_message, cache_ranges)
+
+
+def recover_thumbnail(recoverable_items, recovery_path, workers=None):
+    pending = []
+    for item in recoverable_items:
+        if isinstance(item, File):
+            source_path = item.get_thumbnail_path()
+            if source_path:
+                pending.append((source_path, item.local_title))
+
+    def warn_message(source_path, title):
+        return f"[WARNING] Couldn't recover thumbnail {title}: {source_path}"
+
+    return __recover_items(pending, recovery_path, workers, warn_message)
+
+
+def recover_orphaned_cache(orphan_files, recovery_path, workers=None):
+    if not orphan_files:
+        return 0
+    orphaned_path = os.path.join(recovery_path, "orphaned_cache")
+    used_names = __prepare_recovery_dir(orphaned_path)
+    work = []
+    for source_path in orphan_files:
+        source_name = os.path.basename(source_path)
+        dest_path = get_dest_path(orphaned_path, source_name, used_names)
+        work.append((source_path, dest_path, source_name))
+
+    with ThreadPoolExecutor(max_workers=__recovery_workers(workers)) as executor:
+        results = list(executor.map(__copy_job, work))
+
+    recovered_count = 0
+    for job, copied in zip(work, results):
+        if copied:
+            recovered_count += 1
+        else:
+            print(f"[WARNING] Couldn't recover orphaned cache file {job[2]}: {job[0]}")
+
+    if recovered_count:
+        print(
+            f"[RECOVERY] Recovered {recovered_count} orphaned cache file(s) "
+            f"into {orphaned_path}"
+        )
+    else:
+        try:
+            os.rmdir(orphaned_path)
+        except OSError:
+            pass
+    return recovered_count
