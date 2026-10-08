@@ -82,6 +82,7 @@ usage: DriveFS Sleuth [-h] -o OUTPUT [--accounts ACCOUNTS [ACCOUNTS ...]]
                       [--dont-list-sub-items] [--csv] [--html]
                       [--recover-from-cache | --recover-search-results]
                       [--recovery-workers RECOVERY_WORKERS]
+                      [--ignore-orphans]
                       path
 
     ██████╗ ██████╗ ██╗██╗   ██╗███████╗███████╗███████╗    ███████╗██╗     ███████╗██╗   ██╗████████╗██╗  ██╗
@@ -135,6 +136,7 @@ Recovery Options:
                         Recover the search results items that are cached.
   --recovery-workers RECOVERY_WORKERS
                         Number of worker threads used to copy recovered items (default: 8).
+  --ignore-orphans      Ignore orphaned cache files during recovery, no orphaned_cache folder will be created. This argument can only be used with --recover-from-cache or --recover-search-results.
 ```
 
 ### Automated Investigation
@@ -172,7 +174,7 @@ Drive Sleuth can parse and recover the cached synced items and their thumbnails 
 Both known content cache layouts are supported:
 
 * **Legacy layout:** files stored directly in `content_cache` and addressed by a filename string in the item's `content-entry` property.
-* **Chunked layout:** files stored under `content_cache/d*/d*/<key>` (with an optional extension such as `.gz` or `.docx`) and addressed by an integer key in the `content-entry` property that matches the `ranges` table of `chunks.db`. Multi-range (partially downloaded) items are recovered by concatenating their byte ranges with a `[WARNING]` about the recovered size. Cache files that contain data but can't be attributed to a recovered item are copied into an `orphaned_cache` subfolder under the account recovery folder.
+* **Chunked layout:** files stored under `content_cache/d*/d*/<key>` (with an optional extension such as `.gz` or `.docx`) and addressed by an integer key in the `content-entry` property that matches the `ranges` table of `chunks.db`. Multi-range (partially downloaded) items are recovered by concatenating their byte ranges with a `[WARNING]` about the recovered size. Cache files that contain data but can't be attributed to a recovered item are copied into an `orphaned_cache` subfolder under the account recovery folder; their file type is detected from their magic bytes (via puremagic) and the detected extension is appended to the recovered filename, while unrecognized files keep their original name. Orphaned cache files can be skipped entirely with `--ignore-orphans`.
 
 ### Output Options
 

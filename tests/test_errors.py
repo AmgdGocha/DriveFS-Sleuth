@@ -118,6 +118,14 @@ class CliErrorHandlingTestCase(unittest.TestCase):
         self.assertIn("Invalid regular expression", result.stdout)
         self.assertNotIn("Traceback", result.stdout + result.stderr)
 
+    def test_ignore_orphans_without_recovery_exits_2(self):
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", self.tmp.name, "--csv", "--ignore-orphans"]
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--ignore-orphans can only be used", result.stdout)
+        self.assertNotIn("Traceback", result.stdout + result.stderr)
+
     def test_missing_search_csv_exits_2(self):
         result = run_cli(
             [self.fixture.drivefs_path, "-o", self.tmp.name, "--csv", "--search-csv",

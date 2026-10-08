@@ -171,7 +171,7 @@ class TestModernRecovery(BaseModernTestCase):
     def test_orphan_recovery_into_orphaned_cache_folder(self):
         recover_orphaned_cache([self.fixture.orphan_cache_path], self.recovery_dir, workers=2)
         with open(os.path.join(self.recovery_dir, "orphaned_cache",
-                               f"{MODERN_ORPHAN_KEY}.bin"), "rb") as recovered:
+                               f"{MODERN_ORPHAN_KEY}.bin.png"), "rb") as recovered:
             self.assertEqual(recovered.read(), MODERN_ORPHAN_CONTENT)
 
     def test_orphan_recovery_without_files_creates_no_folder(self):
@@ -281,13 +281,29 @@ class TestModernCli(BaseModernTestCase):
         with open(os.path.join(account_dir, "thumbnails", TITLE_MODERN_FILE), "rb") as recovered:
             self.assertEqual(recovered.read(), MODERN_THUMBNAIL_CONTENT)
         with open(os.path.join(account_dir, "orphaned_cache",
-                               f"{MODERN_ORPHAN_KEY}.bin"), "rb") as recovered:
+                               f"{MODERN_ORPHAN_KEY}.bin.png"), "rb") as recovered:
             self.assertEqual(recovered.read(), MODERN_ORPHAN_CONTENT)
         self.assertFalse(os.path.exists(os.path.join(
             account_dir, "orphaned_cache", f"{MODERN_EMPTY_ORPHAN_KEY}.dat"
         )))
         self.assertFalse(os.path.exists(os.path.join(account_dir, "orphaned_cache", "METADATA")))
         self.assertFalse(os.path.exists(os.path.join(account_dir, "METADATA")))
+
+    def test_recover_from_cache_ignore_orphans(self):
+        output_dir = os.path.join(self.tmp.name, "out")
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", output_dir, "--csv", "--recover-from-cache",
+             "--ignore-orphans"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertIn("Recovered 2 items, 1 thumbnails for account", result.stdout)
+        self.assertNotIn("orphaned cache files", result.stdout)
+        account_dir = os.path.join(output_dir, "recovery", MODERN_EMAIL)
+        self.assertFalse(os.path.exists(os.path.join(account_dir, "orphaned_cache")))
+        with open(os.path.join(account_dir, TITLE_MODERN_FILE), "rb") as recovered:
+            self.assertEqual(recovered.read(), MODERN_CACHE_CONTENT_SINGLE)
+        with open(os.path.join(account_dir, TITLE_MODERN_MULTI), "rb") as recovered:
+            self.assertEqual(recovered.read(), MODERN_CACHE_MULTI_EXPECTED)
 
     def test_csv_report_populates_modern_cache_paths(self):
         output_dir = os.path.join(self.tmp.name, "out")

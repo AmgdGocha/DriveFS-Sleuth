@@ -233,7 +233,23 @@ def execute():
         help="Number of worker threads used to copy recovered items (default: 8).",
     )
 
+    recovery_group.add_argument(
+        "--ignore-orphans",
+        dest="ignore_orphans",
+        action="store_true",
+        help="Ignore orphaned cache files during recovery, no orphaned_cache folder will be created. "
+        "This argument can only be used with --recover-from-cache or --recover-search-results.",
+    )
+
     args = arg_parser.parse_args()
+
+    if args.ignore_orphans and not (args.recover_from_cache or args.recover_search_results):
+        arg_parser.print_usage()
+        print(
+            "DriveFS Sleuth: error: --ignore-orphans can only be used with "
+            "--recover-from-cache or --recover-search-results"
+        )
+        arg_parser.exit(2)
 
     drivefs_path = os.path.abspath(args.path)
 
@@ -564,20 +580,27 @@ def execute():
                         acc_thumbnails_path,
                         args.recovery_workers,
                     )
-                    orphan_files = __collect_orphaned_cache_files(
-                        profile_path, content_cache_dir, thumbnails_cache_dir
-                    )
                     recovered_orphans_count = 0
-                    if orphan_files:
-                        recovered_orphans_count = recover_orphaned_cache(
-                            orphan_files, acc_recovery_from_cache_path,
-                            args.recovery_workers
+                    if not args.ignore_orphans:
+                        orphan_files = __collect_orphaned_cache_files(
+                            profile_path, content_cache_dir, thumbnails_cache_dir
+                        )
+                        if orphan_files:
+                            recovered_orphans_count = recover_orphaned_cache(
+                                orphan_files, acc_recovery_from_cache_path,
+                                args.recovery_workers
+                            )
+                    recovery_summary = (
+                        f"[RECOVERY] Recovered {recovered_items_count} items, "
+                        f"{recovered_thumbnails_count} thumbnails"
+                    )
+                    if not args.ignore_orphans:
+                        recovery_summary += (
+                            f", and {recovered_orphans_count} orphaned cache files"
                         )
                     print(
-                        f"[RECOVERY] Recovered {recovered_items_count} items, "
-                        f"{recovered_thumbnails_count} thumbnails, and "
-                        f"{recovered_orphans_count} orphaned cache files for "
-                        f"account {account.get_account_id()}"
+                        recovery_summary
+                        + f" for account {account.get_account_id()}"
                     )
                 except OSError as e:
                     print(

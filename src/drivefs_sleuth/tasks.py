@@ -7,6 +7,7 @@ Description: this module contains tasks related to the drivefs-sleuth execution.
 
 import os
 import csv
+import re
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -224,18 +225,44 @@ def recover_thumbnail(recoverable_items, recovery_path, workers=None):
     return __recover_items(pending, recovery_path, workers, warn_message)
 
 
+def __detect_orphan_extension(source_path):
+    try:
+        import puremagic
+
+        matches = puremagic.magic_file(source_path)
+    except Exception:
+        return None
+    if not matches:
+        return None
+    extension = str(matches[0].extension).strip().lower().lstrip(".")
+    if not re.match(r"^[a-z0-9]{1,8}$", extension):
+        return None
+    return extension
+
+
+def __append_detected_extension(name, extension):
+    if not extension:
+        return name
+    if name.lower().endswith("." + extension.lower()):
+        return name
+    return f"{name}.{extension}"
+
+
 def recover_orphaned_cache(orphan_files, recovery_path, workers=None):
     if not orphan_files:
         return 0
     orphaned_path = os.path.join(recovery_path, "orphaned_cache")
     used_names = __prepare_recovery_dir(orphaned_path)
-    work = []
-    for source_path in orphan_files:
-        source_name = os.path.basename(source_path)
-        dest_path = get_dest_path(orphaned_path, source_name, used_names)
-        work.append((source_path, dest_path, source_name))
+    workers_count = min(__recovery_workers(workers), len(orphan_files))
+    with ThreadPoolExecutor(max_workers=workers_count) as executor:
+        detected_extensions = list(executor.map(__detect_orphan_extension, orphan_files))
+        work = []
+        for source_path, detected_extension in zip(orphan_files, detected_extensions):
+            source_name = os.path.basename(source_path)
+            source_name = __append_detected_extension(source_name, detected_extension)
+            dest_path = get_dest_path(orphaned_path, source_name, used_names)
+            work.append((source_path, dest_path, source_name))
 
-    with ThreadPoolExecutor(max_workers=__recovery_workers(workers)) as executor:
         results = list(executor.map(__copy_job, work))
 
     recovered_count = 0
