@@ -197,6 +197,72 @@ class TestModernRecovery(BaseModernTestCase):
                 self.assertEqual(file_a.read(), file_b.read())
 
 
+class TestModernSearchCli(BaseModernTestCase):
+    def test_search_results_csv_populates_modern_cache_paths(self):
+        output_dir = os.path.join(self.tmp.name, "out")
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", output_dir, "--csv", "-q", "modern.docx"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        with open(os.path.join(output_dir, "search_results.csv"), newline="") as csv_file:
+            rows = list(csv.DictReader(csv_file))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["local_title"], TITLE_MODERN_FILE)
+        self.assertEqual(rows[0]["path_in_content_cache"], self.fixture.single_cache_path)
+
+    def test_recover_search_results_single_chunk(self):
+        output_dir = os.path.join(self.tmp.name, "out")
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", output_dir, "--csv", "-q", "modern.docx",
+             "--recover-search-results"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertIn("Recovered 1 items, 1 thumbnails for account", result.stdout)
+        account_dir = os.path.join(output_dir, "search_results_recovery", MODERN_EMAIL)
+        with open(os.path.join(account_dir, TITLE_MODERN_FILE), "rb") as recovered:
+            self.assertEqual(recovered.read(), MODERN_CACHE_CONTENT_SINGLE)
+        with open(os.path.join(account_dir, "thumbnails", TITLE_MODERN_FILE), "rb") as recovered:
+            self.assertEqual(recovered.read(), MODERN_THUMBNAIL_CONTENT)
+        self.assertFalse(os.path.exists(os.path.join(account_dir, f"{MODERN_ORPHAN_KEY}.bin")))
+
+    def test_recover_search_results_multi_chunk(self):
+        output_dir = os.path.join(self.tmp.name, "out")
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", output_dir, "--csv", "-q", "multi",
+             "--recover-search-results"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertIn("Recovered partial content", result.stdout)
+        self.assertIn("Recovered 1 items, 0 thumbnails for account", result.stdout)
+        account_dir = os.path.join(output_dir, "search_results_recovery", MODERN_EMAIL)
+        with open(os.path.join(account_dir, TITLE_MODERN_MULTI), "rb") as recovered:
+            self.assertEqual(recovered.read(), MODERN_CACHE_MULTI_EXPECTED)
+
+    def test_recover_search_results_workers_produce_identical_output(self):
+        default_out = os.path.join(self.tmp.name, "default")
+        workers_out = os.path.join(self.tmp.name, "workers")
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", default_out, "--csv", "-q", "multi",
+             "--recover-search-results", "--recovery-workers", "8"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", workers_out, "--csv", "-q", "multi",
+             "--recover-search-results", "--recovery-workers", "1"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        default_files = []
+        for root, _, files in os.walk(os.path.join(default_out, "search_results_recovery")):
+            for name in files:
+                default_files.append(os.path.relpath(os.path.join(root, name), default_out))
+        self.assertTrue(default_files)
+        for rel in default_files:
+            with open(os.path.join(default_out, rel), "rb") as file_a, open(
+                os.path.join(workers_out, rel), "rb"
+            ) as file_b:
+                self.assertEqual(file_a.read(), file_b.read())
+
+
 class TestModernCli(BaseModernTestCase):
     def test_recover_from_cache_end_to_end(self):
         output_dir = os.path.join(self.tmp.name, "out")
@@ -207,7 +273,7 @@ class TestModernCli(BaseModernTestCase):
         self.assertIn("Recovered 2 items, 1 thumbnails, and 1 orphaned cache files",
                       result.stdout)
 
-        account_dir = os.path.join(output_dir, "recovery", MODERN_DISPLAY_NAME)
+        account_dir = os.path.join(output_dir, "recovery", MODERN_EMAIL)
         with open(os.path.join(account_dir, TITLE_MODERN_FILE), "rb") as recovered:
             self.assertEqual(recovered.read(), MODERN_CACHE_CONTENT_SINGLE)
         with open(os.path.join(account_dir, TITLE_MODERN_MULTI), "rb") as recovered:

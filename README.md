@@ -167,7 +167,7 @@ Tailor the tool's behavior with additional parameters:
 
 ### Recovery From Cache
 
-Drive Sleuth can parse and recover the cached synced items and their thumbnails if available, the recovery path will be under a subdirectory with the account name/email that will be created under the output path passed via the `[-o|--output]` argument. Only the search results will be recovered if the argument `--recover-search-results` is set. Recovered items are copied in parallel; the number of worker threads can be adjusted with `--recovery-workers` (defaults to 8).
+Drive Sleuth can parse and recover the cached synced items and their thumbnails if available, the recovery path will be under a subdirectory named after the account email (falling back to the account ID when the email is missing) that will be created under the output path passed via the `[-o|--output]` argument. Only the search results will be recovered if the argument `--recover-search-results` is set. Recovered items are copied in parallel; the number of worker threads can be adjusted with `--recovery-workers` (defaults to 8).
 
 Both known content cache layouts are supported:
 

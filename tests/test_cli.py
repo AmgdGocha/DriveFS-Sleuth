@@ -13,6 +13,8 @@ import tempfile
 import unittest
 
 from builders import CACHE_CONTENT_400
+from builders import EMAIL_1
+from builders import MD5_A
 from builders import THUMBNAIL_CONTENT_400
 from builders import UNKNOWN_ACCOUNT_ID
 from builders import build_logged_in_fixture
@@ -95,12 +97,12 @@ class TestCliRecovery(BaseCliTestCase):
             [self.fixture.drivefs_path, "-o", self.output_dir, "--csv", "--recover-from-cache"]
         )
         self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
-        recovered_file = os.path.join(self.output_dir, "recovery", "Test User", "notes.txt")
+        recovered_file = os.path.join(self.output_dir, "recovery", EMAIL_1, "notes.txt")
         self.assertTrue(os.path.exists(recovered_file))
         with open(recovered_file, "rb") as recovered:
             self.assertEqual(recovered.read(), CACHE_CONTENT_400)
         recovered_thumbnail = os.path.join(
-            self.output_dir, "recovery", "Test User", "thumbnails", "notes.txt"
+            self.output_dir, "recovery", EMAIL_1, "thumbnails", "notes.txt"
         )
         self.assertTrue(os.path.exists(recovered_thumbnail))
         with open(recovered_thumbnail, "rb") as recovered:
@@ -119,6 +121,47 @@ class TestCliRecovery(BaseCliTestCase):
         with open(recovered_file, "rb") as recovered:
             self.assertEqual(recovered.read(), CACHE_CONTENT_400)
 
+    def test_recover_search_results_prints_summary(self):
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", self.output_dir, "--csv", "-q", "notes",
+             "--recover-search-results"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertIn("[RECOVERY] Recovered 1 items, 1 thumbnails for account", result.stdout)
+
+    def test_recover_search_results_no_match(self):
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", self.output_dir, "--csv", "-q", "zzzznomatch",
+             "--recover-search-results"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertIn("no results available", result.stdout)
+        self.assertFalse(os.path.exists(os.path.join(self.output_dir, "search_results_recovery")))
+
+    def test_recover_search_results_workers_produce_identical_output(self):
+        default_out = os.path.join(self.output_dir, "default")
+        workers_out = os.path.join(self.output_dir, "workers")
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", default_out, "--csv", "-q", "notes",
+             "--recover-search-results", "--recovery-workers", "8"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", workers_out, "--csv", "-q", "notes",
+             "--recover-search-results", "--recovery-workers", "1"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        default_files = []
+        for root, _, files in os.walk(os.path.join(default_out, "search_results_recovery")):
+            for name in files:
+                default_files.append(os.path.relpath(os.path.join(root, name), default_out))
+        self.assertTrue(default_files)
+        for rel in default_files:
+            with open(os.path.join(default_out, rel), "rb") as file_a, open(
+                os.path.join(workers_out, rel), "rb"
+            ) as file_b:
+                self.assertEqual(file_a.read(), file_b.read())
+
     def test_recover_from_cache_workers_produce_identical_output(self):
         default_out = os.path.join(self.output_dir, "default")
         workers_out = os.path.join(self.output_dir, "workers")
@@ -132,7 +175,7 @@ class TestCliRecovery(BaseCliTestCase):
              "--recovery-workers", "1"]
         )
         self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
-        expected_file = os.path.join(workers_out, "recovery", "Test User", "notes.txt")
+        expected_file = os.path.join(workers_out, "recovery", EMAIL_1, "notes.txt")
         self.assertTrue(os.path.exists(expected_file))
         default_files = []
         for root, _, files in os.walk(os.path.join(default_out, "recovery")):
@@ -144,6 +187,127 @@ class TestCliRecovery(BaseCliTestCase):
                 os.path.join(workers_out, rel), "rb"
             ) as file_b:
                 self.assertEqual(file_a.read(), file_b.read())
+
+
+class TestCliSearch(BaseCliTestCase):
+    def search_rows(self, out_dir):
+        search_csv_path = os.path.join(out_dir, "search_results.csv")
+        if not os.path.exists(search_csv_path):
+            return []
+        with open(search_csv_path, "r", encoding="utf-8", newline="") as csv_file:
+            return list(csv.DictReader(csv_file))
+
+    def test_regex_search(self):
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", self.output_dir, "--csv", "--regex", "^notes"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertEqual(len(self.search_rows(self.output_dir)), 1)
+
+    def test_regex_search_is_case_sensitive(self):
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", self.output_dir, "--csv", "--regex", "^NOTES"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertEqual(self.search_rows(self.output_dir), [])
+
+    def test_md5_search(self):
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", self.output_dir, "--csv", "--md5", MD5_A]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertEqual(len(self.search_rows(self.output_dir)), 1)
+
+    def test_url_id_search(self):
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", self.output_dir, "--csv", "--url-id", "url-id-400"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertEqual(len(self.search_rows(self.output_dir)), 1)
+
+    def test_exact_query_by_name(self):
+        exact_out = os.path.join(self.output_dir, "exact")
+        contains_out = os.path.join(self.output_dir, "contains")
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", exact_out, "--csv", "-q", "notes.txt",
+             "--exact"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertEqual(len(self.search_rows(exact_out)), 1)
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", contains_out, "--csv", "-q", "notes",
+             "--exact"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertEqual(self.search_rows(contains_out), [])
+
+    def test_dont_list_sub_items(self):
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", self.output_dir, "--csv", "-q", "projects"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertEqual(len(self.search_rows(self.output_dir)), 2)
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", self.output_dir, "--csv", "-q", "projects",
+             "--dont-list-sub-items"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertEqual(len(self.search_rows(self.output_dir)), 1)
+
+    def test_search_csv_with_all_criteria_types(self):
+        search_csv_path = os.path.join(self.tmp.name, "criteria.csv")
+        with open(search_csv_path, "w", encoding="utf-8", newline="") as csv_file:
+            writer = csv.writer(csv_file)
+            writer.writerow(["TYPE", "TARGET", "CONTAINS", "LIST_SUB_ITEMS"])
+            writer.writerow(["filename", "report", "True", "True"])
+            writer.writerow(["regex", "^notes", "", "True"])
+            writer.writerow(["md5", MD5_A, "", ""])
+            writer.writerow(["urlid", "url-id-400", "", "False"])
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", self.output_dir, "--csv", "--search-csv",
+             search_csv_path]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        self.assertEqual(len(self.search_rows(self.output_dir)), 5)
+
+    def test_search_csv_without_contains_columns_shows_usage(self):
+        search_csv_path = os.path.join(self.tmp.name, "criteria.csv")
+        with open(search_csv_path, "w", encoding="utf-8", newline="") as csv_file:
+            csv_file.write("TYPE,TARGET\n")
+            csv_file.write("filename,report\n")
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", self.output_dir, "--csv", "--search-csv",
+             search_csv_path]
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("TYPE,TARGET,CONTAINS,LIST_SUB_ITEMS", result.stdout)
+
+    def test_search_csv_row_missing_target_shows_usage(self):
+        search_csv_path = os.path.join(self.tmp.name, "criteria.csv")
+        with open(search_csv_path, "w", encoding="utf-8", newline="") as csv_file:
+            csv_file.write("TYPE,TARGET,CONTAINS,LIST_SUB_ITEMS\n")
+            csv_file.write("filename,,True,True\n")
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", self.output_dir, "--csv", "--search-csv",
+             search_csv_path]
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("TYPE,TARGET,CONTAINS,LIST_SUB_ITEMS", result.stdout)
+
+    def test_search_csv_missing_file_shows_error(self):
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", self.output_dir, "--csv", "--search-csv",
+             os.path.join(self.tmp.name, "nope.csv")]
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("couldn't read the searching criteria CSV file", result.stdout)
+
+    def test_invalid_regex_exits_2(self):
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", self.output_dir, "--csv", "--regex", "("]
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Invalid regular expression", result.stdout)
 
 
 class TestCliArgumentValidation(unittest.TestCase):

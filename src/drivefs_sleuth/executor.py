@@ -540,7 +540,7 @@ def execute():
                 try:
                     acc_recovery_from_cache_path = os.path.join(
                         recovery_from_cache_path,
-                        __safe_dirname(account.get_name(), account.get_account_id()),
+                        __safe_dirname(account.get_account_email(), account.get_account_id()),
                     )
                     acc_thumbnails_path = os.path.join(
                         acc_recovery_from_cache_path, "thumbnails"
@@ -605,14 +605,15 @@ def execute():
                     )
                 for account_id in search_results:
                     try:
-                        account_email = next(
+                        account = next(
                             (
-                                acc.get_account_email()
+                                acc
                                 for acc in investigation.get_accounts()
                                 if acc.get_account_id() == account_id
                             ),
-                            account_id,
+                            None,
                         )
+                        account_email = account.get_account_email() if account else account_id
                         acc_search_recovery_results_path = os.path.join(
                             search_recovery_results_path,
                             __safe_dirname(account_email, account_id),
@@ -622,15 +623,30 @@ def execute():
                         )
                         os.makedirs(acc_search_recovery_results_path, exist_ok=True)
                         os.makedirs(acc_thumbnails_path, exist_ok=True)
-                        recover_from_content_cache(
+                        content_ranges = {}
+                        if account is not None:
+                            profile_path = account.get_profile_path()
+                            if profile_path:
+                                content_ranges = load_cache_ranges(
+                                    os.path.join(
+                                        profile_path, "content_cache", "chunks.db"
+                                    )
+                                )
+                        recovered_items_count = recover_from_content_cache(
                             search_results[account_id],
                             acc_search_recovery_results_path,
                             args.recovery_workers,
+                            content_ranges,
                         )
-                        recover_thumbnail(
+                        recovered_thumbnails_count = recover_thumbnail(
                             search_results[account_id],
                             acc_thumbnails_path,
                             args.recovery_workers,
+                        )
+                        print(
+                            f"[RECOVERY] Recovered {recovered_items_count} items, "
+                            f"{recovered_thumbnails_count} thumbnails for "
+                            f"account {account_id}"
                         )
                     except OSError as e:
                         print(
