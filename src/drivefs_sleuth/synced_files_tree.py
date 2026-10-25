@@ -29,6 +29,11 @@ class Item:
         self.tree_path = tree_path
         self.__parsed_proto = parse_protobuf(proto)
         self.md5 = self.__parsed_proto.get('48', '')
+        self.detected_type = ''
+        self.detected_mime = ''
+        self.magic_confidence = ''
+        self.cache_mtime = ''
+        self.ads = ''
 
     def _get_proto_field(self, field):
         return self.__parsed_proto.get(field, '')
@@ -84,7 +89,12 @@ class Item:
             'viewed_by_me_date': self.get_viewed_by_me_date_utc(),
             'trashed': self.trashed,
             'tree_path': self.tree_path,
-            'md5': self.md5
+            'md5': self.md5,
+            'detected_type': self.detected_type,
+            'detected_mime': self.detected_mime,
+            'magic_confidence': self.magic_confidence,
+            'cache_mtime': self.cache_mtime,
+            'ads': self.ads
         }
         for prop_name, prop_value in self.properties.items():
             item_dict[prop_name] = prop_value
@@ -105,6 +115,9 @@ class File(Item):
 
     def get_content_cache_path(self):
         return self.__content_cache_path
+
+    def set_content_cache_path(self, content_cache_path):
+        self.__content_cache_path = content_cache_path
 
     def get_thumbnail_path(self):
         return self.__thumbnail_path
@@ -205,6 +218,9 @@ class SyncedFilesTree:
         self.__mirror_items = []
         self.__recoverable_items_from_cache = []
         self.__thumbnail_items = []
+        self.__deleted_files = []
+        self.__orphan_cache_files = []
+        self.__orphan_files_root = None
 
     def get_root(self):
         return self.__root
@@ -232,6 +248,40 @@ class SyncedFilesTree:
 
     def get_recovered_deleted_items(self):
         return self.__recovered_deleted_items
+
+    def add_deleted_file(self, deleted_file):
+        self.__deleted_files.append(deleted_file)
+
+    def get_deleted_files(self):
+        return self.__deleted_files
+
+    def add_orphan_cache_file(self, orphan_cache_file):
+        if self.__orphan_files_root is None:
+            self.__orphan_files_root = Directory(
+                "orphan-files-root",
+                "",
+                "Orphan Files",
+                "application/vnd.google-apps.folder",
+                "",
+                "",
+                "",
+                "",
+                0,
+                {},
+                "Orphan Files",
+                "",
+            )
+        orphan_cache_file.tree_path = (
+            f"Orphan Files\\{orphan_cache_file.local_title}"
+        )
+        self.__orphan_files_root.add_item(orphan_cache_file)
+        self.__orphan_cache_files.append(orphan_cache_file)
+
+    def get_orphan_cache_files(self):
+        return self.__orphan_cache_files
+
+    def get_orphan_files_root(self):
+        return self.__orphan_files_root
 
     def get_item_by_id(self, target_id, is_owner=False):
         if not is_owner:
@@ -362,6 +412,12 @@ class SyncedFilesTree:
         for recovered_deleted_item in self.get_recovered_deleted_items():
             __search(recovered_deleted_item)
 
+        for deleted_file in self.get_deleted_files():
+            __search(deleted_file)
+
+        for orphan_cache_file in self.get_orphan_cache_files():
+            __search(orphan_cache_file)
+
         unique_items = []
         seen_ids = set()
         for item in items:
@@ -425,6 +481,9 @@ class SyncedFilesTree:
         for recovered_deleted_items in self.__recovered_deleted_items:
             print(f'- ({recovered_deleted_items.get_stable_id()}) {recovered_deleted_items.local_title}')
 
+        for deleted_file in self.__deleted_files:
+            print(f'- ({deleted_file.get_stable_id()}) {deleted_file.local_title}')
+
         for deleted_item in self.__deleted_items:
             print(f'- {deleted_item}')
 
@@ -432,6 +491,11 @@ class SyncedFilesTree:
 
         for orphan in self.get_orphan_items():
             print(f'- ({orphan.get_stable_id()}) {orphan.local_title}')
+
+        print('\n----------Orphan Files----------\n')
+
+        if self.__orphan_files_root:
+            _print_tree([self.__orphan_files_root])
 
         print('\n----------Shared With Me Items----------\n')
 

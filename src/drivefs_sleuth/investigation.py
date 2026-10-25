@@ -6,6 +6,7 @@ Description: this module contains a class to represent an investigation.
 """
 
 import os.path
+import json
 import datetime
 import threading
 from queue import Queue
@@ -19,6 +20,9 @@ from drivefs_sleuth.utils import parse_protobuf
 from drivefs_sleuth.utils import get_max_root_ids
 from drivefs_sleuth.utils import ProfileMetadata
 from drivefs_sleuth.utils import get_mirrored_items
+from drivefs_sleuth.utils import compute_md5
+from drivefs_sleuth.utils import detect_file_type
+from drivefs_sleuth.utils import load_cache_ranges
 from drivefs_sleuth.utils import get_thumbnails_paths
 from drivefs_sleuth.utils import get_connected_devices
 from drivefs_sleuth.utils import get_content_caches_paths
@@ -26,6 +30,7 @@ from drivefs_sleuth.utils import get_file_content_cache_path
 from drivefs_sleuth.utils import get_mirroring_roots_for_account
 from drivefs_sleuth.utils import get_thumbnails_stem_paths
 from drivefs_sleuth.utils import get_content_cache_stem_paths
+from drivefs_sleuth.utils import get_alternate_data_streams
 
 from drivefs_sleuth.synced_files_tree import File
 from drivefs_sleuth.synced_files_tree import Link
@@ -594,6 +599,217 @@ class Account:
                     )
                 if thumbnail_path:
                     self.__synced_files_tree.add_thumbnail_item(recovered_file)
+
+        self.__build_deleted_files(metadata, content_cache_stems, thumbnails_stems)
+        self.__build_orphan_cache_files(
+            metadata, content_cache_stems, self.__get_tracked_item_ids()
+        )
+
+    def __get_tracked_item_ids(self):
+        tracked_ids = set()
+        stack = [
+            self.__synced_files_tree.get_root()
+        ] + list(self.__synced_files_tree.get_shared_with_me_items())
+        while stack:
+            item = stack.pop()
+            if item.get_stable_id() in tracked_ids:
+                continue
+            tracked_ids.add(item.get_stable_id())
+            if item.is_dir():
+                stack.extend(item.get_sub_items())
+            elif item.is_link():
+                stack.append(item.get_target_item())
+        return tracked_ids
+
+    def __build_deleted_files(
+        self, metadata, content_cache_stems, thumbnails_stems
+    ):
+        active_cache_keys = metadata.get_active_content_cache_keys()
+        all_inactive_keys = metadata.get_inactive_content_cache_keys()
+        synced_files_tree = self.__synced_files_tree
+
+        for item_stable_id, entries in metadata.get_all_inactive_content_entries():
+            owner_info = metadata.get_item_info(item_stable_id)
+            if owner_info:
+                continue
+            owner_properties = dict(metadata.get_item_properties(item_stable_id))
+            for entry in entries:
+                cache_key = str(entry.get("cache_key", ""))
+                if not cache_key:
+                    continue
+                if cache_key in active_cache_keys:
+                    continue
+                cache_path = content_cache_stems.get(cache_key, "")
+                detected = detect_file_type(cache_path) if cache_path else {}
+                extension = detected.get("extension", "")
+                local_title = cache_key
+                if extension and not cache_key.lower().endswith(
+                    "." + extension.lower()
+                ):
+                    local_title = f"{cache_key}.{extension}"
+                deleted_file = File(
+                    item_stable_id,
+                    "",
+                    local_title,
+                    detected.get("mime_type", ""),
+                    "",
+                    entry.get("size") or "",
+                    "",
+                    "",
+                    1,
+                    owner_properties,
+                    f"Unknown - {local_title}",
+                    cache_path,
+                    "",
+                    "",
+                )
+                if cache_path:
+                    self.__enrich_cache_file_item(
+                        deleted_file, cache_path, detected
+                    )
+                synced_files_tree.add_deleted_file(deleted_file)
+
+        referenced_cache_keys = active_cache_keys | all_inactive_keys
+        for stem, cache_path in content_cache_stems.items():
+            if stem in referenced_cache_keys:
+                continue
+            self.__add_metadata_less_deleted_file(
+                synced_files_tree, stem, cache_path
+            )
+
+        if thumbnails_stems:
+            thumbnail_references = (
+                set(
+                    load_cache_ranges(
+                        os.path.join(
+                            self.__profile_path,
+                            "thumbnails_cache",
+                            "chunks.db",
+                        )
+                    )
+                )
+                | metadata.get_all_item_stable_ids()
+            )
+            for stem, cache_path in thumbnails_stems.items():
+                if stem in thumbnail_references:
+                    continue
+                self.__add_metadata_less_deleted_file(
+                    synced_files_tree, stem, cache_path
+                )
+
+    def __add_metadata_less_deleted_file(self, synced_files_tree, stem, cache_path):
+        try:
+            file_size = os.path.getsize(cache_path)
+        except OSError:
+            file_size = ""
+        if not file_size:
+            return
+        detected = detect_file_type(cache_path)
+        extension = detected.get("extension", "")
+        base_name = os.path.basename(cache_path)
+        local_title = base_name
+        if extension and not base_name.lower().endswith("." + extension.lower()):
+            local_title = f"{base_name}.{extension}"
+        deleted_file = File(
+            f"orphan-{stem}",
+            "",
+            local_title,
+            detected.get("mime_type", ""),
+            "",
+            file_size,
+            "",
+            "",
+            1,
+            {},
+            f"Unknown - {local_title}",
+            cache_path,
+            "",
+            "",
+        )
+        self.__enrich_cache_file_item(deleted_file, cache_path, detected)
+        synced_files_tree.add_deleted_file(deleted_file)
+
+    def __build_orphan_cache_files(self, metadata, content_cache_stems, tracked_ids):
+        inactive_entries = metadata.get_all_inactive_content_entries()
+        if not inactive_entries:
+            return
+        active_cache_keys = metadata.get_active_content_cache_keys()
+        synced_files_tree = self.__synced_files_tree
+        for item_stable_id, entries in inactive_entries:
+            owner_info = metadata.get_item_info(item_stable_id)
+            if not owner_info:
+                continue
+            if item_stable_id in tracked_ids:
+                live_item = synced_files_tree.get_item_by_id(item_stable_id)
+                if (
+                    live_item is not None
+                    and live_item.is_file()
+                    and not live_item.get_content_cache_path()
+                ):
+                    for entry in entries:
+                        cache_key = str(entry.get("cache_key", ""))
+                        if not cache_key or cache_key in active_cache_keys:
+                            continue
+                        cache_path = content_cache_stems.get(cache_key, "")
+                        if cache_path:
+                            live_item.set_content_cache_path(cache_path)
+                            synced_files_tree.add_recoverable_item_from_cache(
+                                live_item
+                            )
+                            break
+                continue
+            tree_item = synced_files_tree.get_item_by_id(item_stable_id)
+            owner_properties = dict(metadata.get_item_properties(item_stable_id))
+            for entry in entries:
+                cache_key = str(entry.get("cache_key", ""))
+                if not cache_key:
+                    continue
+                if cache_key in active_cache_keys:
+                    continue
+                cache_path = content_cache_stems.get(cache_key, "")
+                detected = detect_file_type(cache_path) if cache_path else {}
+                orphan_file = File(
+                    f"orphan-{cache_key}",
+                    owner_info[2],
+                    owner_info[3],
+                    owner_info[4],
+                    owner_info[5],
+                    entry.get("size") or owner_info[6],
+                    owner_info[7],
+                    owner_info[8],
+                    owner_info[9],
+                    owner_properties,
+                    tree_item.tree_path if tree_item else "Unknown",
+                    cache_path,
+                    "",
+                    "",
+                )
+                if cache_path:
+                    self.__enrich_cache_file_item(
+                        orphan_file, cache_path, detected
+                    )
+                synced_files_tree.add_orphan_cache_file(orphan_file)
+
+    def __enrich_cache_file_item(self, item, cache_path, detected):
+        item.md5 = compute_md5(cache_path) or ""
+        item.detected_type = detected.get("extension", "")
+        item.detected_mime = detected.get("mime_type", "")
+        confidence = detected.get("confidence", None)
+        item.magic_confidence = str(confidence) if confidence is not None else ""
+        try:
+            mtime = os.path.getmtime(cache_path)
+        except OSError:
+            mtime = None
+        if mtime is not None:
+            try:
+                item.cache_mtime = datetime.datetime.fromtimestamp(
+                    mtime, datetime.timezone.utc
+                ).isoformat()
+            except (OSError, OverflowError, ValueError):
+                item.cache_mtime = ""
+        alternate_data_streams = get_alternate_data_streams(cache_path)
+        if alternate_data_streams:
+            item.ads = json.dumps(alternate_data_streams, ensure_ascii=True, default=str)
 
 
 class Investigation:

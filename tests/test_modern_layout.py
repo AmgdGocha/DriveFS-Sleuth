@@ -23,18 +23,26 @@ from builders import MODERN_CACHE_PART_1
 from builders import MODERN_DISPLAY_NAME
 from builders import MODERN_EMAIL
 from builders import MODERN_EMPTY_ORPHAN_KEY
+from builders import MODERN_INACTIVE_CONTENT
+from builders import MODERN_INACTIVE_KEY
 from builders import MODERN_ORPHAN_CONTENT
 from builders import MODERN_ORPHAN_KEY
+from builders import MODERN_STALE_CONTENT
 from builders import MODERN_THUMBNAIL_CONTENT
+from builders import MODERN_UNREACHABLE_CONTENT
+from builders import MODERN_ZOMBIE_CONTENT
+from builders import MODERN_ZOMBIE_KEY
 from builders import STABLE_MODERN_FILE
 from builders import STABLE_MODERN_MULTI
+from builders import STABLE_MODERN_STALE
 from builders import TITLE_MODERN_FILE
 from builders import TITLE_MODERN_MULTI
+from builders import TITLE_MODERN_ORPHAN_ITEM
+from builders import TITLE_MODERN_STALE
 from builders import build_modern_layout_fixture
 
 from drivefs_sleuth.investigation import Investigation
 from drivefs_sleuth.tasks import recover_from_content_cache
-from drivefs_sleuth.tasks import recover_orphaned_cache
 from drivefs_sleuth.tasks import recover_thumbnail
 from drivefs_sleuth.utils import get_content_cache_stem_paths
 from drivefs_sleuth.utils import get_file_content_cache_path
@@ -133,7 +141,10 @@ class TestModernInvestigation(BaseModernTestCase):
         multi_file = tree.get_item_by_id(STABLE_MODERN_MULTI)
         self.assertEqual(multi_file.get_content_cache_path(), self.fixture.multi_cache_path)
 
-        self.assertEqual(len(tree.get_recoverable_items_from_cache()), 2)
+        stale_file = tree.get_item_by_id(STABLE_MODERN_STALE)
+        self.assertEqual(stale_file.get_content_cache_path(), self.fixture.stale_cache_path)
+
+        self.assertEqual(len(tree.get_recoverable_items_from_cache()), 3)
         self.assertEqual(len(tree.get_thumbnail_items()), 1)
 
 
@@ -167,16 +178,6 @@ class TestModernRecovery(BaseModernTestCase):
         )
         with open(os.path.join(self.recovery_dir, TITLE_MODERN_FILE), "rb") as recovered:
             self.assertEqual(recovered.read(), MODERN_THUMBNAIL_CONTENT)
-
-    def test_orphan_recovery_into_orphaned_cache_folder(self):
-        recover_orphaned_cache([self.fixture.orphan_cache_path], self.recovery_dir, workers=2)
-        with open(os.path.join(self.recovery_dir, "orphaned_cache",
-                               f"{MODERN_ORPHAN_KEY}.bin.png"), "rb") as recovered:
-            self.assertEqual(recovered.read(), MODERN_ORPHAN_CONTENT)
-
-    def test_orphan_recovery_without_files_creates_no_folder(self):
-        recover_orphaned_cache([], self.recovery_dir, workers=2)
-        self.assertFalse(os.path.exists(os.path.join(self.recovery_dir, "orphaned_cache")))
 
     def test_parallel_and_sequential_recovery_produce_identical_output(self):
         sequential_dir = os.path.join(self.tmp.name, "sequential")
@@ -270,7 +271,7 @@ class TestModernCli(BaseModernTestCase):
             [self.fixture.drivefs_path, "-o", output_dir, "--csv", "--recover-from-cache"]
         )
         self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
-        self.assertIn("Recovered 2 items, 1 thumbnails, and 1 orphaned cache files",
+        self.assertIn("Recovered 3 items, 1 thumbnails, 2 deleted file(s), and 1 orphaned cache files",
                       result.stdout)
 
         account_dir = os.path.join(output_dir, "recovery", MODERN_EMAIL)
@@ -278,13 +279,19 @@ class TestModernCli(BaseModernTestCase):
             self.assertEqual(recovered.read(), MODERN_CACHE_CONTENT_SINGLE)
         with open(os.path.join(account_dir, TITLE_MODERN_MULTI), "rb") as recovered:
             self.assertEqual(recovered.read(), MODERN_CACHE_MULTI_EXPECTED)
+        with open(os.path.join(account_dir, TITLE_MODERN_STALE), "rb") as recovered:
+            self.assertEqual(recovered.read(), MODERN_STALE_CONTENT)
         with open(os.path.join(account_dir, "thumbnails", TITLE_MODERN_FILE), "rb") as recovered:
             self.assertEqual(recovered.read(), MODERN_THUMBNAIL_CONTENT)
-        with open(os.path.join(account_dir, "orphaned_cache",
+        with open(os.path.join(account_dir, "deleted_files", f"{MODERN_ZOMBIE_KEY}.png"), "rb") as recovered:
+            self.assertEqual(recovered.read(), MODERN_ZOMBIE_CONTENT)
+        with open(os.path.join(account_dir, "deleted_files",
                                f"{MODERN_ORPHAN_KEY}.bin.png"), "rb") as recovered:
             self.assertEqual(recovered.read(), MODERN_ORPHAN_CONTENT)
+        with open(os.path.join(account_dir, "orphaned_cache", TITLE_MODERN_ORPHAN_ITEM), "rb") as recovered:
+            self.assertEqual(recovered.read(), MODERN_UNREACHABLE_CONTENT)
         self.assertFalse(os.path.exists(os.path.join(
-            account_dir, "orphaned_cache", f"{MODERN_EMPTY_ORPHAN_KEY}.dat"
+            account_dir, "deleted_files", f"{MODERN_EMPTY_ORPHAN_KEY}.dat"
         )))
         self.assertFalse(os.path.exists(os.path.join(account_dir, "orphaned_cache", "METADATA")))
         self.assertFalse(os.path.exists(os.path.join(account_dir, "METADATA")))
@@ -296,7 +303,7 @@ class TestModernCli(BaseModernTestCase):
              "--ignore-orphans"]
         )
         self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
-        self.assertIn("Recovered 2 items, 1 thumbnails for account", result.stdout)
+        self.assertIn("Recovered 3 items, 1 thumbnails, 2 deleted file(s) for account", result.stdout)
         self.assertNotIn("orphaned cache files", result.stdout)
         account_dir = os.path.join(output_dir, "recovery", MODERN_EMAIL)
         self.assertFalse(os.path.exists(os.path.join(account_dir, "orphaned_cache")))
@@ -304,6 +311,13 @@ class TestModernCli(BaseModernTestCase):
             self.assertEqual(recovered.read(), MODERN_CACHE_CONTENT_SINGLE)
         with open(os.path.join(account_dir, TITLE_MODERN_MULTI), "rb") as recovered:
             self.assertEqual(recovered.read(), MODERN_CACHE_MULTI_EXPECTED)
+        with open(os.path.join(account_dir, TITLE_MODERN_STALE), "rb") as recovered:
+            self.assertEqual(recovered.read(), MODERN_STALE_CONTENT)
+        with open(os.path.join(account_dir, "deleted_files", f"{MODERN_ZOMBIE_KEY}.png"), "rb") as recovered:
+            self.assertEqual(recovered.read(), MODERN_ZOMBIE_CONTENT)
+        with open(os.path.join(account_dir, "deleted_files",
+                               f"{MODERN_ORPHAN_KEY}.bin.png"), "rb") as recovered:
+            self.assertEqual(recovered.read(), MODERN_ORPHAN_CONTENT)
 
     def test_csv_report_populates_modern_cache_paths(self):
         output_dir = os.path.join(self.tmp.name, "out")

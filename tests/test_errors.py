@@ -256,6 +256,35 @@ class CorruptArtifactsToleranceTestCase(unittest.TestCase):
         self.assertEqual(row[3], "WalOnly.txt")
         self.assertFalse(os.path.exists(os.path.join(triage_dir, "metadata_sqlite_db-shm")))
 
+    def test_wal_database_with_stale_empty_sidecars_is_read_untouched(self):
+        live_dir = os.path.join(self.tmp.name, "live")
+        os.makedirs(live_dir)
+        live_db_path = os.path.join(live_dir, "metadata_sqlite_db")
+        db = sqlite3.connect(live_db_path)
+        db.execute("PRAGMA journal_mode=WAL")
+        db.executescript(ITEMS_DDL)
+        db.execute(
+            "INSERT INTO items (stable_id, id, proto, trashed, is_owner, mime_type, is_folder, "
+            "modified_date, shared_with_me_date, viewed_by_me_date, file_size, is_tombstone, "
+            "local_title, subscribed) VALUES (?, ?, NULL, 0, 1, ?, 0, ?, 0, ?, 100, 0, ?, 1)",
+            (902, "url-902", TXT_MIME, LAST_SYNC_MS, LAST_SYNC_MS, "StaleSidecar.txt"),
+        )
+        db.commit()
+        db.close()
+        triage_dir = os.path.join(self.tmp.name, "triage")
+        os.makedirs(triage_dir)
+        triage_db_path = os.path.join(triage_dir, "metadata_sqlite_db")
+        shutil.copy2(live_db_path, triage_db_path)
+        with open(triage_db_path + "-wal", "wb"):
+            pass
+        with open(triage_db_path + "-shm", "wb") as shm_file:
+            shm_file.write(b"\x00" * 64)
+        shm_before = os.path.getsize(triage_db_path + "-shm")
+        row = get_item_info(triage_dir, 902)
+        self.assertEqual(row[3], "StaleSidecar.txt")
+        self.assertEqual(os.path.getsize(triage_db_path + "-wal"), 0)
+        self.assertEqual(os.path.getsize(triage_db_path + "-shm"), shm_before)
+
     def test_corrupt_metadata_db_returns_empty_defaults(self):
         _corrupt_file(os.path.join(self.fixture.profile_path(), "metadata_sqlite_db"))
         self.assertEqual(get_parent_relationships(self.fixture.profile_path()), [])

@@ -49,7 +49,8 @@ from drivefs_sleuth.tasks import generate_html_report
 BASE_HEADERS = [
     "account_id", "email", "stable_id", "type", "url_id", "local_title", "mime_type",
     "path_in_content_cache", "thumbnail_path", "is_owner", "file_size", "modified_date",
-    "viewed_by_me_date", "trashed", "tree_path", "md5", "folder_queried", "content-entry",
+    "viewed_by_me_date", "trashed", "tree_path", "md5", "detected_type", "detected_mime",
+    "magic_confidence", "cache_mtime", "ads", "folder_queried", "content-entry",
 ]
 
 

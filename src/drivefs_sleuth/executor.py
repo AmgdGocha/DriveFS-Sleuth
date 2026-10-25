@@ -9,7 +9,6 @@ import os
 import re
 import sys
 import csv
-import sqlite3
 import argparse
 from argparse import RawTextHelpFormatter
 
@@ -21,13 +20,8 @@ from drivefs_sleuth.tasks import recover_thumbnail
 from drivefs_sleuth.tasks import generate_csv_report
 from drivefs_sleuth.tasks import generate_html_report
 from drivefs_sleuth.tasks import recover_from_content_cache
-from drivefs_sleuth.tasks import recover_orphaned_cache
 
 from drivefs_sleuth.utils import load_cache_ranges
-from drivefs_sleuth.utils import get_items_stable_ids
-from drivefs_sleuth.utils import get_content_entry_cache_keys
-from drivefs_sleuth.utils import get_content_cache_stem_paths
-from drivefs_sleuth.utils import get_thumbnails_stem_paths
 
 USE_EMOJI = "utf-8" in (sys.stdout.encoding or "").lower()
 
@@ -38,39 +32,6 @@ def __get_status_emoji(emoji, fallback):
 
 def __safe_dirname(value, fallback):
     return re.sub(r'[<>:"/\\|?*]', "_", str(value or fallback).strip())
-
-
-def __collect_orphaned_cache_files(profile_path, content_cache_dir, thumbnails_cache_dir):
-    orphan_files = []
-    try:
-        content_entry_keys = get_content_entry_cache_keys(profile_path)
-        items_stable_ids = get_items_stable_ids(profile_path)
-        thumbnails_ranges = load_cache_ranges(
-            os.path.join(thumbnails_cache_dir, "chunks.db")
-        )
-        content_stems = get_content_cache_stem_paths(content_cache_dir)
-        thumbnails_stems = get_thumbnails_stem_paths(thumbnails_cache_dir)
-        referenced_content = content_entry_keys
-        referenced_thumbnails = set(thumbnails_ranges) | items_stable_ids
-        for stem, cache_path in content_stems.items():
-            if stem in referenced_content:
-                continue
-            try:
-                if os.path.getsize(cache_path) > 0:
-                    orphan_files.append(cache_path)
-            except OSError:
-                continue
-        for stem, cache_path in thumbnails_stems.items():
-            if stem in referenced_thumbnails:
-                continue
-            try:
-                if os.path.getsize(cache_path) > 0:
-                    orphan_files.append(cache_path)
-            except OSError:
-                continue
-    except sqlite3.Error:
-        return orphan_files
-    return orphan_files
 
 
 def execute():
@@ -243,7 +204,9 @@ def execute():
 
     args = arg_parser.parse_args()
 
-    if args.ignore_orphans and not (args.recover_from_cache or args.recover_search_results):
+    if args.ignore_orphans and not (
+        args.recover_from_cache or args.recover_search_results
+    ):
         arg_parser.print_usage()
         print(
             "DriveFS Sleuth: error: --ignore-orphans can only be used with "
@@ -255,9 +218,7 @@ def execute():
 
     if not os.path.exists(drivefs_path):
         arg_parser.print_usage()
-        print(
-            f"DriveFS Sleuth: error: The provided path doesn't exist: {drivefs_path}"
-        )
+        print(f"DriveFS Sleuth: error: The provided path doesn't exist: {drivefs_path}")
         arg_parser.exit(2)
 
     if not os.path.isdir(drivefs_path):
@@ -292,9 +253,7 @@ def execute():
 
     if args.recovery_workers is not None and args.recovery_workers < 1:
         arg_parser.print_usage()
-        print(
-            "DriveFS Sleuth: error: --recovery-workers should be a positive integer."
-        )
+        print("DriveFS Sleuth: error: --recovery-workers should be a positive integer.")
         arg_parser.exit(2)
 
     if os.path.isfile(args.output):
@@ -338,7 +297,9 @@ def execute():
                                 {"TYPE": "md5", "TARGET": [criteria["TARGET"]]}
                             )
                         elif criteria["TYPE"].lower() == "urlid":
-                            if (criteria["LIST_SUB_ITEMS"] or "true").lower() == "false":
+                            if (
+                                criteria["LIST_SUB_ITEMS"] or "true"
+                            ).lower() == "false":
                                 searching_criteria.append(
                                     {
                                         "TYPE": "urlid",
@@ -355,7 +316,9 @@ def execute():
                                     }
                                 )
                         elif criteria["TYPE"].lower() == "regex":
-                            if (criteria["LIST_SUB_ITEMS"] or "true").lower() == "false":
+                            if (
+                                criteria["LIST_SUB_ITEMS"] or "true"
+                            ).lower() == "false":
                                 searching_criteria.append(
                                     {
                                         "TYPE": "regex",
@@ -502,7 +465,9 @@ def execute():
                     re.compile(target)
                 except re.error:
                     arg_parser.print_usage()
-                    print(f"DriveFS Sleuth: error: Invalid regular expression: {target}")
+                    print(
+                        f"DriveFS Sleuth: error: Invalid regular expression: {target}"
+                    )
                     arg_parser.exit(2)
 
         print(f"{__get_status_emoji('🔍', '[SEARCHING]')} Searching... [IN PROGRESS]")
@@ -556,7 +521,9 @@ def execute():
                 try:
                     acc_recovery_from_cache_path = os.path.join(
                         recovery_from_cache_path,
-                        __safe_dirname(account.get_account_email(), account.get_account_id()),
+                        __safe_dirname(
+                            account.get_account_email(), account.get_account_id()
+                        ),
                     )
                     acc_thumbnails_path = os.path.join(
                         acc_recovery_from_cache_path, "thumbnails"
@@ -565,7 +532,6 @@ def execute():
                     os.makedirs(acc_thumbnails_path, exist_ok=True)
                     profile_path = account.get_profile_path()
                     content_cache_dir = os.path.join(profile_path, "content_cache")
-                    thumbnails_cache_dir = os.path.join(profile_path, "thumbnails_cache")
                     content_ranges = load_cache_ranges(
                         os.path.join(content_cache_dir, "chunks.db")
                     )
@@ -580,28 +546,35 @@ def execute():
                         acc_thumbnails_path,
                         args.recovery_workers,
                     )
+                    recovered_deleted_count = 0
+                    deleted_files = synced_files_tree.get_deleted_files()
+                    if deleted_files:
+                        recovered_deleted_count = recover_from_content_cache(
+                            deleted_files,
+                            os.path.join(acc_recovery_from_cache_path, "deleted_files"),
+                            args.recovery_workers,
+                        )
                     recovered_orphans_count = 0
                     if not args.ignore_orphans:
-                        orphan_files = __collect_orphaned_cache_files(
-                            profile_path, content_cache_dir, thumbnails_cache_dir
-                        )
+                        orphan_files = synced_files_tree.get_orphan_cache_files()
                         if orphan_files:
-                            recovered_orphans_count = recover_orphaned_cache(
-                                orphan_files, acc_recovery_from_cache_path,
-                                args.recovery_workers
+                            recovered_orphans_count = recover_from_content_cache(
+                                orphan_files,
+                                os.path.join(
+                                    acc_recovery_from_cache_path, "orphaned_cache"
+                                ),
+                                args.recovery_workers,
                             )
                     recovery_summary = (
-                        f"[RECOVERY] Recovered {recovered_items_count} items, "
-                        f"{recovered_thumbnails_count} thumbnails"
+                        f"  + [RECOVERY] Recovered {recovered_items_count} items, "
+                        f"{recovered_thumbnails_count} thumbnails, "
+                        f"{recovered_deleted_count} deleted file(s)"
                     )
                     if not args.ignore_orphans:
                         recovery_summary += (
                             f", and {recovered_orphans_count} orphaned cache files"
                         )
-                    print(
-                        recovery_summary
-                        + f" for account {account.get_account_id()}"
-                    )
+                    print(recovery_summary + f" for account {account.get_account_id()}")
                 except OSError as e:
                     print(
                         f"[WARNING] Couldn't recover cached items for account {account.get_account_id()}: {e}"
@@ -636,7 +609,9 @@ def execute():
                             ),
                             None,
                         )
-                        account_email = account.get_account_email() if account else account_id
+                        account_email = (
+                            account.get_account_email() if account else account_id
+                        )
                         acc_search_recovery_results_path = os.path.join(
                             search_recovery_results_path,
                             __safe_dirname(account_email, account_id),

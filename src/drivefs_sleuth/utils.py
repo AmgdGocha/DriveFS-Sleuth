@@ -7,6 +7,8 @@ Description: this module contains the auxiliary utilities for executing drivefs-
 
 import re
 import os
+import json
+import hashlib
 import shutil
 import sqlite3
 import tempfile
@@ -67,15 +69,19 @@ def _connect_read_only(db_path):
     shm_path = db_path + "-shm"
 
     if __is_wal_database(db_path):
-        if os.path.exists(shm_path):
-            return __open_read_only(db_uri + "?mode=ro")
-        if os.path.exists(wal_path) and os.path.getsize(wal_path) > 0:
+        has_wal = os.path.exists(wal_path) and os.path.getsize(wal_path) > 0
+        has_shm = os.path.exists(shm_path) and os.path.getsize(shm_path) > 0
+        if has_wal:
             temp_dir = tempfile.mkdtemp()
             temp_db = os.path.join(temp_dir, "db")
             try:
                 shutil.copy2(db_path, temp_db)
                 shutil.copy2(wal_path, temp_db + "-wal")
-                connection = __open_read_only(Path(os.path.abspath(temp_db)).as_uri() + "?mode=ro")
+                if has_shm:
+                    shutil.copy2(shm_path, temp_db + "-shm")
+                connection = __open_read_only(
+                    Path(os.path.abspath(temp_db)).as_uri() + "?mode=ro"
+                )
             except (sqlite3.Error, OSError):
                 shutil.rmtree(temp_dir, ignore_errors=True)
                 connection = __open_read_only(db_uri + "?mode=ro&immutable=1")
@@ -109,6 +115,8 @@ class ProfileMetadata:
         self.__deleted_items = []
         self.__shared_with_me = []
         self.__load_errors = []
+        self.__inactive_content_entries = []
+        self.__active_content_cache_keys = set()
         try:
             metadata_sqlite_db = _connect_read_only(os.path.join(profile_path, "metadata_sqlite_db"))
         except sqlite3.Error:
@@ -135,6 +143,7 @@ class ProfileMetadata:
                     self.__item_properties.setdefault(item_stable_id, {})[key] = value
             except sqlite3.Error:
                 self.__load_errors.append('item_properties')
+            self.__index_content_entries()
             try:
                 cursor.execute("SELECT shortcut_stable_id, target_stable_id FROM shortcut_details")
                 self.__shortcut_targets = dict(cursor.fetchall())
@@ -150,6 +159,27 @@ class ProfileMetadata:
                 self.__shared_with_me = cursor.fetchall()
             except sqlite3.Error:
                 self.__load_errors.append('shared_with_me')
+
+    def __index_content_entries(self):
+        for item_stable_id, properties in self.__item_properties.items():
+            item_info = self.__items.get(self.__normalize_id(item_stable_id))
+            if item_info and item_info[0] == 0 and "content-entry" in properties:
+                cache_key = parse_protobuf(properties["content-entry"]).get("1", None)
+                if cache_key is not None:
+                    self.__active_content_cache_keys.add(
+                        _cache_key_to_string(cache_key)
+                    )
+            if "inactive-content-entries" in properties:
+                entries = decode_inactive_content_entries(
+                    properties["inactive-content-entries"]
+                )
+                properties["inactive-content-entries"] = json.dumps(
+                    entries, ensure_ascii=True, default=str
+                )
+                if entries:
+                    self.__inactive_content_entries.append(
+                        (item_stable_id, entries)
+                    )
 
     def __normalize_id(self, stable_id):
         if stable_id in self.__items:
@@ -170,6 +200,30 @@ class ProfileMetadata:
 
     def get_item_properties(self, item_id):
         return self.__item_properties.get(self.__normalize_id(item_id), {})
+
+    def get_inactive_content_entries(self, item_id):
+        return [
+            entries
+            for item_stable_id, entries in self.__inactive_content_entries
+            if item_stable_id == self.__normalize_id(item_id)
+        ]
+
+    def get_all_inactive_content_entries(self):
+        return self.__inactive_content_entries
+
+    def get_inactive_content_cache_keys(self):
+        cache_keys = set()
+        for _, entries in self.__inactive_content_entries:
+            for entry in entries:
+                if "cache_key" in entry:
+                    cache_keys.add(str(entry["cache_key"]))
+        return cache_keys
+
+    def get_active_content_cache_keys(self):
+        return self.__active_content_cache_keys
+
+    def get_all_item_stable_ids(self):
+        return {str(stable_id) for stable_id in self.__items}
 
     def get_target_stable_id(self, shortcut_stable_id):
         target_stable_id = self.__shortcut_targets.get(self.__normalize_id(shortcut_stable_id))
@@ -396,6 +450,117 @@ def parse_protobuf(protobuf):
         return blackboxprotobuf.decode_message(protobuf)[0]
     except Exception:
         return {}
+
+
+def _cache_key_to_string(cache_key):
+    if isinstance(cache_key, bytes):
+        return cache_key.decode('utf-8', errors='replace')
+    return str(cache_key)
+
+
+def decode_inactive_content_entries(protobuf):
+    entries = []
+    parsed = parse_protobuf(protobuf)
+    messages = parsed.get('1', None)
+    if messages is None:
+        return entries
+    if isinstance(messages, dict):
+        messages = [messages]
+    for message in messages:
+        if not isinstance(message, dict):
+            continue
+        cache_key = message.get('1', None)
+        if cache_key is None:
+            continue
+        entry = {'cache_key': _cache_key_to_string(cache_key)}
+        for field, name in (('2', 'content_blob_id'), ('3', 'content_id'), ('4', 'size')):
+            value = message.get(field, None)
+            if value is None:
+                continue
+            if isinstance(value, bytes):
+                value = value.decode('utf-8', errors='replace')
+            entry[name] = value
+        entries.append(entry)
+    return entries
+
+
+def detect_file_type(source_path):
+    try:
+        import puremagic
+
+        matches = puremagic.magic_file(source_path)
+    except Exception:
+        return {}
+    if not matches:
+        return {}
+    best = matches[0]
+    extension = str(getattr(best, 'extension', '') or '').strip().lower().lstrip('.')
+    if extension and not re.match(r'^[a-z0-9]{1,8}$', extension):
+        extension = ''
+    mime_type = str(getattr(best, 'mime_type', '') or '')
+    description = str(getattr(best, 'name', '') or '')
+    confidence = getattr(best, 'confidence', None)
+    return {
+        'extension': extension,
+        'mime_type': mime_type,
+        'description': description,
+        'confidence': confidence,
+    }
+
+
+def compute_md5(file_path):
+    try:
+        with open(file_path, 'rb') as file_handle:
+            hasher = hashlib.md5()
+            while True:
+                chunk = file_handle.read(1024 * 1024)
+                if not chunk:
+                    break
+                hasher.update(chunk)
+            return hasher.hexdigest()
+    except OSError:
+        return None
+
+
+_ADS_STREAM_NAMES = (
+    'Zone.Identifier',
+    'com.dropbox.attributes',
+    'AFP_AfpInfo',
+    'OECustomProperty',
+    'com.apple.metadata:kMDItemFinderComment',
+    'com.apple.metadata:kMDItemWhereFroms',
+    'quarantine',
+    'encryptable',
+)
+
+
+def get_alternate_data_streams(file_path):
+    streams = {}
+    if os.name == 'nt':
+        for stream_name in _ADS_STREAM_NAMES:
+            stream_path = file_path + ':' + stream_name
+            try:
+                if not os.path.exists(stream_path):
+                    continue
+                with open(stream_path, 'rb') as stream_handle:
+                    content = stream_handle.read(1024)
+            except OSError:
+                continue
+            streams[stream_name] = content.decode('utf-8', errors='replace')
+        return streams
+    try:
+        attribute_names = os.listxattr(file_path)
+    except (OSError, AttributeError):
+        return streams
+    for attribute_name in attribute_names:
+        if not attribute_name.startswith('user.'):
+            continue
+        try:
+            content = os.getxattr(file_path, attribute_name)[:1024]
+        except OSError:
+            continue
+        streams[attribute_name] = content.decode('utf-8', errors='replace')
+    return streams
 
 
 def get_account_properties(profile_path):

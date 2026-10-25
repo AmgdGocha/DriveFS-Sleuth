@@ -733,7 +733,11 @@
 
         <h2>Synced Files Tree</h2>
         <ul class="tree-view" id="myUL">
+          {% if tree.get_orphan_files_root() %}
+          {{ render_items([tree.get_root()] + tree.get_orphan_items() + [tree.get_orphan_files_root()]) }}
+          {% else %}
           {{ render_items([tree.get_root()] + tree.get_orphan_items()) }}
+          {% endif %}
         </ul>
 
         {% if tree.get_shared_with_me_items() %}
@@ -742,7 +746,7 @@
         {% endif %}
 
         <!-- Deleted Items (Collapsible) -->
-        {% if tree.get_recovered_deleted_items() or tree.get_deleted_items() %}
+        {% if tree.get_recovered_deleted_items() or tree.get_deleted_items() or tree.get_deleted_files() %}
         <details class="collapsible-section">
           <summary>
             <h2>Deleted Items</h2>
@@ -754,6 +758,11 @@
               <li><a {% if recovered_deleted_item.get_stable_id() in searches %}class="match" {% endif %}
                   href="#{{ recovered_deleted_item.get_stable_id() }}">{{ recovered_deleted_item.tree_path }}</a></li>
               {% endfor %}
+              {% for deleted_file in tree.get_deleted_files() %}
+              {% if deleted_file not in details_seen.items %}{{ details_seen.items.update({deleted_file: true}) or '' }}{{ details.append(deleted_file) or '' }}{% endif %}
+              <li><a {% if deleted_file.get_stable_id() in searches %}class="match" {% endif %}
+                  href="#{{ deleted_file.get_stable_id() }}">{{ deleted_file.tree_path }}</a></li>
+              {% endfor %}
               {% for deleted_item in tree.get_deleted_items() %}
               <li>{{ deleted_item.get_stable_id() }}</li>
               {% endfor %}
@@ -764,7 +773,7 @@
 
         <!-- Virtualized Item Details Table -->
         {% macro generate_items_details_table(headers, unique_id) %}
-        {% set properties = headers[11:] %}
+        {% set properties = headers[19:] %}
 
         <!-- Hidden Data Payload -->
         <script id="data-source-{{ unique_id }}" type="application/json">
@@ -784,7 +793,12 @@
                                     {{ detail.get_viewed_by_me_date_utc() | string | tojson }},
                                     {{ detail.trashed | string | tojson }},
                                     {{ detail.tree_path | string | tojson }},
-                                    {{ detail.md5 | string | tojson }}
+                                    {{ detail.md5 | string | tojson }},
+                                    {{ detail.detected_type | string | tojson }},
+                                    {{ detail.detected_mime | string | tojson }},
+                                    {{ detail.magic_confidence | string | tojson }},
+                                    {{ detail.cache_mtime | string | tojson }},
+                                    {{ detail.ads | string | tojson }}
                                     {% for prop in properties %}
                                         {% if prop not in ["trashed", "tree_path", "md5"] %}
                                         ,{{ detail.properties[prop] | string | tojson }}
