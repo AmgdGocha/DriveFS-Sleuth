@@ -69,7 +69,7 @@ class BaseReportTestCase(unittest.TestCase):
         with open(output_file, "r", encoding="utf-8", newline="") as csv_file:
             reader = csv.DictReader(csv_file)
             rows = list(reader)
-            headers = reader.fieldnames
+            headers = reader.fieldnames or []
         return headers, rows
 
     def rows_by_stable_id(self, rows, stable_id):

@@ -606,18 +606,21 @@ class Account:
         )
 
     def __get_tracked_item_ids(self):
+        synced_files_tree = self.__synced_files_tree
+        if synced_files_tree is None:
+            return set()
         tracked_ids = set()
         stack = [
-            self.__synced_files_tree.get_root()
-        ] + list(self.__synced_files_tree.get_shared_with_me_items())
+            synced_files_tree.get_root()
+        ] + list(synced_files_tree.get_shared_with_me_items())
         while stack:
             item = stack.pop()
             if item.get_stable_id() in tracked_ids:
                 continue
             tracked_ids.add(item.get_stable_id())
-            if item.is_dir():
+            if isinstance(item, Directory):
                 stack.extend(item.get_sub_items())
-            elif item.is_link():
+            elif isinstance(item, Link):
                 stack.append(item.get_target_item())
         return tracked_ids
 
@@ -627,6 +630,7 @@ class Account:
         active_cache_keys = metadata.get_active_content_cache_keys()
         all_inactive_keys = metadata.get_inactive_content_cache_keys()
         synced_files_tree = self.__synced_files_tree
+        assert synced_files_tree is not None
 
         for item_stable_id, entries in metadata.get_all_inactive_content_entries():
             owner_info = metadata.get_item_info(item_stable_id)
@@ -735,6 +739,7 @@ class Account:
             return
         active_cache_keys = metadata.get_active_content_cache_keys()
         synced_files_tree = self.__synced_files_tree
+        assert synced_files_tree is not None
         for item_stable_id, entries in inactive_entries:
             owner_info = metadata.get_item_info(item_stable_id)
             if not owner_info:
