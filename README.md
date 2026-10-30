@@ -17,6 +17,8 @@ DriveFS Sleuth is a Python tool that automates investigating Google Drive File S
 * Supports searching functionality to facilitate the investigations.
 * Recovering the synced items from the cache. The recovered items can be filtered based on the searching criteria.
 * Recovering the cached thumbnails of the synced items if available. The recovered thumbnails can be filtered based on the searching criteria.
+* Detecting deleted files — cached content not attributable to any existing item — and recovering them when still present, enriched with the detected file type, MD5, and alternate data streams.
+* Detecting orphan files — cached content of items that exist but can't be traversed to a tracked root — listed under a dedicated `Orphan Files` root, enriched with the item information, detected file type, MD5, and alternate data streams.
 * Generating HTML and CSV reports of the analysis results.
 
 For the underlying research, refer to:
@@ -82,6 +84,7 @@ usage: DriveFS Sleuth [-h] -o OUTPUT [--accounts ACCOUNTS [ACCOUNTS ...]]
                       [--dont-list-sub-items] [--csv] [--html]
                       [--recover-from-cache | --recover-search-results]
                       [--recovery-workers RECOVERY_WORKERS]
+                      [--ignore-orphans]
                       path
 
     ██████╗ ██████╗ ██╗██╗   ██╗███████╗███████╗███████╗    ███████╗██╗     ███████╗██╗   ██╗████████╗██╗  ██╗
@@ -135,6 +138,7 @@ Recovery Options:
                         Recover the search results items that are cached.
   --recovery-workers RECOVERY_WORKERS
                         Number of worker threads used to copy recovered items (default: 8).
+  --ignore-orphans      Ignore orphaned cache files during recovery, no orphaned_cache folder will be created. This argument can only be used with --recover-from-cache or --recover-search-results.
 ```
 
 ### Automated Investigation
@@ -172,13 +176,21 @@ Drive Sleuth can parse and recover the cached synced items and their thumbnails 
 Both known content cache layouts are supported:
 
 * **Legacy layout:** files stored directly in `content_cache` and addressed by a filename string in the item's `content-entry` property.
-* **Chunked layout:** files stored under `content_cache/d*/d*/<key>` (with an optional extension such as `.gz` or `.docx`) and addressed by an integer key in the `content-entry` property that matches the `ranges` table of `chunks.db`. Multi-range (partially downloaded) items are recovered by concatenating their byte ranges with a `[WARNING]` about the recovered size. Cache files that contain data but can't be attributed to a recovered item are copied into an `orphaned_cache` subfolder under the account recovery folder.
+* **Chunked layout:** files stored under `content_cache/d*/d*/<key>` (with an optional extension such as `.gz` or `.docx`) and addressed by an integer key in the `content-entry` property that matches the `ranges` table of `chunks.db`. Multi-range (partially downloaded) items are recovered by concatenating their byte ranges with a `[WARNING]` about the recovered size.
+
+### Deleted and Orphaned Files
+
+DriveFS moves the `content-entry` of deleted or overwritten file content into an `inactive-content-entries` property. DriveFS Sleuth decodes this property while loading the metadata and leverages it to classify unreferenced cached content:
+
+* **Deleted files:** cached content that can't be attributed to any existing item: `inactive-content-entries` records whose item no longer exists in the `items` table, plus cache files (content and thumbnails) that have no metadata reference at all. They are enriched with the detected file type (via puremagic), file size, file modification time, an MD5 computed from the cached content, and the alternate data streams found on the cache file (best effort); their original location is presented as `Unknown - <id>.<extension>`. With `--recover-from-cache`, deleted files are recovered into a `deleted_files` subfolder under the account recovery folder, named after their cache key and detected extension.
+* **Orphan files:** `inactive-content-entries` records whose item still exists but whose path can't be traversed to any tracked root (the "My Drive" root or "Shared with me"). They are listed under a dedicated `Orphan Files` root in the synced files tree that only exists when there are orphan files, enriched with the full item information (name, MIME type, timestamps) and the decoded inactive record; their MD5 is computed from the cached content. With `--recover-from-cache`, orphan files are recovered into an `orphaned_cache` subfolder named after their original file name. Orphaned cache files can be skipped entirely with `--ignore-orphans`.
+* **Stale versions of reachable files:** `inactive-content-entries` records whose item exists and whose path traverses to a tracked root are neither deleted nor orphaned — the file is still present in Drive. When the item has no active cached content, the stale cached content is recovered with the ordinary items under the item's own name; when the item already has active cached content, nothing is double-recovered and the stale version remains visible through the decoded `inactive-content-entries` shown in the item's details.
 
 ### Output Options
 
 DriveFS Sleuth provides support for two types of outputs:
 
-1. **CSV Files:** Can be specified via the `--csv` argument to instruct DriveFS Sleuth to generate two CSV files. The first CSV file includes a comprehensive list of all processed files, while the second CSV file specifically enumerates files and folders that match the search criteria if provided by the analyst.
+1. **CSV Files:** Can be specified via the `--csv` argument to instruct DriveFS Sleuth to generate up to three CSV files. The first CSV file includes a comprehensive list of all processed files, the second CSV file specifically enumerates files and folders that match the search criteria if provided by the analyst, and the third CSV file (`deleted_and_orphan_files.csv`) lists the deleted files (trashed items and `inactive-content-entries` records) and the orphan cache files along with all the produced enrichments.
 2. **HTML Report:** Can be specified via the `--html` argument to instruct DriveFS Sleuth to generate an HTML report summarizing the analysis results.
 The reports will be created under the output directory passed via the `[-o|--output]` argument.
 

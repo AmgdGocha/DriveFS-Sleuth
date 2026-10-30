@@ -33,6 +33,7 @@ setup(
     install_requires=[
         "Jinja2~=3.1.2",
         "bbpb",
+        "puremagic~=2.2.0",
     ],
     entry_points={
         "console_scripts": [

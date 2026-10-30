@@ -94,14 +94,23 @@ STABLE_MODERN_ROOT = 9000
 STABLE_MODERN_FILE = 9100
 STABLE_MODERN_MULTI = 9200
 STABLE_MODERN_FOLDER = 9300
+STABLE_MODERN_ORPHAN_ITEM = 9500
+STABLE_MODERN_STALE = 9600
 TITLE_MODERN_FILE = "modern.docx"
 TITLE_MODERN_MULTI = "multi.jpg"
 TITLE_MODERN_FOLDER = "Modern Folder"
+TITLE_MODERN_ORPHAN_ITEM = "unreachable.docx"
+TITLE_MODERN_STALE = "stale.docx"
 
 MODERN_CACHE_KEY_SINGLE = 206
 MODERN_CACHE_KEY_MULTI = 19307
 MODERN_ORPHAN_KEY = 5555
 MODERN_EMPTY_ORPHAN_KEY = 6666
+MODERN_INACTIVE_KEY = 7777
+MODERN_ZOMBIE_KEY = 8888
+MODERN_ZOMBIE_ITEM = 99999
+MODERN_UNREACHABLE_KEY = 9595
+MODERN_STALE_KEY = 9797
 
 MODERN_CACHE_CONTENT_SINGLE = b"MODERN LAYOUT SINGLE-CHUNK CONTENT"
 MODERN_CACHE_PART_1 = b"PART1-" * 200
@@ -114,7 +123,11 @@ MODERN_CACHE_MULTI_CHUNKS = (
 )
 MODERN_CACHE_MULTI_EXPECTED = MODERN_CACHE_PART_1 + MODERN_CACHE_PART_2
 MODERN_THUMBNAIL_CONTENT = b"MODERN THUMBNAIL BYTES"
-MODERN_ORPHAN_CONTENT = b"ORPHANED CACHE DATA"
+MODERN_ORPHAN_CONTENT = b"\x89PNG\r\n\x1a\n" + b"SYNTHETIC PNG PAYLOAD"
+MODERN_INACTIVE_CONTENT = b"OLD VERSION OF MODERN.DOCX"
+MODERN_ZOMBIE_CONTENT = b"\x89PNG\r\n\x1a\n" + b"SYNTHETIC ZOMBIE PNG PAYLOAD"
+MODERN_UNREACHABLE_CONTENT = b"\x89PNG\r\n\x1a\n" + b"SYNTHETIC UNREACHABLE PNG PAYLOAD"
+MODERN_STALE_CONTENT = b"STALE VERSION OF STALE.DOCX"
 MODERN_METADATA_CONTENT = b"INTERNAL CACHE METADATA"
 
 JPEG_MIME = "image/jpeg"
@@ -271,6 +284,18 @@ MODERN_CONTENT_ENTRY_TYPEDEF = {
     "4": {"type": "int"},
 }
 
+INACTIVE_CONTENT_ENTRIES_TYPEDEF = {
+    "1": {
+        "type": "message",
+        "message_typedef": {
+            "1": {"type": "int"},
+            "2": {"type": "string"},
+            "3": {"type": "string"},
+            "4": {"type": "int"},
+        },
+    },
+}
+
 RANGES_TYPEDEF = {
     "1": {"type": "int"},
     "2": {
@@ -340,6 +365,13 @@ def encode_modern_content_entry(cache_key):
         {"1": cache_key, "2": "", "3": "", "4": 1},
         MODERN_CONTENT_ENTRY_TYPEDEF,
     )
+
+
+def encode_inactive_content_entries(cache_key, blob_id="", content_id="", size=None):
+    entry = {"1": cache_key, "2": blob_id, "3": content_id}
+    if size is not None:
+        entry["4"] = size
+    return _encode({"1": entry}, INACTIVE_CONTENT_ENTRIES_TYPEDEF)
 
 
 def encode_ranges_single(size):
@@ -634,6 +666,18 @@ class ModernFixture:
         self.empty_orphan_cache_path = os.path.abspath(os.path.join(
             profile_path, "content_cache", "d5", "d6", f"{MODERN_EMPTY_ORPHAN_KEY}.dat"
         ))
+        self.inactive_cache_path = os.path.abspath(os.path.join(
+            profile_path, "content_cache", "d5", "d6", str(MODERN_INACTIVE_KEY)
+        ))
+        self.zombie_cache_path = os.path.abspath(os.path.join(
+            profile_path, "content_cache", "d5", "d6", str(MODERN_ZOMBIE_KEY)
+        ))
+        self.unreachable_cache_path = os.path.abspath(os.path.join(
+            profile_path, "content_cache", "d5", "d6", str(MODERN_UNREACHABLE_KEY)
+        ))
+        self.stale_cache_path = os.path.abspath(os.path.join(
+            profile_path, "content_cache", "d5", "d6", str(MODERN_STALE_KEY)
+        ))
         self.metadata_cache_path = os.path.abspath(os.path.join(
             profile_path, "content_cache", "METADATA"
         ))
@@ -670,17 +714,40 @@ def build_modern_layout_fixture(drivefs_path):
          LAST_SYNC_MS, LAST_SYNC_MS, 0, 0,
          encode_item_proto(url_id(STABLE_MODERN_MULTI), TITLE_MODERN_MULTI, JPEG_MIME, "jpg", MD5_B)),
         (STABLE_MODERN_FOLDER, TITLE_MODERN_FOLDER, FOLDER_MIME, 1, 1, 0, LAST_SYNC_MS, LAST_SYNC_MS, 0, 0, None),
+        (STABLE_MODERN_ORPHAN_ITEM, TITLE_MODERN_ORPHAN_ITEM, DOCX_MIME, 0, 1, len(MODERN_UNREACHABLE_CONTENT),
+         LAST_SYNC_MS, LAST_SYNC_MS, 0, 0,
+         encode_item_proto(url_id(STABLE_MODERN_ORPHAN_ITEM), TITLE_MODERN_ORPHAN_ITEM, DOCX_MIME, "docx", MD5_E)),
+        (STABLE_MODERN_STALE, TITLE_MODERN_STALE, DOCX_MIME, 0, 1, len(MODERN_STALE_CONTENT),
+         LAST_SYNC_MS, LAST_SYNC_MS, 0, 0,
+         encode_item_proto(url_id(STABLE_MODERN_STALE), TITLE_MODERN_STALE, DOCX_MIME, "docx", MD5_C)),
     ]
     parents = [
         (STABLE_MODERN_ROOT, STABLE_MODERN_FILE),
         (STABLE_MODERN_ROOT, STABLE_MODERN_MULTI),
         (STABLE_MODERN_ROOT, STABLE_MODERN_FOLDER),
+        (STABLE_MODERN_ROOT, STABLE_MODERN_STALE),
     ]
     item_properties = [
         (STABLE_MODERN_FILE, "content-entry",
          encode_modern_content_entry(MODERN_CACHE_KEY_SINGLE), 1),
         (STABLE_MODERN_MULTI, "content-entry",
          encode_modern_content_entry(MODERN_CACHE_KEY_MULTI), 1),
+        (STABLE_MODERN_FILE, "inactive-content-entries",
+         encode_inactive_content_entries(
+             MODERN_INACTIVE_KEY, blob_id="blob-7777", content_id="content-7777",
+             size=len(MODERN_INACTIVE_CONTENT)), 4),
+        (MODERN_ZOMBIE_ITEM, "inactive-content-entries",
+         encode_inactive_content_entries(
+             MODERN_ZOMBIE_KEY, blob_id="blob-8888", content_id="content-8888",
+             size=len(MODERN_ZOMBIE_CONTENT)), 4),
+        (STABLE_MODERN_ORPHAN_ITEM, "inactive-content-entries",
+         encode_inactive_content_entries(
+             MODERN_UNREACHABLE_KEY, blob_id="blob-9595", content_id="content-9595",
+             size=len(MODERN_UNREACHABLE_CONTENT)), 4),
+        (STABLE_MODERN_STALE, "inactive-content-entries",
+         encode_inactive_content_entries(
+             MODERN_STALE_KEY, blob_id="blob-9797", content_id="content-9797",
+             size=len(MODERN_STALE_CONTENT)), 4),
     ]
     _write_metadata_db(profile_path, items, parents, item_properties, [], [],
                        encode_account_proto(MODERN_DISPLAY_NAME, PHOTO_URL_1))
@@ -703,6 +770,14 @@ def build_modern_layout_fixture(drivefs_path):
         cache_file.write(MODERN_ORPHAN_CONTENT)
     with open(os.path.join(orphan_dir, f"{MODERN_EMPTY_ORPHAN_KEY}.dat"), "wb") as cache_file:
         cache_file.write(b"")
+    with open(os.path.join(orphan_dir, str(MODERN_INACTIVE_KEY)), "wb") as cache_file:
+        cache_file.write(MODERN_INACTIVE_CONTENT)
+    with open(os.path.join(orphan_dir, str(MODERN_ZOMBIE_KEY)), "wb") as cache_file:
+        cache_file.write(MODERN_ZOMBIE_CONTENT)
+    with open(os.path.join(orphan_dir, str(MODERN_UNREACHABLE_KEY)), "wb") as cache_file:
+        cache_file.write(MODERN_UNREACHABLE_CONTENT)
+    with open(os.path.join(orphan_dir, str(MODERN_STALE_KEY)), "wb") as cache_file:
+        cache_file.write(MODERN_STALE_CONTENT)
     with open(os.path.join(content_cache_dir, "METADATA"), "wb") as cache_file:
         cache_file.write(MODERN_METADATA_CONTENT)
     _write_chunks_db(
