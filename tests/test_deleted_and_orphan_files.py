@@ -294,7 +294,7 @@ class TestDeletedAndOrphanCsvReport(BaseDeletedOrphanTestCase):
         self.assertEqual(
             deleted_row["md5"], hashlib.md5(MODERN_ORPHAN_CONTENT).hexdigest()
         )
-        self.assertEqual(deleted_row["path_in_content_cache"], self.fixture.orphan_cache_path)
+        self.assertEqual(deleted_row["path_in_content_cache"], "<DriveFS>" + self.fixture.orphan_cache_path[len(self.fixture.drivefs_path):])
 
         orphan_row = next(
             row for row in rows if row["stable_id"] == f"orphan-{MODERN_UNREACHABLE_KEY}"

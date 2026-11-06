@@ -522,7 +522,6 @@
     <div class="card-global">
       <div class="card-header">DriveFS Global Configuration</div>
       <div class="card-body">
-        <div>Path: <span class="highlight font-mono">{{ investigation.get_drivefs_path() }}</span></div>
         <div>Last Sync Date: <span class="highlight">{{ investigation.get_last_sync_date() or 'Unknown' }}</span></div>
         <div>Max Root IDs: <span class="highlight">{{ investigation.get_max_root_ids() }}</span>
           <span style="color: {{ '#4ade80' if investigation.is_mirroring_roots_modified() else 'inherit' }}">
@@ -552,7 +551,7 @@
           <tr>
             <td class="font-mono">{{ device.get('media_id', None) }}</td>
             <td>{{ device.get('name', None) }}</td>
-            <td class="font-mono">{{ device.get('last_mount_point', None) }}</td>
+            <td class="font-mono">{{ device.get('last_mount_point', None) | redact | e }}</td>
             <td>{{ device.get('capacity', None) }}</td>
             <td>{{ device.get('ignore', None) }}</td>
           </tr>
@@ -617,9 +616,9 @@
                 <td class="font-mono">{{ mirror.get('root_id', None) }}</td>
                 <td class="font-mono">{{ mirror.get('media_id', None) }}</td>
                 <td>{{ mirror.get('title', None) }}</td>
-                <td class="font-mono">{{ mirror.get('root_path', None) }}</td>
+                <td class="font-mono">{{ mirror.get('root_path', None) | redact | e }}</td>
                 <td class="font-mono">{{ mirror.get('destination', None) }}</td>
-                <td class="font-mono">{{ mirror.get('last_seen_absolute_path', None) }}</td>
+                <td class="font-mono">{{ mirror.get('last_seen_absolute_path', None) | redact | e }}</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -785,8 +784,8 @@
                                     {{ detail.url_id | string | tojson }},
                                     {{ detail.local_title | string | tojson }},
                                     {{ detail.mime_type | string | tojson }},
-                                    {% if detail.is_file() %}{{ detail.get_content_cache_path() | string | tojson }}{% else %}""{% endif %},
-                                    {% if detail.is_file() %}{{ detail.get_thumbnail_path() | string | tojson }}{% else %}""{% endif %},
+                                    {% if detail.is_file() %}{{ detail.get_content_cache_path() | redact | string | tojson }}{% else %}""{% endif %},
+                                    {% if detail.is_file() %}{{ detail.get_thumbnail_path() | redact | string | tojson }}{% else %}""{% endif %},
                                     {{ detail.is_owner | string | tojson }},
                                     {{ detail.get_file_size_mb() | string | tojson }},
                                     {{ detail.get_modified_date_utc() | string | tojson }},
@@ -886,6 +885,13 @@
     window.vtScrollHandlers = {};
     window.vtRenderers = {};
     window.activeHighlightedIds = {}; // Dictionary mapping tableId -> Currently Highlighted ID
+
+    // Escape text before injecting into innerHTML so values like <DriveFS> render literally
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, function (char) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char];
+      });
+    }
 
     // Fully Dynamic Virtual Table Engine with Filter Support
     function initVirtualTable(tableId) {
@@ -992,23 +998,23 @@
             const rowClass = isHighlighted ? ' class="highlighted-row"' : '';
 
             html += `<tr${rowClass}>`;
-            html += `<td id="${row[0]}" class="font-mono">${row[0]}</td>`;
-            html += `<td>${row[1]}</td>`;
-            html += `<td class="font-mono">${row[2]}</td>`;
-            html += `<td>${row[3]}</td>`;
-            html += `<td>${row[4]}</td>`;
-            html += `<td class="font-mono">${row[5]}</td>`;
-            html += `<td class="font-mono">${row[6]}</td>`;
-            html += `<td>${row[7]}</td>`;
-            html += `<td>${row[8]}</td>`;
-            html += `<td>${row[9]}</td>`;
-            html += `<td>${row[10]}</td>`;
-            html += `<td>${row[11]}</td>`;
-            html += `<td class="font-mono">${row[12]}</td>`;
-            html += `<td class="font-mono">${row[13]}</td>`;
+            html += `<td id="${escapeHtml(row[0])}" class="font-mono">${escapeHtml(row[0])}</td>`;
+            html += `<td>${escapeHtml(row[1])}</td>`;
+            html += `<td class="font-mono">${escapeHtml(row[2])}</td>`;
+            html += `<td>${escapeHtml(row[3])}</td>`;
+            html += `<td>${escapeHtml(row[4])}</td>`;
+            html += `<td class="font-mono">${escapeHtml(row[5])}</td>`;
+            html += `<td class="font-mono">${escapeHtml(row[6])}</td>`;
+            html += `<td>${escapeHtml(row[7])}</td>`;
+            html += `<td>${escapeHtml(row[8])}</td>`;
+            html += `<td>${escapeHtml(row[9])}</td>`;
+            html += `<td>${escapeHtml(row[10])}</td>`;
+            html += `<td>${escapeHtml(row[11])}</td>`;
+            html += `<td class="font-mono">${escapeHtml(row[12])}</td>`;
+            html += `<td class="font-mono">${escapeHtml(row[13])}</td>`;
 
             for (let j = 14; j < row.length; j++) {
-              html += `<td>${row[j]}</td>`;
+              html += `<td>${escapeHtml(row[j])}</td>`;
             }
             html += `</tr>`;
           }

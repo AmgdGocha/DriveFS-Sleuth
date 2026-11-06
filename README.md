@@ -199,6 +199,8 @@ DriveFS Sleuth provides support for two types of outputs:
 2. **HTML Report:** Can be specified via the `--html` argument to instruct DriveFS Sleuth to generate an HTML report summarizing the analysis results.
 The reports will be created under the output directory passed via the `[-o|--output]` argument.
 
+To protect the examiner's identity, local file paths are redacted in all generated reports: the analyzed DriveFS folder path is replaced with `<DriveFS>` (so `path_in_content_cache` and `thumbnail_path` columns become `<DriveFS>/<account_id>/...`), paths under the examiner's home directory become `<home>/...`, and any other absolute path is replaced with `<redacted>`. The report header does not display the analyzed folder path at all. Recovery itself always uses the real paths.
+
 ### Examples
 
 The following are some examples of the tool usage, change the paths and the searching criteria to match yours.

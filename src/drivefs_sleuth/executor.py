@@ -22,6 +22,7 @@ from drivefs_sleuth.tasks import generate_html_report
 from drivefs_sleuth.tasks import recover_from_content_cache
 
 from drivefs_sleuth.utils import load_cache_ranges
+from drivefs_sleuth.utils import redact_local_paths_in_text
 
 USE_EMOJI = "utf-8" in (sys.stdout.encoding or "").lower()
 
@@ -560,11 +561,13 @@ def execute():
                         args.recovery_workers,
                         content_ranges,
                         preserve_paths=args.preserve_tree_paths,
+                        drivefs_path=investigation.get_drivefs_path(),
                     )
                     recovered_thumbnails_count = recover_thumbnail(
                         synced_files_tree.get_thumbnail_items(),
                         acc_thumbnails_path,
                         args.recovery_workers,
+                        drivefs_path=investigation.get_drivefs_path(),
                     )
                     recovered_deleted_count = 0
                     deleted_files = synced_files_tree.get_deleted_files()
@@ -573,6 +576,7 @@ def execute():
                             deleted_files,
                             os.path.join(acc_recovery_from_cache_path, "deleted_files"),
                             args.recovery_workers,
+                            drivefs_path=investigation.get_drivefs_path(),
                         )
                     recovered_orphans_count = 0
                     if not args.ignore_orphans:
@@ -584,6 +588,7 @@ def execute():
                                     acc_recovery_from_cache_path, "orphaned_cache"
                                 ),
                                 args.recovery_workers,
+                                drivefs_path=investigation.get_drivefs_path(),
                             )
                     recovery_summary = (
                         f"  + [RECOVERY] Recovered {recovered_items_count} items, "
@@ -597,7 +602,8 @@ def execute():
                     print(recovery_summary + f" for account {account.get_account_id()}")
                 except OSError as e:
                     print(
-                        f"[WARNING] Couldn't recover cached items for account {account.get_account_id()}: {e}"
+                        f"[WARNING] Couldn't recover cached items for account {account.get_account_id()}: "
+                        f"{redact_local_paths_in_text(str(e), investigation.get_drivefs_path())}"
                     )
         elif args.recover_search_results:
             if not search_results.values():
@@ -656,11 +662,13 @@ def execute():
                             args.recovery_workers,
                             content_ranges,
                             preserve_paths=args.preserve_tree_paths,
+                            drivefs_path=investigation.get_drivefs_path(),
                         )
                         recovered_thumbnails_count = recover_thumbnail(
                             search_results[account_id],
                             acc_thumbnails_path,
                             args.recovery_workers,
+                            drivefs_path=investigation.get_drivefs_path(),
                         )
                         print(
                             f"[RECOVERY] Recovered {recovered_items_count} items, "
@@ -669,7 +677,8 @@ def execute():
                         )
                     except OSError as e:
                         print(
-                            f"[WARNING] Couldn't recover search results for account {account_id}: {e}"
+                            f"[WARNING] Couldn't recover search results for account {account_id}: "
+                            f"{redact_local_paths_in_text(str(e), investigation.get_drivefs_path())}"
                         )
 
         print(
