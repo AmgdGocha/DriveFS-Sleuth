@@ -85,6 +85,7 @@ usage: DriveFS Sleuth [-h] -o OUTPUT [--accounts ACCOUNTS [ACCOUNTS ...]]
                       [--recover-from-cache | --recover-search-results]
                       [--recovery-workers RECOVERY_WORKERS]
                       [--ignore-orphans]
+                      [--preserve-tree-paths]
                       path
 
     ██████╗ ██████╗ ██╗██╗   ██╗███████╗███████╗███████╗    ███████╗██╗     ███████╗██╗   ██╗████████╗██╗  ██╗
@@ -139,6 +140,8 @@ Recovery Options:
   --recovery-workers RECOVERY_WORKERS
                         Number of worker threads used to copy recovered items (default: 8).
   --ignore-orphans      Ignore orphaned cache files during recovery, no orphaned_cache folder will be created. This argument can only be used with --recover-from-cache or --recover-search-results.
+  --preserve-tree-paths
+                        Preserve the synced folder structure (e.g. My Drive, Shared with me) inside the recovery output instead of writing all recovered items flat. This argument can only be used with --recover-from-cache or --recover-search-results.
 ```
 
 ### Automated Investigation
@@ -172,6 +175,8 @@ Tailor the tool's behavior with additional parameters:
 ### Recovery From Cache
 
 Drive Sleuth can parse and recover the cached synced items and their thumbnails if available, the recovery path will be under a subdirectory named after the account email (falling back to the account ID when the email is missing) that will be created under the output path passed via the `[-o|--output]` argument. Only the search results will be recovered if the argument `--recover-search-results` is set. Recovered items are copied in parallel; the number of worker threads can be adjusted with `--recovery-workers` (defaults to 8).
+
+By default, recovered items are written flat inside the account recovery folder. With `--preserve-tree-paths`, items whose synced location is known are instead written inside their synced folder structure (the tree root, e.g. `My Drive` or `Shared with me`, followed by its subfolders); deleted, orphaned, and thumbnail recoveries keep their dedicated flat folders.
 
 Both known content cache layouts are supported:
 

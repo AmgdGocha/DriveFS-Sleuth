@@ -126,6 +126,14 @@ class CliErrorHandlingTestCase(unittest.TestCase):
         self.assertIn("--ignore-orphans can only be used", result.stdout)
         self.assertNotIn("Traceback", result.stdout + result.stderr)
 
+    def test_preserve_tree_paths_without_recovery_exits_2(self):
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", self.tmp.name, "--csv", "--preserve-tree-paths"]
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--preserve-tree-paths can only be used", result.stdout)
+        self.assertNotIn("Traceback", result.stdout + result.stderr)
+
     def test_missing_search_csv_exits_2(self):
         result = run_cli(
             [self.fixture.drivefs_path, "-o", self.tmp.name, "--csv", "--search-csv",
@@ -489,6 +497,77 @@ class RecoveryResilienceTestCase(unittest.TestCase):
                 os.path.join(parallel_dir, name), "rb"
             ) as file_b:
                 self.assertEqual(file_a.read(), file_b.read())
+
+    def test_preserve_tree_paths_mirrors_tree_dirs(self):
+        source_a = os.path.join(self.tmp.name, "source-a.txt")
+        source_b = os.path.join(self.tmp.name, "source-b.txt")
+        with open(source_a, "wb") as source_file:
+            source_file.write(b"content-a")
+        with open(source_b, "wb") as source_file:
+            source_file.write(b"content-b")
+        items = [
+            File(
+                901, "url-901", TITLE_NOTES_FILE, TXT_MIME, 1, 100,
+                LAST_SYNC_MS, LAST_SYNC_MS, 0, {}, "My Drive\\Reports\\notes.txt",
+                source_a, "", b""
+            ),
+            File(
+                902, "url-902", TITLE_NOTES_FILE, TXT_MIME, 1, 100,
+                LAST_SYNC_MS, LAST_SYNC_MS, 0, {}, "My Drive\\Archive\\notes.txt",
+                source_b, "", b""
+            ),
+        ]
+        recovery_dir = os.path.join(self.tmp.name, "recovery")
+        recovered_count = recover_from_content_cache(
+            items, recovery_dir, workers=1, preserve_paths=True
+        )
+        self.assertEqual(recovered_count, 2)
+        with open(os.path.join(recovery_dir, "My Drive", "Reports", TITLE_NOTES_FILE), "rb") as recovered:
+            self.assertEqual(recovered.read(), b"content-a")
+        with open(os.path.join(recovery_dir, "My Drive", "Archive", TITLE_NOTES_FILE), "rb") as recovered:
+            self.assertEqual(recovered.read(), b"content-b")
+        self.assertFalse(os.path.exists(os.path.join(recovery_dir, TITLE_NOTES_FILE)))
+
+    def test_preserve_tree_paths_same_dir_collisions_are_suffixed(self):
+        source_a = os.path.join(self.tmp.name, "source-a.txt")
+        source_b = os.path.join(self.tmp.name, "source-b.txt")
+        with open(source_a, "wb") as source_file:
+            source_file.write(b"content-a")
+        with open(source_b, "wb") as source_file:
+            source_file.write(b"content-b")
+        items = [
+            File(
+                901, "url-901", TITLE_NOTES_FILE, TXT_MIME, 1, 100,
+                LAST_SYNC_MS, LAST_SYNC_MS, 0, {}, "My Drive\\notes.txt", source_a, "", b""
+            ),
+            File(
+                902, "url-902", TITLE_NOTES_FILE, TXT_MIME, 1, 100,
+                LAST_SYNC_MS, LAST_SYNC_MS, 0, {}, "My Drive\\notes.txt", source_b, "", b""
+            ),
+        ]
+        recovery_dir = os.path.join(self.tmp.name, "recovery")
+        recovered_count = recover_from_content_cache(
+            items, recovery_dir, workers=1, preserve_paths=True
+        )
+        self.assertEqual(recovered_count, 2)
+        names = sorted(os.listdir(os.path.join(recovery_dir, "My Drive")))
+        self.assertEqual(names, ["notes (1).txt", "notes.txt"])
+
+    def test_preserve_tree_paths_single_component_stays_flat(self):
+        source = os.path.join(self.tmp.name, "source.txt")
+        with open(source, "wb") as source_file:
+            source_file.write(b"content")
+        item = File(
+            903, "url-903", TITLE_NOTES_FILE, TXT_MIME, 1, 100,
+            LAST_SYNC_MS, LAST_SYNC_MS, 0, {}, "Unknown - 42.bin", source, "", b""
+        )
+        recovery_dir = os.path.join(self.tmp.name, "recovery")
+        recovered_count = recover_from_content_cache(
+            [item], recovery_dir, workers=1, preserve_paths=True
+        )
+        self.assertEqual(recovered_count, 1)
+        with open(os.path.join(recovery_dir, TITLE_NOTES_FILE), "rb") as recovered:
+            self.assertEqual(recovered.read(), b"content")
 
 
 if __name__ == "__main__":

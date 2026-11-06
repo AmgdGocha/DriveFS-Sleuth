@@ -15,6 +15,7 @@ from jinja2 import FileSystemLoader
 
 from drivefs_sleuth.utils import copy_to_dest
 from drivefs_sleuth.utils import get_dest_path
+from drivefs_sleuth.utils import get_tree_path_rel_dir
 from drivefs_sleuth.utils import lookup_account_id
 from drivefs_sleuth.utils import get_properties_list
 from drivefs_sleuth.utils import get_account_properties
@@ -276,19 +277,43 @@ def __recover_items(pending, recovery_path, workers, warn_message, cache_ranges=
 
 
 def recover_from_content_cache(
-    recoverable_items, recovery_path, workers=None, cache_ranges=None
+    recoverable_items, recovery_path, workers=None, cache_ranges=None,
+    preserve_paths=False
 ):
-    pending = []
-    for item in recoverable_items:
-        if isinstance(item, File):
-            source_path = item.get_content_cache_path()
-            if source_path:
-                pending.append((source_path, item.local_title))
-
     def warn_message(source_path, title):
         return f"[WARNING] Couldn't recover {title} from cache: {source_path}"
 
-    return __recover_items(pending, recovery_path, workers, warn_message, cache_ranges)
+    if not preserve_paths:
+        pending = []
+        for item in recoverable_items:
+            if isinstance(item, File):
+                source_path = item.get_content_cache_path()
+                if source_path:
+                    pending.append((source_path, item.local_title))
+        return __recover_items(pending, recovery_path, workers, warn_message, cache_ranges)
+
+    pending_by_dir = {}
+    for item in recoverable_items:
+        if not isinstance(item, File):
+            continue
+        source_path = item.get_content_cache_path()
+        if not source_path:
+            continue
+        rel_dir = get_tree_path_rel_dir(item.tree_path)
+        if rel_dir:
+            target_dir = os.path.join(recovery_path, *rel_dir)
+        else:
+            target_dir = recovery_path
+        pending_by_dir.setdefault(target_dir, []).append((source_path, item.local_title))
+
+    recovered_count = 0
+    for target_dir, pending in pending_by_dir.items():
+        try:
+            os.makedirs(target_dir, exist_ok=True)
+        except OSError:
+            pass
+        recovered_count += __recover_items(pending, target_dir, workers, warn_message, cache_ranges)
+    return recovered_count
 
 
 def recover_thumbnail(recoverable_items, recovery_path, workers=None):

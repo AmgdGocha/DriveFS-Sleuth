@@ -202,6 +202,15 @@ def execute():
         "This argument can only be used with --recover-from-cache or --recover-search-results.",
     )
 
+    recovery_group.add_argument(
+        "--preserve-tree-paths",
+        dest="preserve_tree_paths",
+        action="store_true",
+        help="Preserve the synced folder structure (e.g. My Drive, Shared with me) inside the recovery "
+        "output instead of writing all recovered items flat. This argument can only be used with "
+        "--recover-from-cache or --recover-search-results.",
+    )
+
     args = arg_parser.parse_args()
 
     if args.ignore_orphans and not (
@@ -210,6 +219,16 @@ def execute():
         arg_parser.print_usage()
         print(
             "DriveFS Sleuth: error: --ignore-orphans can only be used with "
+            "--recover-from-cache or --recover-search-results"
+        )
+        arg_parser.exit(2)
+
+    if args.preserve_tree_paths and not (
+        args.recover_from_cache or args.recover_search_results
+    ):
+        arg_parser.print_usage()
+        print(
+            "DriveFS Sleuth: error: --preserve-tree-paths can only be used with "
             "--recover-from-cache or --recover-search-results"
         )
         arg_parser.exit(2)
@@ -540,6 +559,7 @@ def execute():
                         acc_recovery_from_cache_path,
                         args.recovery_workers,
                         content_ranges,
+                        preserve_paths=args.preserve_tree_paths,
                     )
                     recovered_thumbnails_count = recover_thumbnail(
                         synced_files_tree.get_thumbnail_items(),
@@ -635,6 +655,7 @@ def execute():
                             acc_search_recovery_results_path,
                             args.recovery_workers,
                             content_ranges,
+                            preserve_paths=args.preserve_tree_paths,
                         )
                         recovered_thumbnails_count = recover_thumbnail(
                             search_results[account_id],
