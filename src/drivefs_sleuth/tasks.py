@@ -22,6 +22,7 @@ from drivefs_sleuth.utils import get_account_properties
 from drivefs_sleuth.utils import get_available_profiles
 from drivefs_sleuth.utils import get_experiment_account_ids
 from drivefs_sleuth.utils import get_ranges_for_cache_path
+from drivefs_sleuth.utils import redact_local_path
 
 from drivefs_sleuth.synced_files_tree import File
 
@@ -73,6 +74,13 @@ def __build_headers(investigation):
     return headers
 
 
+def __redact_row_paths(row, drivefs_path):
+    for column in ("path_in_content_cache", "thumbnail_path"):
+        if row.get(column):
+            row[column] = redact_local_path(row[column], drivefs_path)
+    return row
+
+
 def __generate_csv_search_results_report(investigation, output_file, search_results):
     search_results_headers = ["account_id", "email"] + __build_headers(investigation)
     with open(
@@ -107,7 +115,9 @@ def __generate_csv_search_results_report(investigation, output_file, search_resu
                     row["type"] = "Link"
                 else:
                     row["type"] = "Directory"
-                csv_writer.writerow(row)
+                csv_writer.writerow(
+                    __redact_row_paths(row, investigation.get_drivefs_path())
+                )
 
 
 def __generate_csv_report_gen(investigation, output_file):
@@ -126,7 +136,9 @@ def __generate_csv_report_gen(investigation, output_file):
                 for row in files_tree.generate_synced_files_tree_dicts():
                     row["account_id"] = account.get_account_id()
                     row["email"] = account.get_account_email()
-                    csv_writer.writerow(row)
+                    csv_writer.writerow(
+                        __redact_row_paths(row, investigation.get_drivefs_path())
+                    )
 
 
 def __generate_deleted_and_orphan_csv_report(investigation, output_file):
@@ -161,7 +173,9 @@ def __generate_deleted_and_orphan_csv_report(investigation, output_file):
                         row["type"] = "Link"
                     else:
                         row["type"] = "Directory"
-                    csv_writer.writerow(row)
+                    csv_writer.writerow(
+                        __redact_row_paths(row, investigation.get_drivefs_path())
+                    )
 
 
 def generate_csv_report(investigation, output_file, search_results=None):
@@ -191,6 +205,9 @@ def generate_html_report(investigation, output_file, search_results=None):
         loader=FileSystemLoader(
             os.path.join(os.path.dirname(__file__), "html_resources")
         )
+    )
+    env.filters["redact"] = lambda value: redact_local_path(
+        value, investigation.get_drivefs_path()
     )
     template = env.get_template("report_template.html")
     headers = __build_headers(investigation)
@@ -278,10 +295,13 @@ def __recover_items(pending, recovery_path, workers, warn_message, cache_ranges=
 
 def recover_from_content_cache(
     recoverable_items, recovery_path, workers=None, cache_ranges=None,
-    preserve_paths=False
+    preserve_paths=False, drivefs_path=None
 ):
     def warn_message(source_path, title):
-        return f"[WARNING] Couldn't recover {title} from cache: {source_path}"
+        shown_path = source_path
+        if drivefs_path:
+            shown_path = redact_local_path(source_path, drivefs_path)
+        return f"[WARNING] Couldn't recover {title} from cache: {shown_path}"
 
     if not preserve_paths:
         pending = []
@@ -316,7 +336,7 @@ def recover_from_content_cache(
     return recovered_count
 
 
-def recover_thumbnail(recoverable_items, recovery_path, workers=None):
+def recover_thumbnail(recoverable_items, recovery_path, workers=None, drivefs_path=None):
     pending = []
     for item in recoverable_items:
         if isinstance(item, File):
@@ -325,6 +345,9 @@ def recover_thumbnail(recoverable_items, recovery_path, workers=None):
                 pending.append((source_path, item.local_title))
 
     def warn_message(source_path, title):
-        return f"[WARNING] Couldn't recover thumbnail {title}: {source_path}"
+        shown_path = source_path
+        if drivefs_path:
+            shown_path = redact_local_path(source_path, drivefs_path)
+        return f"[WARNING] Couldn't recover thumbnail {title}: {shown_path}"
 
     return __recover_items(pending, recovery_path, workers, warn_message)

@@ -12,6 +12,7 @@ import unittest
 
 from builders import ACCOUNT_ID_1
 from builders import ACCOUNT_ID_2
+from builders import CACHE_FILE_400
 from builders import DISPLAY_NAME_1
 from builders import DISPLAY_NAME_2
 from builders import EMAIL_1
@@ -127,8 +128,8 @@ class TestCsvReport(BaseReportTestCase):
         self.assertEqual(notes_row["tree_path"], f"{TITLE_ROOT_1}\\{TITLE_PROJECTS_DIR}\\notes.txt")
         self.assertEqual(notes_row["md5"], MD5_A)
         self.assertEqual(notes_row["file_size"], "5000000")
-        self.assertEqual(notes_row["path_in_content_cache"], self.fixture.cache_file_path_400)
-        self.assertEqual(notes_row["thumbnail_path"], self.fixture.thumbnail_file_path_400)
+        self.assertEqual(notes_row["path_in_content_cache"], "<DriveFS>" + self.fixture.content_cache_path(CACHE_FILE_400)[len(self.fixture.drivefs_path):])
+        self.assertEqual(notes_row["thumbnail_path"], "<DriveFS>" + self.fixture.thumbnail_path(str(STABLE_NOTES_FILE))[len(self.fixture.drivefs_path):])
         self.assertEqual(notes_row["content-entry"], str(self.fixture.content_entry_blob_400))
 
         shortcut_row = self.rows_by_stable_id(rows, STABLE_REPORT_SHORTCUT)[0]
@@ -183,11 +184,28 @@ class TestHtmlReport(BaseReportTestCase):
     def test_global_configuration_section(self):
         html = self.read_html()
         self.assertIn("DriveFS Global Configuration", html)
-        self.assertIn(self.fixture.drivefs_path, html)
+        self.assertNotIn("Path:", html)
+        self.assertNotIn(self.fixture.drivefs_path, html)
         self.assertIn(LAST_SYNC_UTC_STR, html)
         self.assertIn("Max Root IDs", html)
         self.assertIn("Not Modified", html)
         self.assertIn(LAST_PID, html)
+
+    def test_local_paths_are_redacted(self):
+        html = self.read_html()
+        self.assertNotIn(self.fixture.cache_file_path_400, html)
+        self.assertNotIn(self.fixture.thumbnail_file_path_400, html)
+        self.assertIn("&lt;redacted&gt;", html)
+        self.assertIn(
+            "\\u003cDriveFS\\u003e"
+            + self.fixture.content_cache_path(CACHE_FILE_400)[len(self.fixture.drivefs_path):],
+            html,
+        )
+        self.assertIn(
+            "\\u003cDriveFS\\u003e"
+            + self.fixture.thumbnail_path(str(STABLE_NOTES_FILE))[len(self.fixture.drivefs_path):],
+            html,
+        )
 
     def test_connected_devices_section(self):
         html = self.read_html()

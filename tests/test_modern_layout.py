@@ -231,7 +231,7 @@ class TestModernSearchCli(BaseModernTestCase):
             rows = list(csv.DictReader(csv_file))
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["local_title"], TITLE_MODERN_FILE)
-        self.assertEqual(rows[0]["path_in_content_cache"], self.fixture.single_cache_path)
+        self.assertEqual(rows[0]["path_in_content_cache"], "<DriveFS>" + self.fixture.single_cache_path[len(self.fixture.drivefs_path):])
 
     def test_recover_search_results_single_chunk(self):
         output_dir = os.path.join(self.tmp.name, "out")
@@ -391,5 +391,5 @@ class TestModernCli(BaseModernTestCase):
         with open(os.path.join(output_dir, "csv_report.csv"), newline="") as csv_file:
             rows = list(csv.DictReader(csv_file))
         single_row = next(row for row in rows if row["local_title"] == TITLE_MODERN_FILE)
-        self.assertEqual(single_row["path_in_content_cache"], self.fixture.single_cache_path)
-        self.assertEqual(single_row["thumbnail_path"], self.fixture.thumbnail_cache_path)
+        self.assertEqual(single_row["path_in_content_cache"], "<DriveFS>" + self.fixture.single_cache_path[len(self.fixture.drivefs_path):])
+        self.assertEqual(single_row["thumbnail_path"], "<DriveFS>" + self.fixture.thumbnail_cache_path[len(self.fixture.drivefs_path):])

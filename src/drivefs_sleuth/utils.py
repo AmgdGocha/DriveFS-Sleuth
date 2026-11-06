@@ -840,6 +840,43 @@ def get_tree_path_rel_dir(tree_path):
     return tuple(dir_components)
 
 
+def redact_local_path(value, drivefs_path):
+    if not value or not isinstance(value, str):
+        return value
+    normalized = os.path.normpath(value)
+    home_path = os.path.normpath(os.path.expanduser("~"))
+    prefixes = (
+        (os.path.normpath(drivefs_path or ""), "<DriveFS>"),
+        (home_path, "<home>"),
+    )
+    for prefix, marker in prefixes:
+        if not prefix or prefix in (os.sep, "/"):
+            continue
+        prefix_norm = os.path.normcase(prefix)
+        normalized_norm = os.path.normcase(normalized)
+        if normalized_norm == prefix_norm:
+            return marker
+        if normalized_norm.startswith(prefix_norm + os.sep):
+            return marker + os.sep + normalized[len(prefix) + 1:]
+    if re.match(r"^[A-Za-z]:[\\/]", value) or value.startswith(("/", "\\")):
+        return "<redacted>"
+    return value
+
+
+def redact_local_paths_in_text(text, drivefs_path):
+    if not text or not isinstance(text, str):
+        return text
+    prefixes = (
+        (os.path.normpath(drivefs_path or ""), "<DriveFS>"),
+        (os.path.normpath(os.path.expanduser("~")), "<home>"),
+    )
+    for prefix, marker in prefixes:
+        if not prefix or prefix in (os.sep, "/"):
+            continue
+        text = text.replace(prefix, marker)
+    return text
+
+
 def get_dest_path(recovery_path, dest_filename, used_names):
     return __claim_dest_path(recovery_path, __sanitize_filename(dest_filename), used_names)
 

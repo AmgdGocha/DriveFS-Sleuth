@@ -24,6 +24,8 @@ from drivefs_sleuth.utils import get_last_sync
 from drivefs_sleuth.utils import get_tree_path_rel_dir
 from drivefs_sleuth.utils import lookup_account_id
 from drivefs_sleuth.utils import parse_protobuf
+from drivefs_sleuth.utils import redact_local_path
+from drivefs_sleuth.utils import redact_local_paths_in_text
 
 
 class TestParseProtobuf(unittest.TestCase):
@@ -147,6 +149,85 @@ class TestGetTreePathRelDir(unittest.TestCase):
             get_tree_path_rel_dir("My Drive\\Bad<Dir>\\notes.txt"),
             ("My Drive", "Bad_Dir_"),
         )
+
+
+class TestRedactLocalPath(unittest.TestCase):
+    def test_path_under_drivefs_is_prefixed(self):
+        self.assertEqual(
+            redact_local_path(
+                os.path.join("/tmp", "DriveFS", "111", "content_cache", "abc"),
+                "/tmp/DriveFS",
+            ),
+            "<DriveFS>/111/content_cache/abc",
+        )
+
+    def test_exact_drivefs_path_returns_marker(self):
+        self.assertEqual(redact_local_path("/tmp/DriveFS", "/tmp/DriveFS"), "<DriveFS>")
+
+    def test_trailing_slash_drivefs_still_matches(self):
+        self.assertEqual(
+            redact_local_path("/tmp/DriveFS/111/content_cache/abc", "/tmp/DriveFS/"),
+            "<DriveFS>/111/content_cache/abc",
+        )
+
+    @unittest.skipUnless(os.path.expanduser("~") != os.sep, "home directory is the filesystem root")
+    def test_path_under_home_is_prefixed(self):
+        home = os.path.expanduser("~")
+        self.assertEqual(
+            redact_local_path(os.path.join(home, "Documents", "mirror"), "/tmp/DriveFS"),
+            "<home>/Documents/mirror",
+        )
+        self.assertEqual(redact_local_path(home, "/tmp/DriveFS"), "<home>")
+
+    def test_unmatched_absolute_path_is_redacted(self):
+        self.assertEqual(
+            redact_local_path("/media/analyst/EXTERNAL", "/tmp/DriveFS"), "<redacted>"
+        )
+
+    def test_windows_style_path_is_redacted(self):
+        self.assertEqual(
+            redact_local_path("C:\\Users\\Analyst\\mirror", "/tmp/DriveFS"), "<redacted>"
+        )
+        self.assertEqual(redact_local_path("C:\\", "/tmp/DriveFS"), "<redacted>")
+
+    def test_relative_unmatched_path_is_unchanged(self):
+        self.assertEqual(
+            redact_local_path("relative/notes.txt", "/tmp/DriveFS"), "relative/notes.txt"
+        )
+
+    def test_falsy_and_non_string_values_are_unchanged(self):
+        self.assertEqual(redact_local_path(None, "/tmp/DriveFS"), None)
+        self.assertEqual(redact_local_path("", "/tmp/DriveFS"), "")
+
+
+class TestRedactLocalPathsInText(unittest.TestCase):
+    def test_drivefs_occurrences_inside_message_are_prefixed(self):
+        self.assertEqual(
+            redact_local_paths_in_text(
+                "[Errno 13] Permission denied: '/tmp/DriveFS/111/content_cache/x'",
+                "/tmp/DriveFS",
+            ),
+            "[Errno 13] Permission denied: '<DriveFS>/111/content_cache/x'",
+        )
+
+    def test_home_occurrences_inside_message_are_prefixed(self):
+        home = os.path.expanduser("~")
+        self.assertEqual(
+            redact_local_paths_in_text(
+                f"failed to open {os.path.join(home, 'Documents', 'x')}", "/tmp/DriveFS"
+            ),
+            f"failed to open <home>{os.sep}Documents{os.sep}x",
+        )
+
+    def test_plain_text_without_paths_is_unchanged(self):
+        self.assertEqual(
+            redact_local_paths_in_text("some error happened", "/tmp/DriveFS"),
+            "some error happened",
+        )
+
+    def test_falsy_and_non_string_values_are_unchanged(self):
+        self.assertEqual(redact_local_paths_in_text(None, "/tmp/DriveFS"), None)
+        self.assertEqual(redact_local_paths_in_text("", "/tmp/DriveFS"), "")
 
 
 class TestCopyFile(unittest.TestCase):
