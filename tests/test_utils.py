@@ -21,6 +21,7 @@ from drivefs_sleuth.utils import get_content_caches_paths
 from drivefs_sleuth.utils import get_file_content_cache_path
 from drivefs_sleuth.utils import get_last_pid
 from drivefs_sleuth.utils import get_last_sync
+from drivefs_sleuth.utils import get_tree_path_rel_dir
 from drivefs_sleuth.utils import lookup_account_id
 from drivefs_sleuth.utils import parse_protobuf
 
@@ -118,6 +119,34 @@ class TestGetContentCachesPaths(unittest.TestCase):
         self.assertIn("cachefile-1", paths)
         self.assertIn("cachefile-2", paths)
         self.assertEqual(paths["cachefile-1"], os.path.abspath(os.path.join(nested, "cachefile-1")))
+
+
+class TestGetTreePathRelDir(unittest.TestCase):
+    def test_nested_tree_path_returns_dir_components(self):
+        self.assertEqual(
+            get_tree_path_rel_dir("My Drive\\Work\\Reports\\notes.txt"),
+            ("My Drive", "Work", "Reports"),
+        )
+
+    def test_single_component_path_returns_empty_tuple(self):
+        self.assertEqual(get_tree_path_rel_dir("Unknown - 42.bin"), ())
+
+    def test_unknown_and_empty_paths_return_empty_tuple(self):
+        self.assertEqual(get_tree_path_rel_dir("Unknown"), ())
+        self.assertEqual(get_tree_path_rel_dir(""), ())
+        self.assertEqual(get_tree_path_rel_dir(None), ())
+
+    def test_dot_components_are_dropped(self):
+        self.assertEqual(
+            get_tree_path_rel_dir("My Drive\\..\\Work\\.\\notes.txt"),
+            ("My Drive", "Work"),
+        )
+
+    def test_invalid_chars_are_sanitized(self):
+        self.assertEqual(
+            get_tree_path_rel_dir("My Drive\\Bad<Dir>\\notes.txt"),
+            ("My Drive", "Bad_Dir_"),
+        )
 
 
 class TestCopyFile(unittest.TestCase):

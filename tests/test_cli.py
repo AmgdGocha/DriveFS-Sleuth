@@ -16,6 +16,8 @@ from builders import CACHE_CONTENT_400
 from builders import EMAIL_1
 from builders import MD5_A
 from builders import THUMBNAIL_CONTENT_400
+from builders import TITLE_PROJECTS_DIR
+from builders import TITLE_ROOT_1
 from builders import UNKNOWN_ACCOUNT_ID
 from builders import build_logged_in_fixture
 
@@ -116,6 +118,37 @@ class TestCliRecovery(BaseCliTestCase):
         self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
         recovered_file = os.path.join(
             self.output_dir, "search_results_recovery", "testuser@example.com", "notes.txt"
+        )
+        self.assertTrue(os.path.exists(recovered_file))
+        with open(recovered_file, "rb") as recovered:
+            self.assertEqual(recovered.read(), CACHE_CONTENT_400)
+
+    def test_recover_from_cache_preserve_tree_paths(self):
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", self.output_dir, "--csv", "--recover-from-cache",
+             "--preserve-tree-paths"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        recovered_file = os.path.join(
+            self.output_dir, "recovery", EMAIL_1, TITLE_ROOT_1, TITLE_PROJECTS_DIR, "notes.txt"
+        )
+        self.assertTrue(os.path.exists(recovered_file))
+        with open(recovered_file, "rb") as recovered:
+            self.assertEqual(recovered.read(), CACHE_CONTENT_400)
+        recovered_thumbnail = os.path.join(
+            self.output_dir, "recovery", EMAIL_1, "thumbnails", "notes.txt"
+        )
+        self.assertTrue(os.path.exists(recovered_thumbnail))
+
+    def test_recover_search_results_preserve_tree_paths(self):
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", self.output_dir, "--csv", "-q", "notes",
+             "--recover-search-results", "--preserve-tree-paths"]
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stdout + result.stderr)
+        recovered_file = os.path.join(
+            self.output_dir, "search_results_recovery", EMAIL_1, TITLE_ROOT_1,
+            TITLE_PROJECTS_DIR, "notes.txt"
         )
         self.assertTrue(os.path.exists(recovered_file))
         with open(recovered_file, "rb") as recovered:
@@ -345,6 +378,14 @@ class TestCliArgumentValidation(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 2)
         self.assertIn("--recovery-workers", result.stdout)
+
+    def test_preserve_tree_paths_without_recovery_exits_2(self):
+        result = run_cli(
+            [self.fixture.drivefs_path, "-o", os.path.join(self.tmp.name, "out"), "--csv",
+             "--preserve-tree-paths"]
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--preserve-tree-paths", result.stdout)
 
     def test_output_pointing_to_file_exits_2(self):
         existing_file = os.path.join(self.tmp.name, "afile.txt")

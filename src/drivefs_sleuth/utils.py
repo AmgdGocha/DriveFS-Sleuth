@@ -825,6 +825,21 @@ def __claim_dest_path(recovery_path, dest_filename, used_names):
         counter += 1
 
 
+def get_tree_path_rel_dir(tree_path):
+    if not tree_path or tree_path == 'Unknown':
+        return ()
+    components = tree_path.split('\\')
+    if len(components) < 2:
+        return ()
+    dir_components = []
+    for component in components[:-1]:
+        component = __sanitize_filename(component)
+        if component in ('', '.', '..'):
+            continue
+        dir_components.append(component)
+    return tuple(dir_components)
+
+
 def get_dest_path(recovery_path, dest_filename, used_names):
     return __claim_dest_path(recovery_path, __sanitize_filename(dest_filename), used_names)
 
